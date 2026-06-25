@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-05-20T15:18:16",
+  "campaign": "xalqsigorta-travel-insurance-georgia-train-v6-background",
+  "brand": "Xalq Sigorta",
+  "decision": "needs_creative_review",
+  "automated_gate_score": 97.8,
+  "overall_score": null,
+  "rubric": {
+    "name": "Xalq Insurance Digital OS Social Studio Creative Audit Rubric",
+    "version": "2.0.0"
+  },
+  "score_meaning": {
+    "automated_gate_score": "Objective production checks only. This is not final creative quality.",
+    "creative_judgment_score": "Vision-capable LLM or senior human review of concept, craft, taste, and market strength.",
+    "final_score": "Only available when automated gate and creative judgment are both present."
+  },
+  "scores": {
+    "brand_fit": 100.0,
+    "art_direction": 100.0,
+    "marketing_clarity": 88.0,
+    "compliance_safety": 100.0,
+    "production_readiness": 100.0
+  },
+  "creative_judgment": {
+    "status": "missing",
+    "score": null,
+    "reviewer": null,
+    "note": "Final creative approval requires a vision-capable review."
+  },
+  "findings": [
+    {
+      "severity": "review",
+      "code": "creative_judgment_missing",
+      "message": "Automated gate passed, but no human or vision-LLM creative review was provided."
+    }
+  ],
+  "prompt_patch": [
+    "Run a human or vision-LLM creative review before final approval; deterministic checks only validate measurable production gates."
+  ],
+  "exports": [
+    {
+      "path": "output\\social\\xalqsigorta-georgia-train-travel-insurance-background-v6-1080x1350.png",
+      "exists": true,
+      "placement": "feed_4x5_background",
+      "dimensions": {
+        "width": 1080,
+        "height": 1350,
+        "expected_width": 1080,
+        "expected_height": 1350,
+        "ok": true
+      },
+      "metrics": {
+        "full": {
+          "luminance_mean": 0.21938428282737732,
+          "luminance_std": 0.2236924022436142,
+          "edge_energy": 0.030610941350460052
+        },
+        "footer": {
+          "luminance_mean": 0.026637950912117958,
+          "luminance_std": 0.029747270047664642,
+          "edge_energy": 0.002813277766108513
+        },
+        "headline_zone": {
+          "luminance_mean": 0.1643408089876175,
+          "luminance_std": 0.0543733686208725,
+          "edge_energy": 0.007224065251648426
+        },
+        "red_ratio": 0.0733367919921875
+      },
+      "scores": {
+        "production_readiness": 100.0,
+        "art_direction": 100.0,
+        "brand_fit": 100.0
+      },
+      "findings": []
+    }
+  ]
+}

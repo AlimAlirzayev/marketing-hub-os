@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ramin-os/video-studio/generative_ads/brief.schema.json",
+  "title": "Xalq Insurance Digital OS Generative Ad Brief",
+  "type": "object",
+  "required": [
+    "version",
+    "campaign",
+    "platform",
+    "format",
+    "objective",
+    "brand",
+    "offer",
+    "assets",
+    "storyboard",
+    "model_strategy",
+    "text_policy",
+    "qa"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": "1" },
+    "campaign": {
+      "type": "object",
+      "required": ["slug", "name", "language"],
+      "additionalProperties": false,
+      "properties": {
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "language": { "type": "string" },
+        "owner": { "type": "string" },
+        "source_brief": { "type": "string" }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "required": ["name", "placement"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "enum": ["meta", "instagram", "tiktok", "linkedin", "youtube", "generic"] },
+        "placement": { "type": "string" },
+        "paid_media_notes": { "type": "string" }
+      }
+    },
+    "format": {
+      "type": "object",
+      "required": ["aspect", "duration_s", "resolution", "fps"],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": { "type": "string", "enum": ["9:16", "4:5", "1:1", "16:9"] },
+        "duration_s": { "type": "number", "minimum": 1, "maximum": 60 },
+        "resolution": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 16 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "fps": { "type": "integer", "enum": [24, 25, 30, 60] },
+        "safe_area": { "type": "string" }
+      }
+    },
+    "objective": {
+      "type": "object",
+      "required": ["primary", "audience", "single_minded_message"],
+      "additionalProperties": false,
+      "properties": {
+        "primary": { "type": "string" },
+        "audience": { "type": "string" },
+        "single_minded_message": { "type": "string" },
+        "conversion_action": { "type": "string" }
+      }
+    },
+    "brand": {
+      "type": "object",
+      "required": ["name", "identity_source", "tone", "palette", "typography", "rules"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "identity_source": { "type": "string" },
+        "tone": { "type": "array", "items": { "type": "string" } },
+        "palette": { "type": "array", "items": { "type": "string" } },
+        "typography": { "type": "array", "items": { "type": "string" } },
+        "rules": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "offer": {
+      "type": "object",
+      "required": ["headline", "subheadline", "dates", "cta", "terms"],
+      "additionalProperties": false,
+      "properties": {
+        "headline": { "type": "string" },
+        "subheadline": { "type": "string" },
+        "dates": { "type": "string" },
+        "cta": { "type": "string" },
+        "terms": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "path_or_url", "usage"],
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "brand_logo",
+              "partner_logo",
+              "product_reference",
+              "campaign_key_visual",
+              "motion_reference",
+              "style_reference",
+              "overlay_lockup",
+              "music_reference",
+              "legal_source"
+            ]
+          },
+          "path_or_url": { "type": "string" },
+          "asset_id": { "type": "string" },
+          "usage": { "type": "string" },
+          "must_preserve": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "storyboard": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["time", "beat", "visual", "motion", "overlay"],
+        "additionalProperties": false,
+        "properties": {
+          "time": { "type": "string" },
+          "beat": { "type": "string" },
+          "visual": { "type": "string" },
+          "motion": { "type": "string" },
+          "overlay": { "type": "string" }
+        }
+      }
+    },
+    "model_strategy": {
+      "type": "object",
+      "required": ["recommended", "fallbacks", "variant_count", "selection_criteria"],
+      "additionalProperties": false,
+      "properties": {
+        "recommended": { "type": "array", "items": { "type": "string" } },
+        "fallbacks": { "type": "array", "items": { "type": "string" } },
+        "variant_count": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "selection_criteria": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "text_policy": {
+      "type": "object",
+      "required": ["ai_text_rule", "overlay_text", "forbidden"],
+      "additionalProperties": false,
+      "properties": {
+        "ai_text_rule": { "type": "string" },
+        "overlay_text": { "type": "array", "items": { "type": "string" } },
+        "forbidden": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "qa": {
+      "type": "object",
+      "required": ["reject_if", "approve_if"],
+      "additionalProperties": false,
+      "properties": {
+        "reject_if": { "type": "array", "items": { "type": "string" } },
+        "approve_if": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

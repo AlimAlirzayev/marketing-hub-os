@@ -1,0 +1,56 @@
+﻿{
+    "mcpServers":  {
+                       "n8n-mcp":  {
+                                       "args":  [
+                                                    "-y",
+                                                    "n8n-mcp"
+                                                ],
+                                       "env":  {
+                                                   "N8N_API_KEY":  "REPLACE_WITH_N8N_API_KEY",
+                                                   "N8N_API_URL":  "http://localhost:5678/api/v1"
+                                               },
+                                       "command":  "npx"
+                                   },
+                       "filesystem":  {
+                                          "args":  [
+                                                       "-y",
+                                                       "@modelcontextprotocol/server-filesystem",
+                                                       "C:\\Users\\a.alirzayev\\ramin-os"
+                                                   ],
+                                          "command":  "npx"
+                                      },
+                       "elevenlabs":  {
+                                          "args":  [
+                                                       "elevenlabs-mcp"
+                                                   ],
+                                          "env":  {
+                                                      "ELEVENLABS_MCP_BASE_PATH":  "C:\\Users\\a.alirzayev\\ramin-os\\audio-studio\\output",
+                                                      "ELEVENLABS_API_KEY":  "sk_6db1a303dcba913b115e8e1a69fbe2219fa31380541cea14"
+                                                  },
+                                          "command":  "uvx"
+                                      },
+                       "memory":  {
+                                      "args":  [
+                                                   "-y",
+                                                   "@modelcontextprotocol/server-memory"
+                                               ],
+                                      "command":  "npx"
+                                  },
+                       "qdrant":  {
+                                      "args":  [
+                                                   "-y",
+                                                   "@qdrant/mcp-server-qdrant"
+                                               ],
+                                      "env":  {
+                                                  "QDRANT_URL":  "http://localhost:6333"
+                                              },
+                                      "command":  "npx"
+                                  },
+                       "browser-use":  {
+                                           "args":  [
+                                                        "browser-use-mcp"
+                                                    ],
+                                           "command":  "uvx"
+                                       }
+                   }
+}

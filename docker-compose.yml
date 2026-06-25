@@ -1,0 +1,177 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ramin-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ramin-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: ramin-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ramin-net
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: ramin-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=Asia/Baku
+      - N8N_DEFAULT_LOCALE=en
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/workflows
+    depends_on:
+      - postgres
+    networks:
+      - ramin-net
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ramin-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./data/vector_db:/qdrant/storage
+    networks:
+      - ramin-net
+
+  cx-command-center:
+    build:
+      context: ./cx-command-center
+    container_name: ramin-cx-command-center
+    restart: unless-stopped
+    ports:
+      - "8810:8810"
+    environment:
+      - CX_DATA_MODE=${CX_DATA_MODE:-demo}
+      - CX_ACCOUNT_NAME=${CX_ACCOUNT_NAME:-Xalq Sigorta}
+      - CX_ACCOUNT_TAGLINE=${CX_ACCOUNT_TAGLINE:-Complaint radar, AI triage, SLA and customer recovery}
+      - CX_DATABASE_PATH=/data/cx.sqlite
+      - CX_WEBHOOK_SECRET=${CX_WEBHOOK_SECRET:-}
+      - CX_META_VERIFY_TOKEN=${CX_META_VERIFY_TOKEN:-}
+      - CX_META_APP_SECRET=${CX_META_APP_SECRET:-}
+      - CX_ALERT_CHAT_ID=${CX_ALERT_CHAT_ID:-}
+      - CX_AI_ENABLED=${CX_AI_ENABLED:-true}
+      - CX_GEMINI_MODEL=${CX_GEMINI_MODEL:-gemini-3.5-flash}
+      - CX_AI_TIMEOUT_SECONDS=${CX_AI_TIMEOUT_SECONDS:-5}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - GOOGLE_BUSINESS_PROFILE_ACCESS_TOKEN=${GOOGLE_BUSINESS_PROFILE_ACCESS_TOKEN:-}
+      - GOOGLE_BUSINESS_PROFILE_ACCOUNT_ID=${GOOGLE_BUSINESS_PROFILE_ACCOUNT_ID:-}
+      - GOOGLE_BUSINESS_PROFILE_LOCATION_IDS=${GOOGLE_BUSINESS_PROFILE_LOCATION_IDS:-}
+      - GOOGLE_BUSINESS_PROFILE_REVIEW_PAGE_SIZE=${GOOGLE_BUSINESS_PROFILE_REVIEW_PAGE_SIZE:-50}
+    volumes:
+      - ./data/cx-command-center:/data
+    networks:
+      - ramin-net
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: ramin-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET}
+    volumes:
+      - openwebui_data:/app/backend/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ramin-net
+
+  # --- Auto-publish layer: Postiz (AGPL-3.0, self-hosted, FREE) ---------------
+  # The free Blotato replacement. /publish routes here first. Has its own MCP
+  # server + public API. Bring it up on its own:  docker compose up -d postiz
+  # Then create an API key in the UI (Settings → Public API) and put it in .env.
+  postiz-postgres:
+    image: postgres:16-alpine
+    container_name: ramin-postiz-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postiz
+      - POSTGRES_PASSWORD=postiz-local-pass
+      - POSTGRES_DB=postiz
+    volumes:
+      - postiz_postgres_data:/var/lib/postgresql/data
+    networks:
+      - ramin-net
+
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    container_name: ramin-postiz
+    restart: unless-stopped
+    environment:
+      # Public URL the browser hits. Change all three together if you expose it.
+      - MAIN_URL=${POSTIZ_API_URL:-http://localhost:5000}
+      - FRONTEND_URL=${POSTIZ_API_URL:-http://localhost:5000}
+      - NEXT_PUBLIC_BACKEND_URL=${POSTIZ_API_URL:-http://localhost:5000}/api
+      - BACKEND_INTERNAL_URL=http://localhost:3000
+      - JWT_SECRET=${POSTIZ_JWT_SECRET}
+      - DATABASE_URL=postgresql://postiz:postiz-local-pass@postiz-postgres:5432/postiz
+      - REDIS_URL=redis://redis:6379
+      - IS_GENERAL=true
+      - DISABLE_REGISTRATION=false
+      - STORAGE_PROVIDER=local
+      - UPLOAD_DIRECTORY=/uploads
+      - NEXT_PUBLIC_UPLOAD_DIRECTORY=/uploads
+    ports:
+      - "5000:5000"
+    volumes:
+      - postiz_config:/config/
+      - postiz_uploads:/uploads/
+    depends_on:
+      - postiz-postgres
+      - redis
+    networks:
+      - ramin-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+  openwebui_data:
+  postiz_postgres_data:
+  postiz_config:
+  postiz_uploads:
+
+networks:
+  ramin-net:
+    driver: bridge

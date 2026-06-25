@@ -1,0 +1,106 @@
+{
+  "generated_at": "2026-05-20T15:43:07",
+  "campaign": "xalqsigorta-travel-insurance-georgia-train-v8-background",
+  "brand": "Xalq Sigorta",
+  "decision": "revise",
+  "automated_gate_score": 97.8,
+  "overall_score": 89.3,
+  "rubric": {
+    "name": "Xalq Insurance Digital OS Social Studio Creative Audit Rubric",
+    "version": "2.0.0"
+  },
+  "score_meaning": {
+    "automated_gate_score": "Objective production checks only. This is not final creative quality.",
+    "creative_judgment_score": "Vision-capable LLM or senior human review of concept, craft, taste, and market strength.",
+    "final_score": "Only available when automated gate and creative judgment are both present."
+  },
+  "scores": {
+    "brand_fit": 100.0,
+    "art_direction": 100.0,
+    "marketing_clarity": 88.0,
+    "compliance_safety": 100.0,
+    "production_readiness": 100.0
+  },
+  "creative_judgment": {
+    "status": "present",
+    "score": 84.7,
+    "reviewer": "Codex visual review",
+    "scores": {
+      "concept_strength": 84.0,
+      "brand_distinctiveness": 82.0,
+      "art_direction_quality": 86.0,
+      "message_clarity": 90.0,
+      "emotional_strategy": 84.0,
+      "craft_realism": 86.0,
+      "platform_performance": 85.0,
+      "memorability": 78.0
+    },
+    "top_findings": [
+      "V8 restores the core brief: train interior, Azerbaijani couple, passports, red suitcase, insurance UI, and Georgia/Caucasus railway view are present.",
+      "The image is more campaign-ready than v6 and far stronger than v7.",
+      "The visual still needs slightly more distinctiveness and less obvious shield symbolism to be world-class.",
+      "The red suitcase is partly buried in the footer area; keep brand prop visible but away from mandatory legal/footer layers.",
+      "The scene is clean and persuasive, but memorability is still below approval threshold."
+    ],
+    "revision_brief": [
+      "Keep the v8 scene structure and restraint.",
+      "Move or crop the red suitcase higher/clearer so it does not compete with footer legal text.",
+      "Make the shield reflection more physically subtle and less icon-like.",
+      "Add a stronger authentic rail journey cue without adding text or clutter."
+    ],
+    "next_prompt_patch": [
+      "Keep the exact v8 scene structure: couple inside train, window, Caucasus railway view, passports, red suitcase, subtle insurance UI.",
+      "Place the red suitcase above the bottom footer zone, visible but not under logo/legal text.",
+      "Make the shield reflection barely visible, broken by real glass reflections, not a clean icon.",
+      "Add one authentic rail-travel detail such as seat fabric, carriage edge, or window reflection, but no readable signage."
+    ]
+  },
+  "findings": [
+    {
+      "severity": "review",
+      "code": "creative_quality_below_approval",
+      "message": "Creative judgment score is 84.7; final approval requires 90+."
+    }
+  ],
+  "prompt_patch": [
+    "No prompt patch required from deterministic checks."
+  ],
+  "exports": [
+    {
+      "path": "output\\social\\xalqsigorta-georgia-train-travel-insurance-background-v8-1080x1350.png",
+      "exists": true,
+      "placement": "feed_4x5_background",
+      "dimensions": {
+        "width": 1080,
+        "height": 1350,
+        "expected_width": 1080,
+        "expected_height": 1350,
+        "ok": true
+      },
+      "metrics": {
+        "full": {
+          "luminance_mean": 0.2873729169368744,
+          "luminance_std": 0.27698466181755066,
+          "edge_energy": 0.037358470261096954
+        },
+        "footer": {
+          "luminance_mean": 0.13922996819019318,
+          "luminance_std": 0.12544874846935272,
+          "edge_energy": 0.0246150940656662
+        },
+        "headline_zone": {
+          "luminance_mean": 0.10163218528032303,
+          "luminance_std": 0.08256427198648453,
+          "edge_energy": 0.008155538700520992
+        },
+        "red_ratio": 0.0636627197265625
+      },
+      "scores": {
+        "production_readiness": 100.0,
+        "art_direction": 100.0,
+        "brand_fit": 100.0
+      },
+      "findings": []
+    }
+  ]
+}

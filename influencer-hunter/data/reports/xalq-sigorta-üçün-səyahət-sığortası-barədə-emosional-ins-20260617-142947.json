@@ -1,0 +1,71 @@
+{
+  "query": "Xalq Sigorta üçün səyahət sığortası barədə emosional Instagram Reel creator lazımdır",
+  "brief": {
+    "query": "Xalq Sigorta üçün səyahət sığortası barədə emosional Instagram Reel creator lazımdır",
+    "brand": "Xalq Sigorta",
+    "product": "səyahət sığortası",
+    "objective": "Find 3 evidence-backed influencers for an Instagram Reel",
+    "audience": "Azerbaijani Instagram users likely to buy the product",
+    "market": "Azerbaijan",
+    "language": "az",
+    "content_format": "Instagram Reel",
+    "selling_angle": "emotional selling proposition",
+    "tone": "natural, emotional, useful warning from a real creator",
+    "must_have_topics": [
+      "səyahət",
+      "sığorta",
+      "risk",
+      "təhlükəsizlik",
+      "ailə",
+      "xaric"
+    ],
+    "avoid_topics": [
+      "gambling",
+      "political scandal",
+      "fake giveaways",
+      "unsafe claims"
+    ],
+    "creator_archetypes": [
+      "travel blogger",
+      "lifestyle creator",
+      "family travel creator"
+    ],
+    "hashtags": [
+      "seyahat",
+      "travelazerbaijan",
+      "baku",
+      "azerbaijantravel",
+      "sigorta",
+      "travelinsurance"
+    ],
+    "seed_handles": []
+  },
+  "candidates": [],
+  "shortlist": [],
+  "verdict": "",
+  "source_status": [
+    {
+      "source": "apify-instagram",
+      "status": "skipped",
+      "note": "APIFY_API_TOKEN is not set; add seed handles or enable Apify for live Instagram evidence"
+    }
+  ],
+  "totals": {
+    "seen": 0,
+    "ranked": 0,
+    "shortlisted": 0,
+    "rejected": 0
+  },
+  "generated_at": "2026-06-17T14:29:47",
+  "engines": {
+    "llm": "rule-based",
+    "apify": false,
+    "actors": {
+      "search": "apify/instagram-scraper",
+      "profile": "apify/instagram-profile-scraper",
+      "post": "apify/instagram-post-scraper",
+      "comment": "apify/instagram-comment-scraper",
+      "hashtag": "apify/instagram-hashtag-scraper"
+    }
+  }
+}

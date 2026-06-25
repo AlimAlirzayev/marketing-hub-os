@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ads Studio — Meta Ads Performans Hesabatı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      brand: { red:'#E31E24', reddark:'#B3171C', charcoal:'#2B2A29', ink:'#1C1B17', burgundy:'#5C0F12' },
+      surface: { bg:'#F5F6F8', card:'#FFFFFF', line:'#E5E7EB' },
+    },
+    fontFamily: { sans:['Inter','system-ui','sans-serif'], tight:['"Inter Tight"','Inter','sans-serif'] },
+  }}};
+</script>
+<style>
+  body { background:#F5F6F8; }
+  .num { font-variant-numeric: tabular-nums; font-family:'Inter Tight', Inter, sans-serif; }
+  .card { background:#fff; border:1px solid #ECEEF1; border-radius:18px; box-shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); }
+  .seg { transition: all .15s ease; }
+  .skeleton { background: linear-gradient(90deg,#eef0f3 25%,#e3e6ea 37%,#eef0f3 63%); background-size:400% 100%; animation: sh 1.3s ease infinite; }
+  @keyframes sh { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+  .fade-in { animation: fi .35s ease both; }
+  @keyframes fi { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+  .scroll-thin::-webkit-scrollbar{width:8px;height:8px}
+  .scroll-thin::-webkit-scrollbar-thumb{background:#cbd2da;border-radius:8px}
+  .rank-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; line-height:1.4; }
+  .heat-cell { aspect-ratio:1/1; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:600; color:#fff; }
+  @media print {
+    .no-print { display:none !important; }
+    body { background:#fff; }
+    .card { box-shadow:none; border:1px solid #ddd; break-inside:avoid; }
+    #print-head { display:flex !important; }
+    .tabpanel { display:block !important; }
+    @page { margin: 12mm; }
+  }
+  #print-head { display:none; }
+</style>
+</head>
+<body class="font-sans text-brand-ink">
+
+<!-- ================= HEADER ================= -->
+<header class="bg-brand-ink text-white no-print">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+    <img src="/static/logo-white.svg" alt="Xalq Sigorta" class="h-9 w-auto" />
+    <div class="hidden sm:block leading-tight border-l border-white/15 pl-3 ml-1">
+      <div class="font-tight font-bold text-[15px]" id="hdr-account">—</div>
+      <div class="text-white/55 text-[12px]" id="hdr-tagline">Meta Ads · Performans Hesabatı</div>
+    </div>
+    <span id="mode-badge" class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-white/10 text-white/70">demo</span>
+    <div class="ml-auto flex items-center gap-2 flex-wrap justify-end">
+      <div class="hidden sm:flex bg-white/10 rounded-lg p-0.5 text-[12px]">
+        <button data-cmp="prev_month" class="cmp seg px-2.5 py-1 rounded-md font-medium">vs ötən ay</button>
+        <button data-cmp="prev_year"  class="cmp seg px-2.5 py-1 rounded-md font-medium text-white/55">vs keçən il</button>
+      </div>
+      <select id="account-select" class="num bg-white/10 hover:bg-white/15 text-white text-sm rounded-lg px-3 py-2 outline-none cursor-pointer appearance-none pr-6 hidden"></select>
+      <select id="month-select" class="num bg-white/10 hover:bg-white/15 text-white text-sm rounded-lg px-3 py-2 outline-none cursor-pointer appearance-none pr-6"></select>
+      <a href="http://localhost:8811" target="_blank" title="CRM satışlarını Meta-ya göndər (Conversions API)" class="text-sm bg-white/10 hover:bg-white/20 transition px-3 py-2 rounded-lg font-medium flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 11l5 5 5-5M12 4v12"/></svg>Konversiyalar
+      </a>
+      <a href="/report" target="_blank" class="text-sm bg-brand-red hover:bg-brand-reddark transition px-3 py-2 rounded-lg font-medium flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>Board PDF
+      </a>
+    </div>
+  </div>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="flex gap-1 bg-white/5 rounded-t-xl p-1 -mb-px overflow-x-auto" id="tabs">
+      <button data-tab="report"     class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium">Hesabat</button>
+      <button data-tab="segments"   class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Segmentlər</button>
+      <button data-tab="creative"   class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Kreativ</button>
+      <button data-tab="payments"   class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Ödənişlər</button>
+      <button data-tab="sales"      class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Satış</button>
+    </div>
+  </div>
+</header>
+
+<div id="print-head" class="max-w-7xl mx-auto px-6 pt-2 items-center gap-3">
+  <img src="/static/logo-dark.svg" class="h-10" />
+  <div class="ml-auto text-right">
+    <div class="font-tight font-bold text-lg" id="print-title">Meta Ads — Performans Hesabatı</div>
+    <div class="text-sm text-gray-500" id="print-period"></div>
+  </div>
+</div>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+
+  <!-- ============ HESABAT ============ -->
+  <section id="tab-report" class="tabpanel">
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-4 no-print">
+      <div>
+        <h1 class="font-tight font-extrabold text-2xl sm:text-3xl" id="period-title">—</h1>
+        <p class="text-sm text-gray-500 num" id="period-sub">—</p>
+      </div>
+      <div class="flex bg-white border border-surface-line rounded-xl p-1 text-sm">
+        <button data-plat="all"       class="plat seg px-4 py-1.5 rounded-lg font-medium">Hamısı</button>
+        <button data-plat="facebook"  class="plat seg px-4 py-1.5 rounded-lg font-medium text-gray-500">Facebook</button>
+        <button data-plat="instagram" class="plat seg px-4 py-1.5 rounded-lg font-medium text-gray-500">Instagram</button>
+      </div>
+    </div>
+
+    <!-- INSIGHT-OF-THE-DAY hero -->
+    <div id="insight-hero" class="card p-5 mb-4 fade-in relative overflow-hidden" style="background:linear-gradient(135deg,#1C1B17 0%,#2B2A29 100%)">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand-red text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 21V3M3 12h18M12 3v18"/></svg>
+        </span>
+        <h2 class="font-tight font-bold text-lg text-white">Günün İnsight-ı</h2>
+        <span id="insight-cmp" class="ml-auto text-[11px] text-white/40 num"></span>
+      </div>
+      <div id="insight-headline" class="font-tight font-bold text-xl sm:text-2xl text-white mb-1.5 leading-tight">—</div>
+      <div id="insight-body" class="text-[14px] text-white/75 leading-relaxed">—</div>
+      <div id="insight-movers" class="mt-3 flex flex-wrap gap-2"></div>
+    </div>
+
+    <div class="card p-5 mb-4 relative overflow-hidden">
+      <div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-red"></div>
+      <div class="flex items-center gap-2 mb-2">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand-red/10 text-brand-red">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3z"/></svg>
+        </span>
+        <h2 class="font-tight font-bold text-lg">AI İcra Xülasəsi</h2>
+        <span id="summary-src" class="text-[11px] text-gray-400 ml-auto"></span>
+      </div>
+      <div id="summary-body" class="prose-sm text-[15px] leading-relaxed text-gray-700">
+        <div class="skeleton h-4 rounded w-full mb-2"></div>
+        <div class="skeleton h-4 rounded w-11/12 mb-2"></div>
+        <div class="skeleton h-4 rounded w-3/4"></div>
+      </div>
+    </div>
+
+    <div id="anomalies" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4"></div>
+    <div id="pacing" class="card p-5 mb-4"></div>
+    <div id="kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-5"><h3 class="font-tight font-bold mb-3">Gündəlik trend — Xərc &amp; Lead</h3><div class="h-64"><canvas id="ch-trend"></canvas></div></div>
+      <div class="card p-5"><h3 class="font-tight font-bold mb-3">Konversiya hunisi</h3><div id="funnel" class="space-y-2 mt-3"></div></div>
+    </div>
+    <div class="card p-5"><h3 class="font-tight font-bold mb-3">Xərc Analizi</h3><div class="h-56"><canvas id="ch-cost"></canvas></div></div>
+  </section>
+
+  <!-- ============ SEGMENTLƏR ============ -->
+  <section id="tab-segments" class="tabpanel hidden">
+    <h1 class="font-tight font-extrabold text-2xl sm:text-3xl mb-1">Segmentlər</h1>
+    <p class="text-sm text-gray-500 mb-4">Yerləşdirmə, demoqrafiya və optimal vaxt analizi — Meta API-dən birbaşa.</p>
+
+    <div id="seg-callouts" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-5">
+        <h3 class="font-tight font-bold mb-3">Platforma bölgüsü</h3>
+        <div id="seg-publisher" class="space-y-3 mt-2"></div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-tight font-bold mb-3">Cihaz növü</h3>
+        <div id="seg-device" class="space-y-3 mt-2"></div>
+      </div>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <h3 class="font-tight font-bold mb-3">Yerləşdirmə (placement) — platforma × mövqe</h3>
+      <p class="text-[12px] text-gray-400 mb-3">Feed / Stories / Reels üzrə performans — kreativi hara yönləndirmək sualına cavab.</p>
+      <div id="seg-placement" class="space-y-3 mt-2"></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-5">
+        <h3 class="font-tight font-bold mb-3">Yaş qrupları</h3>
+        <div class="h-56"><canvas id="ch-age"></canvas></div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-tight font-bold mb-3">Cins üzrə</h3>
+        <div class="h-56"><canvas id="ch-gender"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <h3 class="font-tight font-bold mb-3">Region (top 10)</h3>
+      <div id="seg-region" class="space-y-2 mt-2"></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-5">
+        <h3 class="font-tight font-bold mb-3">Saat üzrə performans (24h)</h3>
+        <div class="h-56"><canvas id="ch-hourly"></canvas></div>
+        <div id="hour-note" class="text-[12px] text-gray-500 mt-2"></div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-tight font-bold mb-3">Həftə günü üzrə</h3>
+        <div class="h-56"><canvas id="ch-dow"></canvas></div>
+        <div id="dow-note" class="text-[12px] text-gray-500 mt-2"></div>
+      </div>
+    </div>
+
+    <!-- Age × Gender heatmap -->
+    <div class="card p-5 mb-4">
+      <h3 class="font-tight font-bold mb-1">Demoqrafiya heatmap — yaş × cins</h3>
+      <p class="text-[12px] text-gray-400 mb-3">Lead intensitisi rəng ilə göstərilir; ən qara hücrə ən çox lead.</p>
+      <div id="seg-ag-heatmap" class="overflow-x-auto"></div>
+    </div>
+
+    <!-- Audience saturation curve -->
+    <div class="card p-5">
+      <div class="flex items-center mb-3">
+        <h3 class="font-tight font-bold">Auditoriya doyma əyrisi</h3>
+        <span id="sat-status" class="rank-pill ml-auto"></span>
+      </div>
+      <p id="sat-verdict" class="text-[13px] text-gray-600 mb-3">—</p>
+      <div class="h-56"><canvas id="ch-saturation"></canvas></div>
+      <div id="sat-stats" class="text-[12px] text-gray-500 mt-2"></div>
+    </div>
+  </section>
+
+  <!-- ============ KREATİV ============ -->
+  <section id="tab-creative" class="tabpanel hidden">
+    <h1 class="font-tight font-extrabold text-2xl sm:text-3xl mb-1">Kreativ &amp; Kampaniyalar</h1>
+    <p class="text-sm text-gray-500 mb-4">Meta-nın diagnostik göstəriciləri (Quality / Engagement / Conversion) və top kampaniyalar.</p>
+
+    <!-- Creative fatigue native indicators -->
+    <div class="card p-5 mb-4">
+      <div class="flex items-center mb-2">
+        <h3 class="font-tight font-bold text-lg">Kreativ yorğunluğu (fatigue) — siqnallar</h3>
+        <span id="fatigue-status" class="rank-pill ml-auto"></span>
+      </div>
+      <p id="fatigue-verdict" class="text-sm text-gray-600 mb-3">—</p>
+      <div id="fatigue-signals" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <div class="flex items-center gap-2 mb-2">
+        <h3 class="font-tight font-bold text-lg">Kreativ sağlamlığı</h3>
+        <span id="health-score-badge" class="rank-pill"></span>
+      </div>
+      <p id="health-verdict" class="text-sm text-gray-600 mb-3">—</p>
+      <div id="health-breakdown" class="grid grid-cols-3 gap-3"></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-5">
+        <h3 class="font-tight font-bold mb-3">Video performansı (Hook / Hold rate)</h3>
+        <div id="video-block">
+          <div class="skeleton h-4 rounded w-3/4 mb-2"></div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-tight font-bold mb-3">Top kampaniyalar (xərcə görə)</h3>
+        <div id="campaigns-list" class="space-y-2 mt-2"></div>
+      </div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <div class="px-5 py-4 flex items-center"><h3 class="font-tight font-bold">Reklam-səviyyə diagnostikası</h3><span class="ml-auto text-[11px] text-gray-400">yalnız 500+ impression olan reklamlar</span></div>
+      <div class="max-h-[480px] overflow-y-auto scroll-thin">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wide sticky top-0">
+            <tr>
+              <th class="text-left font-semibold px-5 py-3">Reklam</th>
+              <th class="text-left font-semibold px-3 py-3">Quality</th>
+              <th class="text-left font-semibold px-3 py-3">Engagement</th>
+              <th class="text-left font-semibold px-3 py-3">Conversion</th>
+              <th class="text-right font-semibold px-3 py-3">İmpression</th>
+              <th class="text-right font-semibold px-3 py-3">Xərc</th>
+              <th class="text-right font-semibold px-5 py-3">CPL</th>
+            </tr>
+          </thead>
+          <tbody id="diag-rows" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ÖDƏNİŞLƏR ============ -->
+  <section id="tab-payments" class="tabpanel hidden">
+    <h1 class="font-tight font-extrabold text-2xl sm:text-3xl mb-1">Ödəniş Qəbzləri</h1>
+    <p class="text-sm text-gray-500 mb-4"><span id="pay-period">—</span> · Gmail → Meta for Business</p>
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4" id="pay-cards"></div>
+    <div id="recon" class="card p-4 mb-4 text-sm"></div>
+    <div class="card overflow-hidden">
+      <div class="max-h-[480px] overflow-y-auto scroll-thin">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wide sticky top-0">
+            <tr><th class="text-left font-semibold px-5 py-3">Tarix</th><th class="text-left font-semibold px-5 py-3">Məbləğ</th><th class="text-left font-semibold px-5 py-3">Ödəniş detalı</th></tr>
+          </thead>
+          <tbody id="pay-rows" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SATIŞ ============ -->
+  <section id="tab-sales" class="tabpanel hidden">
+    <div class="flex items-center gap-2 mb-1">
+      <h1 class="font-tight font-extrabold text-2xl sm:text-3xl">Satış Hesabatı</h1>
+      <span id="sales-demo" class="text-[10px] font-semibold uppercase px-2 py-1 rounded-full bg-amber-100 text-amber-700">demo · CRM qoşulmayıb</span>
+    </div>
+    <p class="text-sm text-gray-500 mb-4"><span id="sales-period">—</span> · Digital kanallar</p>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4" id="sales-cards"></div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="card p-5"><h3 class="font-tight font-bold mb-3">Kanala görə satış</h3><div class="h-64"><canvas id="ch-sales"></canvas></div></div>
+      <div class="card p-5"><h3 class="font-tight font-bold mb-3">Kanal detalları</h3><div id="sales-bars" class="space-y-4 mt-2"></div></div>
+    </div>
+  </section>
+</main>
+
+<!-- AI ASSISTANT -->
+<button id="asst-fab" class="no-print fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-brand-red hover:bg-brand-reddark shadow-lg shadow-brand-red/30 flex items-center justify-center text-white transition">
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12a8 8 0 01-11.4 7.24L3 21l1.76-6.6A8 8 0 1121 12z"/></svg>
+</button>
+<div id="asst-panel" class="no-print fixed bottom-5 right-5 z-50 w-[92vw] max-w-sm h-[70vh] max-h-[560px] card flex-col hidden">
+  <div class="bg-brand-ink text-white rounded-t-[18px] px-4 py-3 flex items-center gap-2">
+    <span class="w-8 h-8 rounded-lg bg-brand-red flex items-center justify-center">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.5 3l1.5 4 4 1.5-4 1.5L9.5 14 8 10l-4-1.5L8 7l1.5-4zM17 13l.9 2.4L20 16l-2.1.9L17 19l-.9-2.1L14 16l2.1-.6L17 13z"/></svg>
+    </span>
+    <div class="leading-tight">
+      <div class="font-tight font-bold text-sm">AI Marketinq Köməkçisi</div>
+      <div class="text-white/50 text-[11px]">Kampaniya rəqəmləri üzrə soruşun</div>
+    </div>
+    <button id="asst-close" class="ml-auto text-white/60 hover:text-white text-xl leading-none">×</button>
+  </div>
+  <div id="asst-log" class="flex-1 overflow-y-auto scroll-thin p-3 space-y-3 text-sm bg-surface-bg"></div>
+  <div id="asst-suggest" class="px-3 pb-2 flex flex-wrap gap-1.5 bg-surface-bg"></div>
+  <form id="asst-form" class="p-3 border-t border-surface-line flex gap-2">
+    <input id="asst-input" autocomplete="off" placeholder="Sualınızı yazın…" class="flex-1 text-sm border border-surface-line rounded-lg px-3 py-2 outline-none focus:border-brand-red" />
+    <button class="bg-brand-red hover:bg-brand-reddark text-white px-3 rounded-lg">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+  </form>
+</div>
+
+<footer class="max-w-7xl mx-auto px-6 py-6 text-center text-[11px] text-gray-400 no-print">
+  Ads Studio · Xalq Insurance Digital OS · Mənbə: <span id="foot-src">demo</span> · AI: Gemini
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+{
+  "query": "airpods pro 2",
+  "generated_at": "2026-06-09T11:20:50",
+  "spec": {
+    "query": "airpods pro 2",
+    "canonical_name": "Apple AirPods Pro 2",
+    "brand": "Apple",
+    "family": "AirPods Pro",
+    "generation": "2",
+    "variants": [
+      "USB-C",
+      "Lightning"
+    ],
+    "model_codes": [
+      "MQD83",
+      "MTJV3",
+      "MQD83AM/A",
+      "MTJV3AM/A",
+      "MQD83ZP/A",
+      "MTJV3TY/A"
+    ],
+    "must_include": [
+      "airpods",
+      "pro",
+      "2"
+    ],
+    "must_exclude": [
+      "case",
+      "kabro",
+      "qabi",
+      "qabı",
+      "strap",
+      "tips",
+      "holder",
+      "replika",
+      "kopya",
+      "1:1",
+      "lux",
+      "silikon",
+      "chexol",
+      "cover",
+      "qoruyucu",
+      "i12",
+      "pro3",
+      "pro4",
+      "gen 1",
+      "1st",
+      "gen 3",
+      "3rd",
+      "airpods 3",
+      "airpods 4"
+    ],
+    "fair_low": 380.0,
+    "fair_high": 550.0,
+    "notes": "Ensure the listing is for the actual earphones, not just silicone cases (kabro/qab) or cheap 1:1 replicas."
+  },
+  "best_legit": null,
+  "cheapest": {
+    "title": "Simsiz qulaqlıq Porodo Blue Airpods Pro2 Touch Display - ANC & ENC Black",
+    "price": 79.99,
+    "url": "https://bakuelectronics.az/porodo-blue-airpods-pro2-touch-display-anc-enc-black-213878",
+    "source": "bakuelectronics.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "unknown",
+    "official": true,
+    "warranty": "",
+    "in_stock": false,
+    "model_code": "213878",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.1,
+    "deal_score": 112.0,
+    "flags": [
+      "brand/replica mismatch in title",
+      "suspiciously cheap (<380 AZN) — likely replica/used/grey-market"
+    ]
+  },
+  "verdict": "",
+  "offers": [
+    {
+      "title": "Simsiz qulaqlıq Porodo Blue Airpods Pro2 Touch Display - ANC & ENC Black",
+      "price": 79.99,
+      "url": "https://bakuelectronics.az/porodo-blue-airpods-pro2-touch-display-anc-enc-black-213878",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": false,
+      "model_code": "213878",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.1,
+      "deal_score": 112.0,
+      "flags": [
+        "brand/replica mismatch in title",
+        "suspiciously cheap (<380 AZN) — likely replica/used/grey-market"
+      ]
+    }
+  ],
+  "source_status": [
+    {
+      "source": "qiymetleri.az",
+      "status": "ok",
+      "note": "html->llm extraction"
+    },
+    {
+      "source": "bakuelectronics.az",
+      "status": "ok",
+      "note": "5 structured offers"
+    },
+    {
+      "source": "birmarket.az",
+      "status": "ok",
+      "note": "html->llm extraction"
+    },
+    {
+      "source": "tap.az",
+      "status": "ok",
+      "note": "26 structured offers"
+    },
+    {
+      "source": "kontakt.az",
+      "status": "blocked",
+      "note": "HTTP 403 (anti-bot; Apify fallback needed)"
+    },
+    {
+      "source": "irshad.az",
+      "status": "ok",
+      "note": "html->llm extraction"
+    },
+    {
+      "source": "lalafo.az",
+      "status": "skipped",
+      "note": "query filter unreliable on public API - skipped to avoid noise"
+    }
+  ],
+  "stats": {
+    "total_seen": 498,
+    "rejected": 495,
+    "matched": 1
+  }
+}

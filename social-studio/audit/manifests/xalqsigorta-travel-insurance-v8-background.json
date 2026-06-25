@@ -1,0 +1,62 @@
+{
+  "$schema": "https://ramin-os.local/social-studio/creative-audit-manifest.v1.json",
+  "campaign": "xalqsigorta-travel-insurance-georgia-train-v8-background",
+  "brand": "Xalq Sigorta",
+  "brand_kit": "social-studio/brand_kit/brand.md",
+  "palette": "social-studio/brand_kit/colors.json",
+  "audit_profile": "xalqsigorta_financial_services_background",
+  "copy": {
+    "headline": "Gürcüstana qatarla səyahət artıq mümkündür",
+    "subheadline": "Səyahət sığortanı unutma.",
+    "regulatory_claim": "",
+    "copy_layer_mode": "deterministic_overlay"
+  },
+  "compliance": {
+    "status": "not_applicable",
+    "risk_note": "This manifest audits the AI-generated background only. Regulatory copy must be audited in the final-composite manifest before publishing.",
+    "source_url": "",
+    "review_date": "",
+    "owner": ""
+  },
+  "placements": [
+    {
+      "name": "feed_4x5_background",
+      "expected_width": 1080,
+      "expected_height": 1350,
+      "footer_zone_ratio": 0.135,
+      "headline_zone": {
+        "x0": 0.0,
+        "y0": 0.0,
+        "x1": 0.52,
+        "y1": 0.42
+      },
+      "exports": [
+        "output/social/xalqsigorta-georgia-train-travel-insurance-background-v8-1080x1350.png"
+      ]
+    }
+  ],
+  "rules": {
+    "ai_image_must_not_contain": [
+      "logo",
+      "legal text",
+      "phone number",
+      "website",
+      "headline text",
+      "random readable letters"
+    ],
+    "brand_red_policy": {
+      "ideal_red_ratio_min": 0.02,
+      "ideal_red_ratio_max": 0.22,
+      "critical_red_ratio_max": 0.42
+    },
+    "footer_policy": {
+      "max_edge_energy": 0.085,
+      "max_luminance_std": 0.18,
+      "prefer_footer_darker_than_full_image_by": 0.04
+    },
+    "headline_policy": {
+      "max_edge_energy": 0.09,
+      "max_luminance_std": 0.24
+    }
+  }
+}

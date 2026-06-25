@@ -1,0 +1,151 @@
+{
+  "query": "Xalq Sigorta üçün səyahət sığortası barədə emosional Instagram Reel ssenarisini canlandıracaq Azərbaycanlı travel/lifestyle influencer lazımdır",
+  "brief": {
+    "query": "Xalq Sigorta üçün səyahət sığortası barədə emosional Instagram Reel ssenarisini canlandıracaq Azərbaycanlı travel/lifestyle influencer lazımdır",
+    "brand": "Xalq Sigorta",
+    "product": "Səyahət Sığortası",
+    "objective": "Increase brand awareness and consideration for Xalq Sigorta's travel insurance among Azerbaijani travelers, by showcasing the emotional benefits of worry-free travel and inspiring confidence in their journeys.",
+    "audience": "Azerbaijani individuals and families who travel frequently or are planning upcoming trips, seeking peace of mind and security during their adventures.",
+    "market": "Azerbaijan",
+    "language": "Azerbaijani",
+    "content_format": "Instagram Reel (emotional storytelling)",
+    "selling_angle": "Travel freely, explore confidently. Xalq Sigorta ensures your adventures are protected, letting you focus on making unforgettable memories, not on unexpected worries. Experience the joy of travel without compromise.",
+    "tone": "Emotional, inspiring, reassuring, adventurous, authentic, positive, empathetic.",
+    "must_have_topics": [
+      "Showcasing beautiful travel destinations (local or international) and the joy of discovery.",
+      "Highlighting the emotional relief and peace of mind provided by travel insurance.",
+      "Subtly addressing common travel concerns (e.g., lost luggage, medical emergencies, trip cancellations) and how Xalq Sigorta offers solutions.",
+      "Emphasizing the freedom to fully immerse oneself in the travel experience.",
+      "A clear, simple call to action to learn more about Xalq Sigorta's travel insurance.",
+      "Authentic storytelling that resonates with Azerbaijani travelers."
+    ],
+    "avoid_topics": [
+      "Overly technical insurance jargon or complex policy details.",
+      "Fear-mongering or negative portrayals of travel.",
+      "Direct comparisons with competitors.",
+      "Focusing solely on price without emphasizing value and security.",
+      "Any content that might diminish the joy or excitement of travel."
+    ],
+    "creator_archetypes": [
+      "Authentic Azerbaijani Travel Bloggers/Vloggers",
+      "Lifestyle Influencers with a passion for travel and storytelling",
+      "Adventurous individuals who share their journey experiences",
+      "Family travel influencers who prioritize safety and comfort"
+    ],
+    "hashtags": [
+      "azerbaijanblogger",
+      "bakublogger",
+      "travelbloggeraz",
+      "aztravelblogger",
+      "azerbaijaninfluencer",
+      "azblogger",
+      "azeriinfluencer",
+      "bakutravelblogger",
+      "AzərbaycanSəyahət",
+      "AzərbaycanInfluencer",
+      "ReelsAz",
+      "AzərbaycanTravel"
+    ],
+    "seed_handles": []
+  },
+  "filters": {
+    "min_followers": 20000,
+    "min_score": 0.0,
+    "min_recommendation_score": 6.0,
+    "allow_unknown_followers": false,
+    "require_human_creator": true,
+    "require_local_market": true,
+    "require_campaign_fit": true,
+    "min_audience_fit": 5.0,
+    "min_content_fit": 5.0,
+    "min_proof_density": 3.0,
+    "exclude_competitors": true,
+    "exclude_corporate_accounts": true
+  },
+  "candidates": [],
+  "filtered_out": [],
+  "shortlist": [],
+  "verdict": "",
+  "source_status": [
+    {
+      "source": "apify/instagram-hashtag-scraper",
+      "status": "error:HTTPStatusError",
+      "note": "Client error '403 Forbidden' for url 'https://api.apify.com/v2/acts/apify~instagram-hashtag-scraper/run-sync-get-dataset-items?token=apify_a"
+    },
+    {
+      "source": "apify/instagram-scraper",
+      "status": "error:HTTPStatusError",
+      "note": "Client error '403 Forbidden' for url 'https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?token=apify_api_f3nQl"
+    },
+    {
+      "source": "apify/instagram-scraper:search",
+      "status": "error:HTTPStatusError",
+      "note": "Azerbaijan xalq sigorta ucun seyahet sigortasi barede emosional ssenari influencer: Client error '403 Forbidden' for url 'https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?t"
+    },
+    {
+      "source": "apify/instagram-scraper:search",
+      "status": "error:HTTPStatusError",
+      "note": "Baku xalq sigorta ucun seyahet sigortasi barede emosional ssenari blogger: Client error '403 Forbidden' for url 'https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?t"
+    },
+    {
+      "source": "apify/instagram-scraper:search",
+      "status": "error:HTTPStatusError",
+      "note": "Azerbaijani xalq sigorta ucun seyahet sigortasi barede emosional ssenari content creator: Client error '403 Forbidden' for url 'https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?t"
+    },
+    {
+      "source": "apify/instagram-scraper:search",
+      "status": "error:HTTPStatusError",
+      "note": "Azerbaijan seyahet sigortasi influencer: Client error '403 Forbidden' for url 'https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?t"
+    },
+    {
+      "source": "apify/instagram-scraper:search",
+      "status": "error:HTTPStatusError",
+      "note": "Baku seyahet sigortasi blogger: Client error '403 Forbidden' for url 'https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?t"
+    },
+    {
+      "source": "apify/instagram-scraper:search",
+      "status": "error:HTTPStatusError",
+      "note": "Azerbaijani seyahet sigortasi content creator: Client error '403 Forbidden' for url 'https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?t"
+    }
+  ],
+  "totals": {
+    "seen": 0,
+    "ranked": 0,
+    "filtered_out": 0,
+    "shortlisted": 0,
+    "rejected": 0
+  },
+  "generated_at": "2026-06-18T14:38:31",
+  "engines": {
+    "llm": "gemini:gemini-3.5-flash, groq:llama-3.3-70b-versatile",
+    "apify": true,
+    "actors": {
+      "search": "apify/instagram-scraper",
+      "profile": "apify/instagram-profile-scraper",
+      "post": "apify/instagram-post-scraper",
+      "comment": "apify/instagram-comment-scraper",
+      "hashtag": "apify/instagram-hashtag-scraper"
+    }
+  },
+  "decision": {
+    "purpose": "Bu konkret kampaniya brief-i üçün ilk kimə yazacağımızı seçmək.",
+    "campaign_question": "Xalq Sigorta / Səyahət Sığortası üçün emosional Instagram Reel (emotional storytelling) kontentini kim daha inandırıcı canlandıra bilər?",
+    "active_gate": "Azərbaycan/local auditoriya siqnalı · fərdi influencer/blogger · kampaniya-fit sübutu · minimum tövsiyə balı: 6.0+ · minimum izləyici: 20,000+",
+    "answer": "Hazırki sübutlarla tövsiyə ediləcək namizəd yoxdur. Canlı Instagram datasını aktiv edin və ya analiz üçün seed profil əlavə edin.",
+    "confidence": "aşağı",
+    "confidence_reason": "Mövcud sübutlardan shortlist çıxmadı.",
+    "what_was_ranked": [
+      "Azərbaycan/local auditoriya siqnalı · fərdi influencer/blogger · kampaniya-fit sübutu · minimum tövsiyə balı: 6.0+ · minimum izləyici: 20,000+",
+      "kampaniya auditoriyası və mövzu uyğunluğu",
+      "tapşırığa uyğun Reels/post sübutları",
+      "təkcə izləyici sayı yox, engagement keyfiyyəti",
+      "izləyici rəylərinin sentimenti",
+      "brend təhlükəsizliyi və authenticity riski",
+      "əl ilə baxıla bilən sübutların miqdarı"
+    ],
+    "blockers": [
+      "Hələ təsdiqli seçim siyahısı yoxdur."
+    ],
+    "recommended_next_step": "5-10 yerli travel/lifestyle profil əlavə edin və ya Apify-ni aktiv edib skanı yenidən başladın."
+  }
+}

@@ -1,0 +1,9 @@
+# Audio Studio - all hosted APIs, no GPU / native ML runtime required.
+# Install only what you need; every provider degrades gracefully if its lib is missing.
+
+elevenlabs>=1.50.0,<2.0  # 2.x currently hits Windows Long Path limits on this machine
+edge-tts>=6.1.0          # free, unlimited speech (native Azerbaijani voices)
+gradio_client>=1.3.0     # free music/sfx via HuggingFace Spaces
+google-genai>=0.8.0      # optional: Lyria music + Gemini TTS (needs GEMINI_API_KEY)
+python-dotenv>=1.0.0     # read project-root .env
+requests>=2.31.0

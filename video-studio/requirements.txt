@@ -1,0 +1,30 @@
+# Xalq Insurance Digital OS Video Studio - Python dependencies
+# Install: pip install -r video-studio/requirements.txt
+#
+# FFmpeg and Node.js are NOT pip packages - they live portably under
+# video-studio/tools/ (installed by scripts/install-video-tools.ps1).
+
+# Validate edit_spec.json against edit_spec.schema.json
+jsonschema>=4.21.0
+
+# Captions, backend 1 (recommended here): Groq hosted Whisper.
+# No native dependency - just needs a free GROQ_API_KEY. requests is the
+# only thing the Groq backend needs.
+requests>=2.31.0
+
+# Captions, backend 2 (optional, offline): local openai-whisper (PyTorch CPU).
+# NOTE: on this corporate machine the local ML runtime is blocked by the
+# locked-down VC++ runtime / EDR (WinError 1114), so the Groq backend is the
+# working path. Install this only for offline use once IT unblocks it:
+#   pip install openai-whisper
+# openai-whisper>=20240930
+
+# Viral clipper (clipper.py):
+#   - YouTube captions without a download (instant, free) for the scoring step
+youtube-transcript-api>=0.6.2
+#   - yt-dlp downloads the media so clips can actually be cut. Optional: if
+#     absent, clipper still returns the ranked plan, just doesn't cut.
+yt-dlp>=2024.1.0
+# Scoring runs on the free LLM cascade (Groq via requests, above). Gemini is an
+# optional fallback used only if GROQ_API_KEY is unset:
+#   pip install google-genai

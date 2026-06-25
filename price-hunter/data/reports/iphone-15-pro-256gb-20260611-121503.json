@@ -1,0 +1,322 @@
+{
+  "query": "iphone 15 pro 256gb",
+  "generated_at": "2026-06-11T12:15:03",
+  "spec": {
+    "query": "iphone 15 pro 256gb",
+    "canonical_name": "Apple iPhone 15 Pro 256GB",
+    "brand": "Apple",
+    "family": "iPhone",
+    "generation": "15 Pro",
+    "variants": [
+      "Natural Titanium",
+      "Blue Titanium",
+      "White Titanium",
+      "Black Titanium"
+    ],
+    "model_codes": [
+      "A2848",
+      "A3101",
+      "A3102",
+      "A3104"
+    ],
+    "must_include": [
+      "iphone",
+      "pro",
+      "15"
+    ],
+    "must_exclude": [
+      "pro 11",
+      "11 pro",
+      "gen 11",
+      "iphone 11",
+      "pro 12",
+      "12 pro",
+      "gen 12",
+      "iphone 12",
+      "pro 13",
+      "13 pro",
+      "gen 13",
+      "iphone 13",
+      "pro 14",
+      "14 pro",
+      "gen 14",
+      "iphone 14",
+      "pro 16",
+      "16 pro",
+      "gen 16",
+      "iphone 16",
+      "pro 17",
+      "17 pro",
+      "gen 17",
+      "iphone 17",
+      "pro 18",
+      "18 pro",
+      "gen 18",
+      "iphone 18",
+      "pro 19",
+      "19 pro",
+      "gen 19",
+      "iphone 19",
+      "max",
+      "plus",
+      "128gb",
+      "512gb",
+      "1tb",
+      "case",
+      "kabro",
+      "qab",
+      "qabi",
+      "shusha",
+      "şüşə",
+      "ekran",
+      "plonka",
+      "replika",
+      "kopya",
+      "1:1",
+      "dummy",
+      "maketi",
+      "karobka",
+      "box only",
+      "adapter"
+    ],
+    "fair_low": 2050.0,
+    "fair_high": 2750.0,
+    "notes": "Exclude 'Pro Max' models, other storage capacities (128GB/512GB), and accessories like cases (kabro) or screen protectors."
+  },
+  "best_legit": {
+    "title": "Apple iPhone 15 Pro Black Titanium 256GB8GB",
+    "price": 2439.0,
+    "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+    "source": "qiymetleri.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "new",
+    "official": false,
+    "warranty": "",
+    "in_stock": null,
+    "model_code": "",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.8025,
+    "deal_score": 1701.2,
+    "flags": [
+      "far below market median 2989.99 AZN — verify hard"
+    ],
+    "seller_label": "price aggregator (mixed sellers — verify)",
+    "gmaps_rating": null,
+    "hist_low": 2439.0,
+    "hist_avg": 2956.99,
+    "is_lowest": true
+  },
+  "cheapest": {
+    "title": "Apple iPhone 15 Pro Black Titanium 256GB8GB",
+    "price": 2439.0,
+    "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+    "source": "qiymetleri.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "new",
+    "official": false,
+    "warranty": "",
+    "in_stock": null,
+    "model_code": "",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.8025,
+    "deal_score": 1701.2,
+    "flags": [
+      "far below market median 2989.99 AZN — verify hard"
+    ],
+    "seller_label": "price aggregator (mixed sellers — verify)",
+    "gmaps_rating": null,
+    "hist_low": 2439.0,
+    "hist_avg": 2956.99,
+    "is_lowest": true
+  },
+  "verdict": "",
+  "market": {
+    "count": 4,
+    "median": 2989.99,
+    "band_low": 2589.99,
+    "band_high": 3469.99,
+    "min": 2439.0,
+    "max": 3149.99
+  },
+  "history": {
+    "lowest_ever": 2439.0,
+    "lowest_ever_date": "2026-06-11",
+    "low_30d": 2439.0,
+    "avg_30d": 2956.99,
+    "observations": 7,
+    "days_tracked": 1
+  },
+  "offers": [
+    {
+      "title": "Apple iPhone 15 Pro Black Titanium 256GB8GB",
+      "price": 2439.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "new",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.8025,
+      "deal_score": 1701.2,
+      "flags": [
+        "far below market median 2989.99 AZN — verify hard"
+      ],
+      "seller_label": "price aggregator (mixed sellers — verify)",
+      "gmaps_rating": null,
+      "hist_low": 2439.0,
+      "hist_avg": 2956.99,
+      "is_lowest": true
+    },
+    {
+      "title": "Smartfon Apple iPhone 15 PRO 256GB NATURAL TITANIUM",
+      "price": 2829.99,
+      "url": "https://bakuelectronics.az/smartfon-apple-iphone-15-pro-256gb-natural-titanium-194580",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": false,
+      "model_code": "194580",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.795,
+      "deal_score": 1995.1,
+      "flags": [],
+      "seller_label": "official retailer",
+      "gmaps_rating": null,
+      "hist_low": 2439.0,
+      "hist_avg": 2956.99,
+      "is_lowest": false
+    },
+    {
+      "title": "Smartfon Apple iPhone 15 PRO 256GB BLUE TITANIUM",
+      "price": 3149.99,
+      "url": "https://bakuelectronics.az/smartfon-apple-iphone-15-pro-256gb-blue-titanium-194582",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": false,
+      "model_code": "194582",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.795,
+      "deal_score": 2220.7,
+      "flags": [],
+      "seller_label": "official retailer",
+      "gmaps_rating": null,
+      "hist_low": 2439.0,
+      "hist_avg": 2956.99,
+      "is_lowest": false
+    },
+    {
+      "title": "Smartfon Apple iPhone 15 PRO 256GB WHITE TITANIUM",
+      "price": 3149.99,
+      "url": "https://bakuelectronics.az/smartfon-apple-iphone-15-pro-256gb-white-titanium-194579",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": false,
+      "model_code": "194579",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.795,
+      "deal_score": 2220.7,
+      "flags": [],
+      "seller_label": "official retailer",
+      "gmaps_rating": null,
+      "hist_low": 2439.0,
+      "hist_avg": 2956.99,
+      "is_lowest": false
+    }
+  ],
+  "source_status": [
+    {
+      "source": "qiymetleri.az",
+      "status": "ok",
+      "note": "html->llm extraction (31 price lines)"
+    },
+    {
+      "source": "bakuelectronics.az",
+      "status": "ok",
+      "note": "7 structured offers"
+    },
+    {
+      "source": "birmarket.az",
+      "status": "ok",
+      "note": "html->llm extraction (132 price lines)"
+    },
+    {
+      "source": "tap.az",
+      "status": "ok",
+      "note": "25 structured offers"
+    },
+    {
+      "source": "irshad.az",
+      "status": "ok",
+      "note": "html->llm extraction (80 price lines)"
+    },
+    {
+      "source": "optimal.az",
+      "status": "blocked",
+      "note": "HTTP 403 (anti-bot; survived TLS impersonation)"
+    },
+    {
+      "source": "ispace.az",
+      "status": "ok",
+      "note": "24 API offers (official Apple)"
+    },
+    {
+      "source": "kontakt.az",
+      "status": "empty",
+      "note": "0 GraphQL offers (official)"
+    },
+    {
+      "source": "lalafo.az",
+      "status": "skipped",
+      "note": "JSON API ignores the query filter - skipped to avoid noise (used market)"
+    },
+    {
+      "source": "maxi.az",
+      "status": "skipped",
+      "note": "Cloudflare 525 (origin down/blocked) at the edge (TODO)"
+    },
+    {
+      "source": "soliton.az / trendyol.az",
+      "status": "skipped",
+      "note": "search path/JS not resolved - low priority (TODO)"
+    },
+    {
+      "source": "qiymeti.net / ucuzu.az / umico.az",
+      "status": "skipped",
+      "note": "JS-SPA - run with --deep to render (Chrome)"
+    }
+  ],
+  "stats": {
+    "total_seen": 57,
+    "rejected": 53,
+    "matched": 4
+  }
+}

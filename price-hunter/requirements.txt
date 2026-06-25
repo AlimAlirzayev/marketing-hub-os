@@ -1,0 +1,14 @@
+# Price Hunter — AZ price-intelligence agent
+# Pure-Python, no native ML runtimes (corporate Win11 friendly).
+httpx==0.28.1               # async fan-out across sources
+beautifulsoup4==4.15.0      # HTML parsing / digest
+lxml==6.1.1                 # bs4 parser backend
+rich==15.0.0               # CLI table + panels
+python-dotenv==1.2.2        # reuse repo-root .env
+google-genai==2.8.0         # Gemini (primary LLM, model rotation)
+groq==1.4.0                # Groq (LLM failover)
+curl_cffi==0.15.0           # browser TLS impersonation to clear anti-bot WAFs
+pandas==2.*                 # data layer: dedupe + data-driven fair band + filters
+fastapi==0.*                # backend API behind the dashboard
+uvicorn==0.*                # ASGI server for the backend
+playwright==1.*             # optional --deep headless render (system Chrome)

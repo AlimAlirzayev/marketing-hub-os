@@ -1,0 +1,123 @@
+{
+  "version": "1",
+  "campaign": {
+    "slug": "new-campaign-slug",
+    "name": "Campaign Name",
+    "language": "az",
+    "owner": "Marketing",
+    "source_brief": ""
+  },
+  "platform": {
+    "name": "meta",
+    "placement": "instagram-facebook-reels",
+    "paid_media_notes": "Hook must be legible in the first second; CTA must settle by second 8."
+  },
+  "format": {
+    "aspect": "9:16",
+    "duration_s": 10,
+    "resolution": [1080, 1920],
+    "fps": 30,
+    "safe_area": "Keep primary text inside central 900x1500 px; avoid bottom app UI zone."
+  },
+  "objective": {
+    "primary": "",
+    "audience": "",
+    "single_minded_message": "",
+    "conversion_action": ""
+  },
+  "brand": {
+    "name": "Xalq Sigorta",
+    "identity_source": "social-studio/brand_kit/brand.md",
+    "tone": ["premium", "trust-led", "clear", "not clickbait"],
+    "palette": ["#E31E24", "#2B2A29", "#FFFFFF"],
+    "typography": ["Inter Tight or Manrope for headlines", "Inter for body/legal"],
+    "rules": [
+      "Logos and readable campaign copy are deterministic overlays.",
+      "Do not ask the video model to create final Azerbaijani text.",
+      "Keep red as accent unless the approved key visual already uses it."
+    ]
+  },
+  "offer": {
+    "headline": "",
+    "subheadline": "",
+    "dates": "",
+    "cta": "",
+    "terms": []
+  },
+  "assets": [],
+  "storyboard": [
+    {
+      "time": "0.0-1.5s",
+      "beat": "Hook",
+      "visual": "",
+      "motion": "",
+      "overlay": ""
+    },
+    {
+      "time": "1.5-4.0s",
+      "beat": "Benefit reveal",
+      "visual": "",
+      "motion": "",
+      "overlay": ""
+    },
+    {
+      "time": "4.0-7.5s",
+      "beat": "Offer proof",
+      "visual": "",
+      "motion": "",
+      "overlay": ""
+    },
+    {
+      "time": "7.5-10.0s",
+      "beat": "CTA settle",
+      "visual": "",
+      "motion": "",
+      "overlay": ""
+    }
+  ],
+  "model_strategy": {
+    "recommended": [
+      "i2v-seedance-2-0-reference-i2v-enhancor",
+      "i2v-runway-gen-4.5"
+    ],
+    "fallbacks": [
+      "i2v-kling-2.6",
+      "i2v-seedance-1.5-pro",
+      "deterministic-remotion"
+    ],
+    "variant_count": 3,
+    "selection_criteria": [
+      "brand asset fidelity",
+      "stable product geometry",
+      "clean negative space for overlay",
+      "no generated readable text",
+      "smooth motion and thumb-stopping first second"
+    ]
+  },
+  "text_policy": {
+    "ai_text_rule": "Generate a textless or low-text motion plate. Final copy is deterministic overlay.",
+    "overlay_text": [],
+    "forbidden": [
+      "new readable text",
+      "fake logos",
+      "wrong prices or dates",
+      "mutated Azerbaijani letters",
+      "legal copy generated as pixels"
+    ]
+  },
+  "qa": {
+    "reject_if": [
+      "any visible foreground text is malformed",
+      "brand or partner logo is altered",
+      "product or vehicle geometry looks wrong",
+      "CTA cannot be read in the final two seconds",
+      "output violates safe-area rules"
+    ],
+    "approve_if": [
+      "motion supports the storyboard without distracting from the offer",
+      "all exact copy is deterministic overlay",
+      "brand colors and logo lockups match the brand kit",
+      "the video works without audio"
+    ]
+  }
+}

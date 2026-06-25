@@ -1,0 +1,8 @@
+requests>=2.31
+python-dotenv>=1.0
+fastapi>=0.110
+uvicorn>=0.29
+# Live GA4 only — service-account token signing. Pure-Python wheels (no grpc,
+# no google-analytics-data SDK) so it installs on the locked-down machine.
+# Demo mode does not need it.
+google-auth>=2.28

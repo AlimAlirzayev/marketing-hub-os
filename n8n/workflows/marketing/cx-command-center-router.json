@@ -1,0 +1,83 @@
+{
+  "name": "Customer Relations Center - Incoming Complaint Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cx-incoming",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cx-incoming-webhook",
+      "name": "Incoming Complaint Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.CX_COMMAND_CENTER_URL || 'http://host.docker.internal:8810/api/ingest'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-CX-Token",
+              "value": "={{$env.CX_WEBHOOK_SECRET || ''}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{JSON.stringify($json)}}",
+        "options": {}
+      },
+      "id": "send-to-cx",
+      "name": "Send to Customer Relations Center",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [800, 280]
+    }
+  ],
+  "connections": {
+    "Incoming Complaint Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send to Customer Relations Center",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Customer Relations Center": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "cx-command-center-router-v1"
+}

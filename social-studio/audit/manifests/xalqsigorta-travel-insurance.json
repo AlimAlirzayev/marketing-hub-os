@@ -1,0 +1,92 @@
+{
+  "$schema": "https://ramin-os.local/social-studio/creative-audit-manifest.v1.json",
+  "campaign": "xalqsigorta-travel-insurance-georgia-train",
+  "brand": "Xalq Sigorta",
+  "brand_kit": "social-studio/brand_kit/brand.md",
+  "palette": "social-studio/brand_kit/colors.json",
+  "audit_profile": "xalqsigorta_financial_services",
+  "copy": {
+    "headline": "Gurcustana qatarla seyahat artiq mumkundur",
+    "subheadline": "Seyahat sigortani unutma.",
+    "regulatory_claim": "1 yanvar 2026-dan Gurcustana giris ucun seyahat sigortasi mecburidir.",
+    "copy_layer_mode": "deterministic_overlay"
+  },
+  "compliance": {
+    "status": "client_legal_approval_required",
+    "risk_note": "Official source found, but the regulatory claim still needs client/legal approval before publishing.",
+    "source_url": "https://matsne.gov.ge/ka/document/view/6728816",
+    "review_date": "2026-05-20",
+    "owner": "Xalq Insurance Digital OS source review; client/legal owner required"
+  },
+  "placements": [
+    {
+      "name": "feed_4x5",
+      "expected_width": 1080,
+      "expected_height": 1350,
+      "footer_zone_ratio": 0.135,
+      "headline_zone": {
+        "x0": 0.0,
+        "y0": 0.0,
+        "x1": 0.52,
+        "y1": 0.42
+      },
+      "exports": [
+        "output/social/xalqsigorta-georgia-train-travel-insurance-post-v5-1080x1350.png"
+      ]
+    },
+    {
+      "name": "square_1x1",
+      "expected_width": 1080,
+      "expected_height": 1080,
+      "footer_zone_ratio": 0.155,
+      "headline_zone": {
+        "x0": 0.0,
+        "y0": 0.0,
+        "x1": 0.56,
+        "y1": 0.44
+      },
+      "exports": [
+        "output/social/xalqsigorta-georgia-train-travel-insurance-square-v5-1080x1080.png"
+      ]
+    },
+    {
+      "name": "story_9x16",
+      "expected_width": 1080,
+      "expected_height": 1920,
+      "footer_zone_ratio": 0.115,
+      "headline_zone": {
+        "x0": 0.0,
+        "y0": 0.0,
+        "x1": 0.68,
+        "y1": 0.34
+      },
+      "exports": [
+        "output/social/xalqsigorta-georgia-train-travel-insurance-story-v5-1080x1920.png"
+      ]
+    }
+  ],
+  "rules": {
+    "ai_image_must_not_contain": [
+      "logo",
+      "legal text",
+      "phone number",
+      "website",
+      "headline text",
+      "random readable letters"
+    ],
+    "brand_red_policy": {
+      "ideal_red_ratio_min": 0.02,
+      "ideal_red_ratio_max": 0.22,
+      "critical_red_ratio_max": 0.42
+    },
+    "footer_policy": {
+      "max_edge_energy": 0.085,
+      "max_luminance_std": 0.18,
+      "prefer_footer_darker_than_full_image_by": 0.04
+    },
+    "headline_policy": {
+      "max_edge_energy": 0.09,
+      "max_luminance_std": 0.24
+    }
+  }
+}

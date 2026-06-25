@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xalq Sigorta — Konversiyalar (Meta CAPI)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .drop.drag { border-color:#E31E24; background:#FEF2F2; }
+  .spin { animation: s 1s linear infinite; } @keyframes s { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-1">
+    <div class="w-10 h-10 rounded-xl bg-[#E31E24] text-white grid place-items-center font-bold text-lg">X</div>
+    <div>
+      <h1 class="text-xl font-bold text-slate-900">Konversiyalar — CRM Satışları → Meta</h1>
+      <p class="text-sm text-slate-500">Polis satışlarını Conversions API ilə Meta-ya göndər · <span id="acc">Xalq Sigorta</span></p>
+    </div>
+  </div>
+  <div class="text-xs text-slate-400 mb-6">Offline dataset: <span id="ds">…</span></div>
+
+  <!-- Drop zone -->
+  <div id="drop" class="drop bg-white border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center cursor-pointer transition">
+    <input id="file" type="file" accept=".csv,.xlsx,.xlsm" class="hidden">
+    <div class="text-5xl mb-3">📄</div>
+    <p class="font-semibold text-slate-700">Satış faylını bura sürüşdür</p>
+    <p class="text-sm text-slate-500 mt-1">CSV və ya Excel (.xlsx) · və ya klikləyib seç</p>
+    <p id="fname" class="text-sm text-[#E31E24] font-medium mt-3"></p>
+  </div>
+
+  <div class="flex items-center gap-2 mt-3 text-sm text-slate-500">
+    <label>Maks. yaş (gün):</label>
+    <input id="maxage" type="number" value="62" class="w-20 border rounded px-2 py-1 text-center">
+    <span class="text-xs">Meta offline limiti ~62 — köhnələr avtomatik kənarda qalır.</span>
+  </div>
+
+  <!-- Preview -->
+  <div id="preview" class="hidden mt-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <h2 class="font-bold text-slate-900 mb-4">Ön baxış</h2>
+    <div class="grid grid-cols-3 gap-3 mb-4">
+      <div class="rounded-xl bg-emerald-50 p-4 text-center">
+        <div id="p-prepared" class="text-3xl font-bold text-emerald-600">0</div>
+        <div class="text-xs text-slate-500 mt-1">göndəriləcək polis</div>
+      </div>
+      <div class="rounded-xl bg-amber-50 p-4 text-center">
+        <div id="p-old" class="text-3xl font-bold text-amber-600">0</div>
+        <div class="text-xs text-slate-500 mt-1">62 gündən köhnə</div>
+      </div>
+      <div class="rounded-xl bg-slate-50 p-4 text-center">
+        <div id="p-noid" class="text-3xl font-bold text-slate-500">0</div>
+        <div class="text-xs text-slate-500 mt-1">identifikatorsuz</div>
+      </div>
+    </div>
+    <div id="badges" class="flex flex-wrap gap-2 mb-4 text-xs"></div>
+    <div class="text-sm text-slate-600 space-y-1">
+      <div>Tanınan sütunlar: <span id="p-map" class="text-slate-800"></span></div>
+      <div id="p-warn" class="text-amber-700"></div>
+    </div>
+    <div class="flex flex-wrap gap-3 mt-6">
+      <button id="btn-test" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700">
+        🧪 Test Events-ə göndər
+      </button>
+      <button id="btn-live" class="px-5 py-2.5 rounded-xl bg-[#E31E24] text-white font-semibold hover:bg-[#B3171C]">
+        🚀 Production-a göndər
+      </button>
+    </div>
+    <p class="text-xs text-slate-400 mt-2">Əvvəlcə Test Events tövsiyə olunur — orada gör, sonra Production.</p>
+  </div>
+
+  <!-- Progress / result -->
+  <div id="progress" class="hidden mt-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <div class="flex items-center gap-3 mb-3">
+      <div id="spinner" class="w-5 h-5 border-2 border-slate-300 border-t-[#E31E24] rounded-full spin"></div>
+      <h2 id="prog-title" class="font-bold text-slate-900">Göndərilir…</h2>
+    </div>
+    <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+      <div id="bar" class="bg-[#E31E24] h-3 transition-all" style="width:0%"></div>
+    </div>
+    <div id="prog-text" class="text-sm text-slate-600 mt-2">0 / 0</div>
+    <div id="result" class="hidden mt-4 p-4 rounded-xl text-sm"></div>
+  </div>
+
+  <p class="text-center text-xs text-slate-400 mt-8">
+    Hash-lənmiş məlumat (SHA-256) · təkrar polis avtomatik bloklanır · meta-capi
+  </p>
+</div>
+
+<script>
+let currentFile = null;
+const $ = id => document.getElementById(id);
+
+fetch('/api/config').then(r=>r.json()).then(c=>{ $('ds').textContent = c.dataset || '—'; });
+
+// --- drag & drop ---
+const drop = $('drop'), fileInput = $('file');
+drop.onclick = () => fileInput.click();
+fileInput.onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); };
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(f){
+  currentFile = f;
+  $('fname').textContent = '✓ ' + f.name;
+  $('preview').classList.add('hidden');
+  $('progress').classList.add('hidden');
+  runPreview();
+}
+
+function fd(){
+  const f = new FormData();
+  f.append('file', currentFile);
+  f.append('max_age', $('maxage').value || '62');
+  return f;
+}
+
+async function runPreview(){
+  const f = fd();
+  let r;
+  try { r = await (await fetch('/api/preview', {method:'POST', body:f})).json(); }
+  catch(e){ alert('Xəta: ' + e); return; }
+  if(!r.ok){ alert('✗ ' + r.error); return; }
+
+  $('p-prepared').textContent = r.prepared;
+  // pull "too old" / "no id" counts out of the warnings text
+  let old = 0, noid = 0;
+  (r.warnings||[]).forEach(w => {
+    const m = w.match(/^(\d+)/);
+    if(m && w.includes('köhnə')) old = +m[1];
+    if(m && w.includes('identifikator')) noid = +m[1];
+  });
+  $('p-old').textContent = old;
+  $('p-noid').textContent = noid;
+
+  const badges = [];
+  badges.push(r.has_premium
+    ? `<span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">💰 Premium var · ${r.total_premium} ${r.currency}</span>`
+    : `<span class="px-2 py-1 rounded-full bg-amber-100 text-amber-700">⚠ Premium yoxdur → value=0 (ROAS görünməz)</span>`);
+  badges.push(`<span class="px-2 py-1 rounded-full bg-slate-100 text-slate-600">başlıq sətri: ${r.header_line}</span>`);
+  if(r.sample) badges.push(`<span class="px-2 py-1 rounded-full bg-slate-100 text-slate-600">id: ${r.sample.user_keys.join(', ')}</span>`);
+  $('badges').innerHTML = badges.join('');
+
+  const m = r.mapping;
+  $('p-map').textContent = Object.keys(m).filter(k=>m[k]).map(k=>`${k}→${m[k]}`).join(' · ');
+  $('p-warn').textContent = (r.warnings||[]).join('  ·  ');
+
+  $('preview').classList.remove('hidden');
+}
+
+$('btn-test').onclick = () => doSend('test');
+$('btn-live').onclick = () => {
+  if(confirm('Production-a REAL göndəriş. Bu, müştəri konversiyaları kimi Meta-ya gedəcək. Davam?')) doSend('live');
+};
+
+async function doSend(mode){
+  const f = fd(); f.append('mode', mode);
+  $('preview').classList.add('hidden');
+  $('progress').classList.remove('hidden');
+  $('result').classList.add('hidden');
+  $('spinner').classList.remove('hidden');
+  $('prog-title').textContent = (mode==='test' ? 'Test Events-ə göndərilir…' : 'Production-a göndərilir…');
+  $('bar').style.width = '0%'; $('prog-text').textContent = '0 / 0';
+
+  let r;
+  try { r = await (await fetch('/api/send', {method:'POST', body:f})).json(); }
+  catch(e){ showResult(false, 'Xəta: ' + e); return; }
+  if(!r.ok){ showResult(false, '✗ ' + r.error); return; }
+  poll(r.job_id, mode);
+}
+
+function poll(jobId, mode){
+  const t = setInterval(async () => {
+    let j;
+    try { j = await (await fetch('/api/job/'+jobId)).json(); } catch(e){ return; }
+    const pct = j.total ? Math.round(j.sent/j.total*100) : 0;
+    $('bar').style.width = pct + '%';
+    $('prog-text').textContent = `${j.sent} / ${j.total}`;
+    if(j.status === 'done'){
+      clearInterval(t); $('spinner').classList.add('hidden');
+      $('prog-title').textContent = 'Tamamlandı ✓';
+      const where = (mode==='test') ? 'Events Manager → Test Events' : 'Events Manager → Offline dataset → Overview';
+      showResult(true, `<b>${j.sent}</b> hadisə Meta-ya çatdı. ${where}-də 1-2 dəqiqəyə görünəcək.`);
+    } else if(j.status === 'error'){
+      clearInterval(t); $('spinner').classList.add('hidden');
+      $('prog-title').textContent = 'Xəta';
+      showResult(false, 'Göndərmə dayandı: ' + (j.error||'naməlum') + ` (${j.sent} göndərildi)`);
+    }
+  }, 1000);
+}
+
+function showResult(ok, html){
+  const el = $('result');
+  el.className = 'mt-4 p-4 rounded-xl text-sm ' + (ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700');
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+  $('spinner').classList.add('hidden');
+}
+</script>
+</body>
+</html>

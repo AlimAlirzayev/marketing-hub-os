@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xalq Sigorta · Marketing OS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .nav-item.active { background:#E31E24; color:#fff; }
+  .nav-item.active .desc { color:rgba(255,255,255,.75); }
+  .dot { width:8px; height:8px; border-radius:9999px; }
+</style>
+</head>
+<body class="h-screen overflow-hidden bg-slate-100">
+<div class="flex h-full">
+
+  <!-- Sidebar -->
+  <aside class="w-72 shrink-0 bg-[#1C1B17] text-white flex flex-col">
+    <div class="px-5 py-5 flex items-center gap-3 border-b border-white/10">
+      <div class="w-10 h-10 rounded-xl bg-[#E31E24] grid place-items-center font-bold text-lg">X</div>
+      <div>
+        <div class="font-bold leading-tight">Marketing OS</div>
+        <div class="text-[11px] text-white/50">Xalq Sigorta · komanda paneli</div>
+      </div>
+    </div>
+    <nav id="nav" class="flex-1 overflow-y-auto px-3 py-4 space-y-5"></nav>
+    <div class="px-5 py-3 border-t border-white/10 flex items-center justify-between text-[11px] text-white/45">
+      <span>Bütün xidmətlər lokal</span>
+      <button id="refresh" class="hover:text-white" title="Statusu yenilə">↻ status</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <div class="h-14 shrink-0 bg-white border-b border-slate-200 flex items-center gap-3 px-5">
+      <div id="cur-icon" class="text-xl">📊</div>
+      <div class="min-w-0">
+        <div id="cur-name" class="font-semibold text-slate-900 leading-tight truncate">Hesabatlılıq</div>
+        <div id="cur-desc" class="text-xs text-slate-500 truncate">Meta Ads performans hesabatı</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <span id="cur-status" class="text-xs text-slate-400">yoxlanılır…</span>
+        <a id="cur-open" href="#" target="_blank" class="text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium text-slate-700">Yeni pəncərədə ↗</a>
+      </div>
+    </div>
+    <div class="flex-1 relative bg-slate-50">
+      <div id="offline" class="hidden absolute inset-0 grid place-items-center text-center px-6">
+        <div>
+          <div class="text-5xl mb-3">😴</div>
+          <div class="font-semibold text-slate-700 mb-1">Bu xidmət hazırda işləmir</div>
+          <div class="text-sm text-slate-500">START_MARKETING_OS faylını işə sal — bütün xidmətlər birlikdə qalxır.</div>
+        </div>
+      </div>
+      <iframe id="frame" class="w-full h-full border-0" src="about:blank"></iframe>
+      <div id="health" class="hidden absolute inset-0 overflow-auto p-6 bg-slate-50"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let SERVICES = [], statusMap = {}, current = null;
+
+async function init(){
+  SERVICES = await (await fetch('/api/services')).json();
+  renderNav();
+  await refreshStatus();
+  if(SERVICES.length) select(SERVICES[0]);
+  setInterval(refreshStatus, 10000);
+}
+
+function renderNav(){
+  const cats = {};
+  SERVICES.forEach(s => { (cats[s.cat] = cats[s.cat] || []).push(s); });
+  $('nav').innerHTML = Object.entries(cats).map(([cat, items]) => `
+    <div>
+      <div class="px-3 mb-1 text-[10px] font-semibold tracking-wider text-white/35 uppercase">${cat}</div>
+      ${items.map(s => `
+        <button data-key="${s.key}" class="nav-item w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 hover:bg-white/10 transition">
+          <span class="text-lg">${s.icon}</span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-medium leading-tight">${s.name}</span>
+            <span class="desc block text-[11px] text-white/45 truncate">${s.desc}</span>
+          </span>
+          <span class="dot bg-slate-500" data-dot="${s.key}"></span>
+        </button>`).join('')}
+    </div>`).join('');
+  $('nav').insertAdjacentHTML('beforeend', `
+    <div>
+      <div class="px-3 mb-1 text-[10px] font-semibold tracking-wider text-white/35 uppercase">Nəzarət</div>
+      <button data-key="_health" class="nav-item w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 hover:bg-white/10 transition">
+        <span class="text-lg">🩺</span>
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm font-medium leading-tight">Sistem Sağlamlığı</span>
+          <span class="desc block text-[11px] text-white/45 truncate">Reyestr ↔ reallıq audit</span>
+        </span>
+      </button>
+    </div>`);
+  $('nav').querySelectorAll('.nav-item').forEach(b =>
+    b.onclick = () => {
+      if (b.dataset.key === '_health') return showHealth(b);
+      select(SERVICES.find(s => s.key === b.dataset.key));
+    });
+}
+
+function select(s){
+  current = s;
+  $('health').classList.add('hidden');
+  $('cur-open').classList.remove('hidden');
+  $('nav').querySelectorAll('.nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.key === s.key));
+  $('cur-icon').textContent = s.icon;
+  $('cur-name').textContent = s.name;
+  $('cur-desc').textContent = s.desc;
+  const url = `http://localhost:${s.port}${s.path || ''}`;
+  $('cur-open').href = url;
+  const up = statusMap[s.key];
+  $('offline').classList.toggle('hidden', up !== false);
+  $('frame').style.visibility = (up === false) ? 'hidden' : 'visible';
+  if(up !== false) $('frame').src = url;
+  paintCurStatus();
+}
+
+function paintCurStatus(){
+  if(!current) return;
+  const up = statusMap[current.key];
+  const el = $('cur-status');
+  if(up === true){ el.textContent = '● işləyir'; el.className = 'text-xs text-emerald-600'; }
+  else if(up === false){ el.textContent = '● dayanıb'; el.className = 'text-xs text-red-500'; }
+  else { el.textContent = 'yoxlanılır…'; el.className = 'text-xs text-slate-400'; }
+}
+
+async function refreshStatus(){
+  try { statusMap = await (await fetch('/api/status')).json(); } catch(e){ return; }
+  SERVICES.forEach(s => {
+    const dot = document.querySelector(`[data-dot="${s.key}"]`);
+    if(dot) dot.className = 'dot ' + (statusMap[s.key] ? 'bg-emerald-400' : 'bg-red-500');
+  });
+  paintCurStatus();
+  // if the current tool just came online and frame is blank, load it
+  if(current && statusMap[current.key] && $('frame').src === 'about:blank') select(current);
+}
+
+async function showHealth(btn){
+  $('nav').querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b === btn));
+  $('cur-icon').textContent = '🩺';
+  $('cur-name').textContent = 'Sistem Sağlamlığı';
+  $('cur-desc').textContent = 'Reyestr ↔ reallıq (services.json audit)';
+  $('cur-status').textContent = '';
+  $('cur-open').classList.add('hidden');
+  $('frame').style.visibility = 'hidden';
+  $('offline').classList.add('hidden');
+  const h = $('health');
+  h.classList.remove('hidden');
+  h.innerHTML = '<div class="text-slate-400">Yoxlanılır…</div>';
+
+  let a;
+  try { a = await (await fetch('/api/audit')).json(); }
+  catch(e){ h.innerHTML = '<div class="text-red-600">Audit alınmadı.</div>'; return; }
+
+  const okBadge = a.ok
+    ? '<span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-semibold text-sm">✓ Reyestr reallıqla tam uyğundur</span>'
+    : '<span class="px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm">✗ Drift var — düzəliş lazımdır</span>';
+
+  const rows = a.services.map(s => `
+    <div class="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
+      <span class="dot ${s.up ? 'bg-emerald-400' : 'bg-red-500'}"></span>
+      <span class="font-mono text-xs text-slate-400 w-12">${s.port}</span>
+      <span class="font-medium text-slate-700 w-28">${s.key}</span>
+      <span class="text-slate-500 text-sm flex-1 truncate">${s.name}</span>
+      <span class="text-xs ${s.up ? 'text-emerald-600' : 'text-red-500'}">${s.up ? 'işləyir' : 'dayanıb'}</span>
+    </div>`).join('');
+
+  const drift = a.drift.length ? `
+    <div class="mt-5 p-4 rounded-xl bg-red-50">
+      <div class="font-semibold text-red-700 mb-2">⚠ Reyestrdə olmayan portlar (boşluq!)</div>
+      ${a.drift.map(d => `<div class="text-sm text-red-700">✗ ${d.port} (${d.why.join(', ')}) → services.json-a əlavə et</div>`).join('')}
+    </div>` : '';
+
+  const md = a.missing_dir.length ? `
+    <div class="mt-3 p-4 rounded-xl bg-amber-50">
+      <div class="font-semibold text-amber-700 mb-2">⚠ Reyestrdə var, qovluq yox</div>
+      ${a.missing_dir.map(s => `<div class="text-sm text-amber-700">✗ ${s.key} → ${s.dir}</div>`).join('')}
+    </div>` : '';
+
+  const m = a.monitor || {};
+  const mon = `<div class="text-xs mb-5 px-3 py-2 rounded-lg ${m.enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}">
+      🔄 Avto-monitor: ${m.enabled ? 'AKTİV — hər ' + m.interval_min + ' dəq' : 'söndürülüb'} · son yoxlama: ${m.last_run || '—'}${m.last_alert ? ' · son Telegram: ' + m.last_alert : ''} · drift olsa Telegram</div>`;
+
+  h.innerHTML = `
+    <div class="max-w-3xl">
+      <div class="flex items-center gap-3 mb-1 flex-wrap">
+        <h2 class="text-lg font-bold text-slate-900">Sistem Sağlamlığı</h2>${okBadge}
+      </div>
+      <div class="text-sm text-slate-500 mb-3">Reyestr: ${a.counts.registered} · dinləyən: ${a.counts.listening} · kodda istinad: ${a.counts.referenced} · aralıq ${a.counts.range[0]}-${a.counts.range[1]}</div>
+      ${mon}
+      <div class="bg-white rounded-2xl border border-slate-200 p-4">${rows}</div>
+      ${drift}${md}
+      <button onclick="showHealth(document.querySelector('[data-key=_health]'))" class="mt-4 text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium text-slate-700">↻ Yenidən yoxla</button>
+    </div>`;
+}
+
+$('refresh').onclick = refreshStatus;
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,690 @@
+{
+  "query": "iphone 15 pro 256gb",
+  "generated_at": "2026-06-11T12:08:32",
+  "spec": {
+    "query": "iphone 15 pro 256gb",
+    "canonical_name": "Apple iPhone 15 Pro 256GB",
+    "brand": "Apple",
+    "family": "iPhone",
+    "generation": "15 Pro",
+    "variants": [
+      "Natural Titanium",
+      "Blue Titanium",
+      "White Titanium",
+      "Black Titanium"
+    ],
+    "model_codes": [
+      "A2848",
+      "A3101",
+      "A3102",
+      "A3104"
+    ],
+    "must_include": [
+      "iphone"
+    ],
+    "must_exclude": [
+      "max",
+      "plus",
+      "128gb",
+      "512gb",
+      "1tb",
+      "case",
+      "kabro",
+      "qab",
+      "qabi",
+      "shusha",
+      "şüşə",
+      "ekran",
+      "plonka",
+      "replika",
+      "kopya",
+      "1:1",
+      "dummy",
+      "maketi",
+      "karobka",
+      "box only",
+      "adapter"
+    ],
+    "fair_low": 2050.0,
+    "fair_high": 2750.0,
+    "notes": "Exclude 'Pro Max' models, other storage capacities (128GB/512GB), and accessories like cases (kabro) or screen protectors."
+  },
+  "best_legit": {
+    "title": "Smartfon Apple iPhone 15 PRO 256GB NATURAL TITANIUM",
+    "price": 2829.99,
+    "url": "https://bakuelectronics.az/smartfon-apple-iphone-15-pro-256gb-natural-titanium-194580",
+    "source": "bakuelectronics.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "unknown",
+    "official": true,
+    "warranty": "",
+    "in_stock": false,
+    "model_code": "194580",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.7,
+    "deal_score": 2264.0,
+    "flags": [
+      "above market median 839 AZN"
+    ],
+    "hist_low": 2829.99,
+    "hist_avg": 3043.32,
+    "is_lowest": true
+  },
+  "cheapest": {
+    "title": "iPhone 17 Pro Deep Blue 256GB, 12GB | 256 GB – 2999 AZN 512",
+    "price": 199.0,
+    "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+    "source": "qiymetleri.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "unknown",
+    "official": false,
+    "warranty": "",
+    "in_stock": null,
+    "model_code": "",
+    "raw_price": "199 AZN",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.15,
+    "deal_score": 1000268.7,
+    "flags": [
+      "suspiciously cheap (<1025 AZN) — likely replica/scam"
+    ],
+    "hist_low": 2829.99,
+    "hist_avg": 3043.32,
+    "is_lowest": true
+  },
+  "verdict": "",
+  "market": {
+    "count": 21,
+    "median": 839.0,
+    "band_low": 439.0,
+    "band_high": 1319.0,
+    "min": 199.0,
+    "max": 3149.99
+  },
+  "history": {
+    "lowest_ever": 2829.99,
+    "lowest_ever_date": "2026-06-11",
+    "low_30d": 2829.99,
+    "avg_30d": 3043.32,
+    "observations": 3,
+    "days_tracked": 1
+  },
+  "offers": [
+    {
+      "title": "Smartfon Apple iPhone 15 PRO 256GB NATURAL TITANIUM",
+      "price": 2829.99,
+      "url": "https://bakuelectronics.az/smartfon-apple-iphone-15-pro-256gb-natural-titanium-194580",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": false,
+      "model_code": "194580",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.7,
+      "deal_score": 2264.0,
+      "flags": [
+        "above market median 839 AZN"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "Smartfon Apple iPhone 15 PRO 256GB BLUE TITANIUM",
+      "price": 3149.99,
+      "url": "https://bakuelectronics.az/smartfon-apple-iphone-15-pro-256gb-blue-titanium-194582",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": false,
+      "model_code": "194582",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.7,
+      "deal_score": 2520.0,
+      "flags": [
+        "above market median 839 AZN"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": false
+    },
+    {
+      "title": "Smartfon Apple iPhone 15 PRO 256GB WHITE TITANIUM",
+      "price": 3149.99,
+      "url": "https://bakuelectronics.az/smartfon-apple-iphone-15-pro-256gb-white-titanium-194579",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": false,
+      "model_code": "194579",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.7,
+      "deal_score": 2520.0,
+      "flags": [
+        "above market median 839 AZN"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": false
+    },
+    {
+      "title": "iPhone 17 Pro Deep Blue 256GB, 12GB | 256 GB – 2999 AZN 512",
+      "price": 199.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "199 AZN",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1000268.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro trade in, | 3",
+      "price": 209.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "209 Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1000282.2,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro Silver 256GB, 12GB 3",
+      "price": 209.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "209 Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1000282.2,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro Silver 256GB, 12GB 4",
+      "price": 299.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "299 Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1000403.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Air 256gb 2",
+      "price": 400.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "400azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1000540.0,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro Deep Blue 256GB, 12GB | 256 GB – 2999 AZN 512",
+      "price": 499.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "499 AZN",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1000673.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro Silver 256GB, 12GB | 256 GB – 2999 AZN 512 GB",
+      "price": 699.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "699 AZN",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1000943.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 pro 256gb (eSim)- 2",
+      "price": 730.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "730azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1000985.5,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "Iphone 17 256 GB • | 2",
+      "price": 749.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "749 Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001011.2,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 16 Pro 256GB 2",
+      "price": 750.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "750Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001012.5,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "Iphone 17 256 GB • | 2",
+      "price": 839.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "839 Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001132.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro Silver 256GB, 12GB | 256 GB – 2999 AZN 512 GB",
+      "price": 899.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "899 AZN",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001213.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 pro 256gb 2",
+      "price": 920.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "920azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001242.0,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro | 2",
+      "price": 949.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "949 Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001281.2,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone | 2",
+      "price": 980.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "980 Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001323.0,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro Silver 256GB, 12GB | 256 GB – 2",
+      "price": 999.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "999 AZN",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001348.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro Deep Blue 256GB, 12GB 2",
+      "price": 999.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "999 Azn",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001348.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    },
+    {
+      "title": "iPhone 17 Pro Deep Blue 256GB, 12GB | 256 GB – 2",
+      "price": 999.0,
+      "url": "https://qiymetleri.az/iphone-15-pro-256gb",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "999 AZN",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.15,
+      "deal_score": 1001348.7,
+      "flags": [
+        "suspiciously cheap (<1025 AZN) — likely replica/scam"
+      ],
+      "hist_low": 2829.99,
+      "hist_avg": 3043.32,
+      "is_lowest": true
+    }
+  ],
+  "source_status": [
+    {
+      "source": "qiymetleri.az",
+      "status": "ok",
+      "note": "html->llm extraction (31 price lines)"
+    },
+    {
+      "source": "bakuelectronics.az",
+      "status": "ok",
+      "note": "7 structured offers"
+    },
+    {
+      "source": "birmarket.az",
+      "status": "ok",
+      "note": "html->llm extraction (132 price lines)"
+    },
+    {
+      "source": "tap.az",
+      "status": "ok",
+      "note": "25 structured offers"
+    },
+    {
+      "source": "irshad.az",
+      "status": "ok",
+      "note": "html->llm extraction (80 price lines)"
+    },
+    {
+      "source": "optimal.az",
+      "status": "blocked",
+      "note": "HTTP 403 (anti-bot; survived TLS impersonation)"
+    },
+    {
+      "source": "ispace.az",
+      "status": "ok",
+      "note": "24 API offers (official Apple)"
+    },
+    {
+      "source": "kontakt.az",
+      "status": "empty",
+      "note": "0 GraphQL offers (official)"
+    },
+    {
+      "source": "lalafo.az",
+      "status": "skipped",
+      "note": "JSON API ignores the query filter - skipped to avoid noise (used market)"
+    },
+    {
+      "source": "maxi.az",
+      "status": "skipped",
+      "note": "Cloudflare 525 (origin down/blocked) at the edge (TODO)"
+    },
+    {
+      "source": "soliton.az / trendyol.az",
+      "status": "skipped",
+      "note": "search path/JS not resolved - low priority (TODO)"
+    },
+    {
+      "source": "qiymeti.net / ucuzu.az / umico.az",
+      "status": "skipped",
+      "note": "JS-SPA - run with --deep to render (Chrome)"
+    }
+  ],
+  "stats": {
+    "total_seen": 115,
+    "rejected": 83,
+    "matched": 21
+  }
+}

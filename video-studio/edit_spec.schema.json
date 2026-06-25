@@ -1,0 +1,224 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ramin-os/video-studio/edit_spec.schema.json",
+  "title": "Xalq Insurance Digital OS Video Edit Spec",
+  "description": "The contract between the LLM (which plans the edit) and render.py (which executes it). The LLM never touches the video file; it only emits a document matching this schema. render.py reads it and runs FFmpeg + Remotion deterministically.",
+  "type": "object",
+  "required": ["version", "job", "timeline", "format"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "1",
+      "description": "Schema version. Bump when the contract changes."
+    },
+    "job": {
+      "type": "object",
+      "required": ["input", "output"],
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "type": "string",
+          "description": "Path to the raw video, relative to video-studio/ (e.g. input/raw.mp4)."
+        },
+        "output": {
+          "type": "string",
+          "description": "Path for the finished video, relative to video-studio/ (e.g. output/linkedin-clip.mp4)."
+        },
+        "platform": {
+          "type": "string",
+          "enum": ["linkedin", "instagram", "tiktok", "youtube", "x", "generic"],
+          "default": "linkedin",
+          "description": "Target platform. Drives sensible defaults for aspect ratio and length."
+        },
+        "title": {
+          "type": "string",
+          "description": "Human label for this job, used in logs and filenames."
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trim": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Cut dead space off the head/tail of the raw video.",
+          "properties": {
+            "start": {
+              "type": ["string", "null"],
+              "description": "Trim-in timestamp, HH:MM:SS.mmm. null = from the very start.",
+              "default": null
+            },
+            "end": {
+              "type": ["string", "null"],
+              "description": "Trim-out timestamp, HH:MM:SS.mmm. null = to the very end.",
+              "default": null
+            }
+          }
+        },
+        "cuts": {
+          "type": "array",
+          "description": "Inner ranges to delete (e.g. mistakes, long pauses). Applied after trim, before speed.",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "type": "string", "description": "HH:MM:SS.mmm" },
+              "to": { "type": "string", "description": "HH:MM:SS.mmm" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 4.0,
+          "default": 1.0,
+          "description": "Playback speed multiplier applied to the trimmed clip. 1.5 = 1.5x faster. Audio pitch is preserved."
+        }
+      }
+    },
+    "format": {
+      "type": "object",
+      "required": ["aspect"],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "enum": ["9:16", "1:1", "4:5", "16:9"],
+          "description": "Output aspect ratio. LinkedIn feed favours 1:1 or 4:5; reels/shorts use 9:16."
+        },
+        "resolution": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 16 },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "[width, height] in pixels. If omitted, derived from aspect (e.g. 9:16 -> [1080,1920])."
+        },
+        "fps": {
+          "type": "integer",
+          "enum": [24, 25, 30, 60],
+          "default": 30
+        },
+        "fit": {
+          "type": "string",
+          "enum": ["cover", "contain"],
+          "default": "cover",
+          "description": "cover = scale+crop to fill (no bars). contain = scale to fit, pad with a blurred backdrop."
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "normalize": {
+          "type": "boolean",
+          "default": true,
+          "description": "Apply EBU R128 loudness normalisation to the voice track."
+        },
+        "music": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Background music bed. Tracks live in video-studio/music/ and are tagged in music/manifest.json.",
+          "properties": {
+            "track": {
+              "type": "string",
+              "default": "auto",
+              "description": "\"auto\" = let the renderer pick from the manifest by mood, or an explicit path like music/energetic-01.mp3."
+            },
+            "mood": {
+              "type": "string",
+              "default": "energetic-electronic",
+              "description": "Mood tag used when track is \"auto\". Must match a tag in music/manifest.json."
+            },
+            "gain_db": {
+              "type": "number",
+              "default": -18,
+              "description": "Music level relative to 0 dB. Lower = quieter bed."
+            },
+            "ducking": {
+              "type": "boolean",
+              "default": true,
+              "description": "Automatically dip the music whenever the speaker is talking (sidechain compression)."
+            }
+          }
+        }
+      }
+    },
+    "captions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "language": {
+          "type": "string",
+          "default": "en",
+          "description": "Caption language. \"en\" transcribes (and translates if needed) to English via local Whisper."
+        },
+        "style": {
+          "type": "string",
+          "enum": ["karaoke", "block"],
+          "default": "karaoke",
+          "description": "karaoke = word-by-word highlight. block = one phrase at a time."
+        },
+        "position": {
+          "type": "string",
+          "enum": ["bottom", "center", "top"],
+          "default": "bottom"
+        }
+      }
+    },
+    "motion_graphics": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Remotion-rendered layers. Empty/omitted = no graphics.",
+      "properties": {
+        "intro": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "title": { "type": "string" },
+            "subtitle": { "type": "string" },
+            "duration_s": { "type": "number", "default": 2.5, "minimum": 0.5, "maximum": 8 }
+          }
+        },
+        "outro": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "cta": { "type": "string", "description": "Call to action, e.g. \"Follow for more AI automation\"." },
+            "duration_s": { "type": "number", "default": 3, "minimum": 0.5, "maximum": 8 }
+          }
+        },
+        "lower_thirds": {
+          "type": "array",
+          "description": "Name/title cards that slide in over the video.",
+          "items": {
+            "type": "object",
+            "required": ["at", "line1"],
+            "additionalProperties": false,
+            "properties": {
+              "at": { "type": "string", "description": "When to show it, HH:MM:SS in the FINAL timeline (after speed/intro)." },
+              "line1": { "type": "string", "description": "Primary line, e.g. a person's name." },
+              "line2": { "type": "string", "description": "Secondary line, e.g. a role." },
+              "duration_s": { "type": "number", "default": 3.5 }
+            }
+          }
+        },
+        "brand": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "accent_color": { "type": "string", "default": "#00E5FF", "description": "Hex accent used across all graphics." },
+            "logo": { "type": ["string", "null"], "default": null, "description": "Path to a transparent PNG logo, or null." }
+          }
+        }
+      }
+    }
+  }
+}

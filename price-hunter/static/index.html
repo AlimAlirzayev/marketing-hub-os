@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Price Hunter — AZ qiymət kəşfiyyatı</title>
+<style>
+  :root{
+    --bg:#0E0E10; --panel:#17171A; --card:#1E1E22; --line:#2A2A30;
+    --muted:#8A8A93; --text:#ECECEE; --red:#E31E24; --green:#16A34A;
+    --amber:#F59E0B; --blue:#3B82F6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);
+         display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0}
+  .tag{font-size:11px;color:var(--muted)}
+  .pill{font-size:11px;padding:2px 8px;border:1px solid var(--line);
+        border-radius:20px;color:var(--muted)}
+  main{max-width:1100px;margin:0 auto;padding:22px}
+  .search{display:flex;gap:10px;flex-wrap:wrap}
+  input,select,button{font:inherit;color:var(--text);background:var(--card);
+        border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+  #q{flex:1;min-width:240px;font-size:15px}
+  button.go{background:var(--red);border-color:var(--red);color:#fff;
+        font-weight:600;cursor:pointer;padding:9px 22px}
+  button.go:disabled{opacity:.5;cursor:default}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  .filters label{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+  .filters input[type=number]{width:96px}
+  .market{margin:18px 0 6px;color:var(--muted);font-size:13px}
+  .market b{color:var(--text)}
+  .picks{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+  .pick{flex:1;min-width:260px;background:var(--card);border:1px solid var(--line);
+        border-radius:10px;padding:14px}
+  .pick .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .pick .price{font-size:26px;font-weight:700;margin:4px 0}
+  .pick.best{border-color:var(--green)}
+  .pick.cheap{border-color:var(--amber)}
+  .verdict{background:#10231a;border:1px solid #1d3a2a;border-radius:10px;
+        padding:14px;margin:8px 0 18px;white-space:pre-wrap}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);
+        vertical-align:top;font-size:13px}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase}
+  td.r,th.r{text-align:right}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .trust{display:inline-block;min-width:42px;text-align:center;border-radius:5px;
+        padding:1px 6px;font-weight:600;font-size:12px}
+  .flag{color:var(--amber);font-size:12px}
+  .cov{margin-top:26px}
+  .cov td:first-child{font-weight:600}
+  .st-ok{color:var(--green)} .st-skip{color:var(--amber)} .st-bad{color:var(--red)}
+  .muted{color:var(--muted)} .err{color:var(--red)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);
+        border-top-color:var(--red);border-radius:50%;animation:s .8s linear infinite;
+        vertical-align:-2px;margin-right:6px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  footer{color:var(--muted);font-size:12px;padding:18px 24px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎧 Price Hunter</h1>
+  <span class="tag">AZ qiymət kəşfiyyatı — ən ucuz <i>etibarlı</i> qiymət</span>
+  <span style="flex:1"></span>
+  <span class="pill" id="eng">…</span>
+</header>
+<main>
+  <div class="search">
+    <input id="q" placeholder="Məhsul yaz: airpods pro 2, iphone 15 pro, dyson…"
+           value="airpods pro 2" autofocus/>
+    <button class="go" id="go">Axtar</button>
+  </div>
+  <div class="filters">
+    <label>Maks ₼ <input type="number" id="max_price" min="0" step="10"/></label>
+    <label>Min ₼ <input type="number" id="min_price" min="0" step="10"/></label>
+    <label>Min etibar <input type="number" id="min_trust" min="0" max="1" step="0.1" placeholder="0–1"/></label>
+    <label><input type="checkbox" id="official"/> yalnız rəsmi</label>
+    <label>Vəziyyət
+      <select id="condition"><option value="">hamısı</option>
+        <option value="new">new</option><option value="used">used</option>
+        <option value="refurbished">refurbished</option></select></label>
+    <label>Sırala
+      <select id="sort"><option value="deal">ən yaxşı sövdə</option>
+        <option value="price">qiymət</option><option value="trust">etibar</option></select></label>
+    <label title="JS-SPA saytları (qiymeti.net/ucuzu/umico) Apify/Chrome ilə render et — yavaş">
+      <input type="checkbox" id="deep"/> dərin (deep)</label>
+    <label title="Google nəticələrindən çata bilmədiyimiz mağazaları da tap (Apify)">
+      <input type="checkbox" id="serp"/> Google (geniş)</label>
+    <label title="Instagram satıcıları — saytı olmayan dükanlar (Apify)">
+      <input type="checkbox" id="social"/> Instagram</label>
+  </div>
+
+  <div id="status"></div>
+  <div id="out"></div>
+</main>
+<footer>Lokal backend · port 8830 · nəticələr <code>data/reports/</code>-da saxlanılır</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const trustColor = t => t>=.66 ? 'var(--green)' : t>=.4 ? 'var(--amber)' : 'var(--red)';
+const esc = s => (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const money = v => v==null ? '—' : Number(v).toLocaleString('az') + ' ₼';
+
+async function health(){
+  try{ const h = await (await fetch('/api/health')).json();
+    $('#eng').textContent = 'LLM: '+h.llm+(h.apify?' · Apify ✓':' · Apify ✗');
+  }catch(e){ $('#eng').textContent='backend offline'; }
+}
+
+function offerRow(o,i){
+  const tc = trustColor(o.trust);
+  const title = o.url ? `<a href="${esc(o.url)}" target="_blank">${esc(o.title)}</a>` : esc(o.title);
+  const flags = (o.flags&&o.flags.length)? `<div class="flag">⚠ ${esc(o.flags.join('; '))}</div>`:'';
+  const low = o.is_lowest ? ' <span style="color:var(--green)">⤓ tarixi min</span>' : '';
+  const seller = o.seller_label ? `<div class="muted" style="font-size:11px">${esc(o.seller_label)}</div>` : '';
+  return `<tr>
+    <td class="r muted">${i+1}</td>
+    <td class="r"><b>${money(o.price)}</b>${low}</td>
+    <td class="r"><span class="trust" style="background:${tc}22;color:${tc}">${Math.round(o.trust*100)}%</span></td>
+    <td>${esc(o.source)}${seller}</td>
+    <td>${esc(o.condition||'')}</td>
+    <td>${title}${flags}</td></tr>`;
+}
+
+function render(d){
+  const m = d.market||{};
+  let html = '';
+  if(m.count){
+    html += `<div class="market">Bazar (scraped): median <b>${money(m.median)}</b> ·
+      əsl band <b>${money(m.band_low)}–${money(m.band_high)}</b> ·
+      aralıq ${money(m.min)}–${money(m.max)} · ${m.count} təklif</div>`;
+  }
+  const h = d.history||{};
+  if(h.lowest_ever){
+    const extra = h.avg_30d ? ` · 30g aşağı <b>${money(h.low_30d)}</b> · 30g orta ${money(h.avg_30d)}` : '';
+    html += `<div class="market">📉 Tarixçə: tarixi ən aşağı <b>${money(h.lowest_ever)}</b>
+      (${esc(h.lowest_ever_date)})${extra} · ${h.observations} müşahidə / ${h.days_tracked} gün</div>`;
+  }
+  html += '<div class="picks">';
+  if(d.best_legit){const b=d.best_legit;
+    html += `<div class="pick best"><div class="lbl">✓ Ən yaxşı dürüst alış</div>
+      <div class="price">${money(b.price)}</div>
+      <div>${esc(b.source)} · etibar ${Math.round(b.trust*100)}% · ${esc(b.condition||'')}</div>
+      <div class="muted">${esc(b.title)}</div></div>`;}
+  if(d.cheapest && (!d.best_legit || d.cheapest.price!==d.best_legit.price || d.cheapest.source!==d.best_legit.source)){
+    const c=d.cheapest;
+    html += `<div class="pick cheap"><div class="lbl">↓ Ən ucuz</div>
+      <div class="price">${money(c.price)}</div>
+      <div>${esc(c.source)} · etibar ${Math.round(c.trust*100)}%</div>
+      <div class="flag">${c.flags&&c.flags.length?('⚠ '+esc(c.flags.join('; '))):''}</div></div>`;}
+  html += '</div>';
+  if(d.verdict) html += `<div class="verdict">${esc(d.verdict)}</div>`;
+
+  if(d.offers&&d.offers.length){
+    html += `<table><thead><tr><th class="r">#</th><th class="r">Qiymət</th>
+      <th class="r">Etibar</th><th>Mənbə</th><th>Vəziyyət</th><th>Başlıq</th></tr></thead><tbody>
+      ${d.offers.map(offerRow).join('')}</tbody></table>`;
+  } else {
+    html += `<p class="err">Uyğun təklif tapılmadı — aşağıdakı mənbə əhatəsinə bax.</p>`;
+  }
+
+  // coverage
+  html += '<div class="cov"><h3 class="muted">Mənbə əhatəsi</h3><table><tbody>';
+  for(const c of (d.coverage||[])){
+    const cl = c.status==='ok'?'st-ok':(['skipped','empty'].includes(c.status)?'st-skip':'st-bad');
+    html += `<tr><td>${esc(c.source)}</td><td class="${cl}">${esc(c.status)}</td>
+      <td class="muted">${esc(c.note||'')}</td></tr>`;
+  }
+  html += '</tbody></table></div>';
+  const t=d.totals||{};
+  html += `<p class="muted">Görüldü ${t.seen} · uyğun ${t.matched} · rədd ${t.rejected}</p>`;
+  $('#out').innerHTML = html;
+}
+
+async function run(){
+  const body = {
+    query: $('#q').value,
+    max_price: $('#max_price').value? +$('#max_price').value : null,
+    min_price: $('#min_price').value? +$('#min_price').value : null,
+    min_trust: $('#min_trust').value? +$('#min_trust').value : null,
+    official: $('#official').checked,
+    condition: $('#condition').value || null,
+    source: null, sort: $('#sort').value, deep: $('#deep').checked,
+    serp: $('#serp').checked, social: $('#social').checked, verdict: true
+  };
+  $('#go').disabled = true; $('#out').innerHTML='';
+  $('#status').innerHTML = `<span class="spin"></span> "${esc(body.query)}" axtarılır${body.deep?' (dərin render — yavaş ola bilər)':''}…`;
+  try{
+    const r = await fetch('/api/hunt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    $('#status').innerHTML='';
+    if(d.error){ $('#out').innerHTML=`<p class="err">${esc(d.error)}</p>`; }
+    else render(d);
+  }catch(e){ $('#status').innerHTML=`<p class="err">Xəta: ${esc(String(e))}</p>`; }
+  $('#go').disabled = false;
+}
+
+$('#go').onclick = run;
+$('#q').addEventListener('keydown', e=>{ if(e.key==='Enter') run(); });
+health();
+</script>
+</body>
+</html>

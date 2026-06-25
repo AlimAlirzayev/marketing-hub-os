@@ -1,0 +1,36 @@
+{
+  "reviewer": "Codex visual review",
+  "review_date": "2026-05-20",
+  "asset": "output/social/xalqsigorta-georgia-train-travel-insurance-post-v7-1080x1350.png",
+  "scores": {
+    "concept_strength": 30,
+    "brand_distinctiveness": 42,
+    "art_direction_quality": 55,
+    "message_clarity": 28,
+    "emotional_strategy": 35,
+    "craft_realism": 70,
+    "platform_performance": 52,
+    "memorability": 30
+  },
+  "blockers": [
+    "The image does not depict train travel, Georgia, passengers, passports, luggage, or travel-insurance context.",
+    "The background contradicts the headline and makes the campaign message incoherent."
+  ],
+  "top_findings": [
+    "V7 is technically clean but creatively off-brief.",
+    "The prompt compiler over-weighted abstract creative language and under-weighted non-negotiable scene invariants.",
+    "The model interpreted campaign creation/studio language as a literal studio setup.",
+    "This version should be rejected, not revised from the current image."
+  ],
+  "revision_brief": [
+    "Restore non-negotiable scene invariants: train interior, passenger couple, window, Caucasus/railway, red suitcase, passport or travel documents, subtle insurance UI.",
+    "Keep v6 restraint and v7 ambition, but do not allow a studio desk, camera, laptop, moodboard, office, or creator setup.",
+    "Treat authenticity improvements as details inside the train scene, not a change of setting."
+  ],
+  "next_prompt_patch": [
+    "Non-negotiable: the image must be inside a modern passenger train with a young Azerbaijani couple traveling, not in a studio, office, desk, home, agency, or creator workspace.",
+    "Non-negotiable: include a red suitcase, passports or travel documents, and a subtle travel-insurance UI prop.",
+    "Non-negotiable: show an outside railway/Caucasus/Georgia travel cue through the train window.",
+    "Do not depict cameras, laptops, moodboards, content studios, office desks, plants, notebooks, or production equipment."
+  ]
+}

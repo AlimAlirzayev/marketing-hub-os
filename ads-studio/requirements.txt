@@ -1,0 +1,8 @@
+fastapi>=0.110
+uvicorn>=0.29
+requests>=2.31
+python-dotenv>=1.0
+google-genai>=0.3
+# Campaign creation via the Google Ads API (create_kasko_display.py).
+# Pulls in google-auth-oauthlib used by generate_refresh_token.py.
+google-ads>=25.0

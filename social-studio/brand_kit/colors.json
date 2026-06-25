@@ -1,0 +1,46 @@
+{
+  "$comment": "Xalq Sigorta brand palette. Hex values extracted from output/social/assets/xalqsigorta-logo-official.svg. Use these exactly; do not improvise replacements.",
+  "primary": {
+    "red": {
+      "hex": "#E31E24",
+      "role": "Brand red. Used in logo mark, accents, headlines on dark backgrounds, footer dividers. The defining color of Xalq Sigorta.",
+      "rgb": [227, 30, 36]
+    },
+    "red_alt": {
+      "hex": "#E30613",
+      "role": "Alternate red used in footer SVG. Slightly cooler; use only when matching the official footer asset.",
+      "rgb": [227, 6, 19]
+    }
+  },
+  "neutral": {
+    "charcoal": {
+      "hex": "#2B2A29",
+      "role": "Logotype color on light backgrounds. Primary dark for typography on neutral surfaces.",
+      "rgb": [43, 42, 41]
+    },
+    "ink": {
+      "hex": "#1C1B17",
+      "role": "Deep black for legal/microcopy, dense paragraph text, footer text on white.",
+      "rgb": [28, 27, 23]
+    },
+    "white": {
+      "hex": "#FFFFFF",
+      "role": "Reverse-out background for logo, headline text on photographic/dark backgrounds.",
+      "rgb": [255, 255, 255]
+    }
+  },
+  "atmosphere": {
+    "burgundy_fade": {
+      "hex": "#5C0F12",
+      "role": "Suggested deepest tone for footer/edge gradient on photo backgrounds. Do not use as a fill - only as the dark end of a soft feathered gradient.",
+      "rgb": [92, 15, 18]
+    }
+  },
+  "usage_rules": [
+    "Never apply a heavy opaque red wash across the whole post.",
+    "Red is a brand atmosphere on photo backgrounds: dark burgundy at the edges, transparent toward the subject.",
+    "Footer fades use long, soft transitions - no visible linear edges or rectangular bands.",
+    "Brand red (#E31E24) is reserved for the logo mark, the contact-lockup phone icon, divider lines, and small accent elements. It is not a background fill.",
+    "Headlines on photo backgrounds are pure white (#FFFFFF) with a subtle dark gradient behind for legibility."
+  ]
+}

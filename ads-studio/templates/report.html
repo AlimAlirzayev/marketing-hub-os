@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Performans Hesabatı — PDF</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  tailwind.config = { theme: { extend: { colors: { brand: { red:'#E31E24', ink:'#1C1B17', charcoal:'#2B2A29' } }, fontFamily: { sans:['Inter','system-ui'], tight:['"Inter Tight"','Inter','sans-serif'] } } } };
+</script>
+<style>
+  @page { size: A4; margin: 12mm; }
+  body { font-family: Inter, system-ui, sans-serif; color:#1C1B17; background:#fff; }
+  .num { font-variant-numeric: tabular-nums; font-family:'Inter Tight', Inter, sans-serif; }
+  .card { border:1px solid #E5E7EB; border-radius:10px; padding:14px; }
+  h1,h2,h3 { font-family:'Inter Tight', Inter, sans-serif; font-weight:800; }
+  .delta-up { color:#16A34A } .delta-down { color:#DC2626 }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:600; }
+  @media print { .no-print { display:none !important } .page-break { page-break-before:always } body { padding:0 } }
+</style>
+</head>
+<body class="px-8 py-6 max-w-[210mm] mx-auto">
+
+<!-- Print bar (hidden in PDF) -->
+<div class="no-print bg-brand-ink text-white rounded-xl p-3 flex items-center gap-3 mb-6">
+  <select id="month-select" class="bg-white/10 text-white text-sm px-3 py-2 rounded-md"></select>
+  <select id="compare-select" class="bg-white/10 text-white text-sm px-3 py-2 rounded-md">
+    <option value="prev_month">vs ötən ay</option>
+    <option value="prev_year">vs keçən ilin eyni ayı</option>
+  </select>
+  <button onclick="window.print()" class="ml-auto bg-brand-red hover:opacity-90 text-white text-sm px-4 py-2 rounded-md font-medium">PDF olaraq yadda saxla</button>
+</div>
+
+<!-- Header -->
+<header class="flex items-end gap-4 pb-4 border-b border-gray-200 mb-6">
+  <img src="/static/logo-dark.svg" class="h-12" />
+  <div>
+    <div class="font-tight font-extrabold text-2xl" id="r-account">—</div>
+    <div class="text-sm text-gray-500">Meta Ads · Performans Hesabatı</div>
+  </div>
+  <div class="ml-auto text-right">
+    <div class="font-tight font-bold text-xl" id="r-period">—</div>
+    <div class="text-[12px] text-gray-500" id="r-cmp">—</div>
+  </div>
+</header>
+
+<!-- Insight of the Day -->
+<section id="r-insight" class="rounded-xl p-5 mb-5 text-white" style="background:linear-gradient(135deg,#1C1B17,#2B2A29)">
+  <div class="text-[11px] uppercase tracking-wide text-white/55 mb-1">Günün İnsight-ı</div>
+  <h2 class="text-xl mb-1" id="r-insight-head">—</h2>
+  <p class="text-[13px] text-white/80" id="r-insight-body">—</p>
+</section>
+
+<!-- AI Executive Summary -->
+<section class="card mb-5">
+  <div class="text-[11px] uppercase tracking-wide text-gray-500 mb-1">AI İcra Xülasəsi</div>
+  <p class="text-[13.5px] leading-relaxed whitespace-pre-line" id="r-summary">yüklənir…</p>
+</section>
+
+<!-- 8 KPI grid -->
+<section class="grid grid-cols-4 gap-3 mb-5" id="r-kpis"></section>
+
+<!-- Pacing -->
+<section class="card mb-5" id="r-pacing"></section>
+
+<!-- Anomalies + Fatigue (side by side) -->
+<section class="grid grid-cols-2 gap-3 mb-5">
+  <div class="card">
+    <h3 class="text-base mb-2">Anomaliyalar</h3>
+    <div id="r-anomalies" class="space-y-2 text-[12.5px]"></div>
+  </div>
+  <div class="card">
+    <h3 class="text-base mb-2">Kreativ yorğunluğu</h3>
+    <p id="r-fatigue-verdict" class="text-[12.5px] mb-2">—</p>
+    <div id="r-fatigue-signals" class="space-y-1.5 text-[12px]"></div>
+  </div>
+</section>
+
+<!-- Daily trend chart -->
+<section class="card mb-5">
+  <h3 class="text-base mb-2">Gündəlik xərc və lead</h3>
+  <div style="height:200px"><canvas id="r-trend"></canvas></div>
+</section>
+
+<!-- Funnel + Saturation -->
+<section class="grid grid-cols-2 gap-3 mb-5">
+  <div class="card">
+    <h3 class="text-base mb-2">Konversiya hunisi</h3>
+    <div id="r-funnel" class="space-y-1.5 text-[12.5px]"></div>
+  </div>
+  <div class="card">
+    <h3 class="text-base mb-2">Auditoriya doyma</h3>
+    <p id="r-sat-verdict" class="text-[12.5px] mb-2">—</p>
+    <div style="height:140px"><canvas id="r-sat"></canvas></div>
+  </div>
+</section>
+
+<!-- Top segments callouts -->
+<section class="card mb-5">
+  <h3 class="text-base mb-2">Ən yaxşı performans göstərənlər</h3>
+  <div class="grid grid-cols-4 gap-3 text-[12px]" id="r-callouts"></div>
+</section>
+
+<!-- Top campaigns -->
+<section class="card mb-5">
+  <h3 class="text-base mb-2">Top kampaniyalar (xərcə görə)</h3>
+  <div id="r-campaigns" class="space-y-1.5 text-[12.5px]"></div>
+</section>
+
+<footer class="text-[10px] text-gray-400 text-center pt-4 border-t border-gray-100 mt-6">
+  Ads Studio · Xalq Insurance Digital OS · <span id="r-src">—</span> · AI: Gemini · <span id="r-gen">—</span>
+</footer>
+
+<script>
+const $ = (s)=>document.querySelector(s);
+let SYM = '$';
+const nf = (n)=> new Intl.NumberFormat('az-AZ').format(Math.round(n||0));
+const money = (n)=> SYM + new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
+const COL = { red:'#E31E24', blue:'#2563EB', green:'#16A34A', amber:'#F59E0B', gray:'#94A3B8' };
+const STAT = { good:'#16A34A', warn:'#F59E0B', over:'#DC2626', ok:'#16A34A', high:'#DC2626', info:'#2563EB' };
+let state = { month:null, compare:'prev_month' };
+
+async function init(){
+  const meta = await (await fetch('/api/meta')).json();
+  SYM = meta.currency_symbol;
+  const ms = $('#month-select');
+  ms.innerHTML = meta.months.map(m=>`<option value="${m.value}">${m.label}</option>`).join('');
+  state.month = meta.months[0].value;
+  ms.value = state.month;
+  ms.addEventListener('change', e=>{ state.month=e.target.value; load(); });
+  $('#compare-select').addEventListener('change', e=>{ state.compare=e.target.value; load(); });
+  load();
+}
+
+async function load(){
+  const data = await (await fetch(`/api/report?month=${state.month}&compare=${state.compare}`)).json();
+  const r = data.report, a = data.analytics;
+  $('#r-account').textContent = r.account.name;
+  $('#r-period').textContent = r.period.label;
+  $('#r-cmp').textContent = a.comparison?.baseline_period ? `vs ${a.comparison.baseline_period}` : '';
+  $('#r-src').textContent = r.account.source;
+  $('#r-gen').textContent = 'Yaradıldı: ' + new Date().toLocaleString('az-AZ');
+
+  renderInsight(a.insight);
+  renderKpis(r.totals, a.deltas);
+  renderPacing(a.pacing);
+  renderAnomalies(a.anomalies);
+  renderFatigue(a.fatigue);
+  renderTrend(r.daily);
+  renderFunnel(a.funnel);
+  renderSat(a.saturation);
+  renderCallouts(r, a);
+  loadAsync();
+}
+
+async function loadAsync(){
+  const [sum, segs, camp] = await Promise.all([
+    fetch(`/api/summary?month=${state.month}&compare=${state.compare}`).then(r=>r.json()),
+    fetch(`/api/segments?month=${state.month}`).then(r=>r.json()),
+    fetch(`/api/campaigns?month=${state.month}&limit=5`).then(r=>r.json()),
+  ]);
+  $('#r-summary').textContent = sum.text || '—';
+  renderCampaigns(camp);
+}
+
+function renderInsight(i){ $('#r-insight-head').textContent = i?.headline || '—'; $('#r-insight-body').textContent = i?.body || ''; }
+
+function delta(d){
+  if (!d || d.change===null) return '';
+  const cls = d.good ? 'delta-up' : 'delta-down';
+  return `<span class="num text-[11px] ${cls}">${d.change>=0?'▲':'▼'} ${Math.abs(d.change)}%</span>`;
+}
+function renderKpis(t, d){
+  const items = [
+    ['Xərc', money(t.spend), 'Meta Ads', d.spend],
+    ['Lead', nf(t.leads), `${money(t.cpl)}/lead`, d.leads],
+    ['Mesaj', nf(t.messages), 'söhbət', d.messages],
+    ['Əhatə', nf(t.reach), 'unikal', d.reach],
+    ['Klik', nf(t.clicks), `${t.ctr}% CTR`, d.clicks],
+    ['CPM', money(t.cpm), '1000 impr', d.cpm],
+    ['Tezlik', t.frequency+'x', 'orta', d.frequency],
+    ['Göstərilmə', nf(t.impressions), 'cəmi', d.impressions],
+  ];
+  $('#r-kpis').innerHTML = items.map(([lbl,val,sub,dt])=>`
+    <div class="card">
+      <div class="flex items-center justify-between mb-1"><div class="text-[10px] uppercase tracking-wide text-gray-500">${lbl}</div>${delta(dt)}</div>
+      <div class="num font-extrabold text-xl leading-tight">${val}</div>
+      <div class="text-[11px] text-gray-400 mt-0.5">${sub}</div>
+    </div>`).join('');
+}
+
+function renderPacing(p){
+  const title = p.is_current ? 'Büdcə pacing + ay sonu proqnozu' : 'Yekun vs hədəf';
+  const c = STAT[p.budget_status] || COL.gray;
+  const cl = STAT[p.leads_status] || COL.gray;
+  $('#r-pacing').innerHTML = `
+    <h3 class="text-base mb-2">${title}</h3>
+    <div class="grid grid-cols-2 gap-4 text-[12.5px]">
+      <div>
+        <div class="flex justify-between mb-1"><span class="text-gray-600">Büdcə</span><span class="num font-semibold">${money(p.spend_so_far)} / ${money(p.budget)}</span></div>
+        <div class="h-2 rounded-full bg-gray-100 overflow-hidden"><div class="h-full" style="width:${Math.min(p.budget_used_pct,100)}%;background:${c}"></div></div>
+        <div class="text-[11px] text-gray-500 mt-1">Proqnoz xərc: <span class="num font-semibold">${money(p.projected_spend)}</span></div>
+      </div>
+      <div>
+        <div class="flex justify-between mb-1"><span class="text-gray-600">Lead hədəfi</span><span class="num font-semibold">${nf(p.leads_so_far)} / ${nf(p.target_leads)}</span></div>
+        <div class="h-2 rounded-full bg-gray-100 overflow-hidden"><div class="h-full" style="width:${Math.min(p.lead_attainment_pct,100)}%;background:${cl}"></div></div>
+        <div class="text-[11px] text-gray-500 mt-1">Proqnoz lead: <span class="num font-semibold">${nf(p.projected_leads)}</span> (${p.lead_attainment_pct}%) · CPL proqnoz ${money(p.projected_cpl)}</div>
+      </div>
+    </div>`;
+}
+
+function renderAnomalies(list){
+  $('#r-anomalies').innerHTML = list.map(a=>{
+    const c = STAT[a.severity] || COL.gray;
+    return `<div style="border-left:3px solid ${c};padding-left:8px"><div class="font-semibold">${a.title}</div><div class="text-gray-500 text-[11.5px]">${a.detail}</div></div>`;
+  }).join('');
+}
+
+function renderFatigue(f){
+  $('#r-fatigue-verdict').textContent = f.verdict || '';
+  if (!f.signals?.length){ $('#r-fatigue-signals').innerHTML = '<span class="text-gray-400">Siqnal yoxdur.</span>'; return; }
+  $('#r-fatigue-signals').innerHTML = f.signals.map(s=>{
+    const c = STAT[s.severity] || COL.gray;
+    return `<div style="border-left:2px solid ${c};padding-left:6px"><span class="font-semibold">${s.name}</span> <span class="num text-[11px]" style="color:${c}">${s.value}</span> — <span class="text-gray-500">${s.detail}</span></div>`;
+  }).join('');
+}
+
+function renderTrend(daily){
+  new Chart($('#r-trend'),{ type:'line',
+    data:{ labels:daily.map(d=>+d.date.split('-')[2]), datasets:[
+      { label:'Xərc', data:daily.map(d=>d.spend), borderColor:COL.red, backgroundColor:'rgba(227,30,36,.08)', fill:true, tension:.3, yAxisID:'y', pointRadius:0, borderWidth:1.5 },
+      { label:'Lead', data:daily.map(d=>d.leads), borderColor:COL.blue, fill:false, tension:.3, yAxisID:'y1', pointRadius:0, borderWidth:1.5 },
+    ]},
+    options:{ maintainAspectRatio:false, responsive:true, animation:false,
+      plugins:{legend:{position:'top',align:'end',labels:{boxWidth:8,usePointStyle:true,font:{size:10}}}},
+      scales:{y:{position:'left',ticks:{font:{size:10}}}, y1:{position:'right',grid:{display:false},ticks:{font:{size:10}}}, x:{ticks:{font:{size:10}}}}}});
+}
+
+function renderFunnel(f){
+  $('#r-funnel').innerHTML = f.map((s,i)=>`
+    <div>
+      <div class="flex justify-between mb-0.5"><span>${s.stage}</span><span class="num text-gray-500">${nf(s.value)}${i?` · ${s.step_rate}%`:''}</span></div>
+      <div class="h-4 rounded bg-gray-100 overflow-hidden"><div class="h-full" style="width:${Math.max(s.width_pct,4)}%;background:linear-gradient(90deg,#2563EB,#60A5FA)"></div></div>
+    </div>`).join('');
+}
+
+function renderSat(sat){
+  $('#r-sat-verdict').textContent = sat?.verdict || '';
+  const pts = sat?.points || [];
+  if (!pts.length) return;
+  new Chart($('#r-sat'),{ type:'bar',
+    data:{ labels:pts.map(p=>+p.date.split('-')[2]), datasets:[
+      { type:'bar', label:'Reach', data:pts.map(p=>p.reach), backgroundColor:COL.blue+'70', yAxisID:'y' },
+      { type:'line', label:'Tezlik', data:pts.map(p=>p.frequency), borderColor:COL.red, yAxisID:'y1', pointRadius:0, borderWidth:1.5, tension:.3 },
+    ]},
+    options:{maintainAspectRatio:false, responsive:true, animation:false,
+      plugins:{legend:{position:'top',align:'end',labels:{boxWidth:8,usePointStyle:true,font:{size:10}}}},
+      scales:{y:{position:'left',ticks:{font:{size:10}}}, y1:{position:'right',grid:{display:false},ticks:{font:{size:10}}}, x:{ticks:{font:{size:10}}}}}});
+}
+
+function renderCallouts(r, a){
+  const t = r.combined_totals;
+  const fb = r.by_platform.facebook, ig = r.by_platform.instagram;
+  const items = [
+    ['Ən aktiv platforma', ig.leads > fb.leads ? `Instagram (${ig.leads} lead)` : `Facebook (${fb.leads} lead)`],
+    ['CPL', money(t.cpl)],
+    ['Lead → Mesaj %', t.leads ? Math.round(t.messages/t.leads*100)+'%' : '—'],
+    ['Anomaliya sayı', a.anomalies.filter(x=>x.severity!=='ok').length],
+  ];
+  $('#r-callouts').innerHTML = items.map(([lbl,val])=>`<div><div class="text-[10px] uppercase tracking-wide text-gray-500">${lbl}</div><div class="num font-bold text-base">${val}</div></div>`).join('');
+}
+
+function renderCampaigns(list){
+  if(!list?.length){ $('#r-campaigns').innerHTML='<span class="text-gray-400">Kampaniya yoxdur.</span>'; return; }
+  const max = Math.max(...list.map(c=>c.spend||0),1);
+  $('#r-campaigns').innerHTML = list.map((c,i)=>{
+    const w = Math.round((c.spend||0)/max*100);
+    return `<div>
+      <div class="flex justify-between"><span class="truncate">${i+1}. ${c.campaign_name}</span><span class="num text-gray-500">${money(c.spend)} · ${nf(c.leads)} lead · CPL ${c.leads?money(c.cpl):'—'}</span></div>
+      <div class="h-1 mt-0.5 bg-gray-100 rounded"><div class="h-full rounded" style="width:${w}%;background:#E31E24"></div></div>
+    </div>`;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>

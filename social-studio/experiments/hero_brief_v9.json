@@ -1,0 +1,66 @@
+{
+  "campaign": "xalqsigorta-travel-insurance-georgia-train",
+  "version": "v9-flora-seedance-test",
+  "source_brief": "social-studio/experiments/hero_brief_v2.json",
+  "format": {
+    "aspect": "4:5",
+    "resolution": [1080, 1350]
+  },
+  "overlay_copy_done_later": {
+    "headline": "Gurcustana qatarla seyahat artiq mumkundur",
+    "subheadline": "Seyahat sigortani unutma."
+  },
+  "flora": {
+    "technique": {
+      "id": "tech_ts77gfpnq4kv9vj2t78bdrbyfn850hpn",
+      "name": "Idea to Seedance Prompt",
+      "estimated_run_cost": 0.009
+    },
+    "scene_idea": "A premium editorial travel insurance campaign film for Xalq Sigorta. Inside a modern intercity train on the Baku-Tbilisi route, one relaxed Azerbaijani couple in their early 30s sits by the window, not looking at camera, quietly watching a Caucasus railway viaduct and hazy mountains outside. Soft late-morning window light from camera right, 50mm documentary feel, subtle film grain. Lower-left foreground has a clean matte red hard-shell suitcase in Xalq Sigorta red. The woman holds a phone with only an abstract red shield and three simple bars on a white screen, no readable text. The man casually holds navy passports with a folded ticket. Keep the mood cinematic, trustworthy, premium, calm, and non-stock-photo. Leave clean negative space in the upper-left for headline overlay and a clean footer zone.",
+    "run": {
+      "status": "started_but_output_not_retrievable_via_flora_cli",
+      "run_id": "run_s579g7dgdcgf8dhpm9fb8h21vd874fb5",
+      "legacy_run_ids": [
+        "run_s57dkz5grbx3876ttr6k5qa3bd875n4b",
+        "run_s575v9a5x5481nw66ba2ee8gw58751dt"
+      ],
+      "project_id": "prj_ns7djsnyrykz6akk8arnrcw96d875xt4",
+      "charged_cost": 0.009,
+      "created_at": "2026-05-21",
+      "api_notes": [
+        "POST /runs/technique succeeded and returned charged_cost 0.009.",
+        "GET /runs/{run_id} returned unknown_error from Flora.",
+        "GET /techniques/{technique_id}/runs/{run_id} returned Technique run not found.",
+        "The API-origin project exists, but its canvas is not initialized until opened in Flora editor."
+      ],
+      "output": null
+    },
+    "codex_fallback": {
+      "status": "ready_to_use_until_flora_polling_is_fixed",
+      "seedance_prompt": "Create a premium cinematic travel insurance film set inside a modern intercity train on the Baku-Tbilisi route. Frame one Azerbaijani couple in their early 30s seated by a large train window, relaxed and quietly content, never looking at camera. They watch a hazy Caucasus railway viaduct and distant mountains passing outside. Use a 50mm documentary lens feel, soft late-morning window light from camera right, gentle shadows, natural skin texture, subtle organic film grain, and a restrained editorial tone rather than lifestyle stock. In the lower-left foreground, show a matte red hard-shell suitcase in Xalq Sigorta red, partially cropped. The woman holds a smartphone angled slightly toward camera; the screen contains only an abstract red shield silhouette and three simple horizontal data bars on white, with no readable text or logos. The man casually holds navy passports with a folded paper ticket. Keep the mood calm, trustworthy, premium, and travel-ready. Preserve clean negative space in the upper-left for a future headline overlay and a clean footer zone at the bottom. Avoid readable text, signage, fake logos, extra people, over-saturated colors, heavy red wash, sci-fi glow, plastic skin, or distorted hands."
+    },
+    "image_output_test": {
+      "technique": {
+        "id": "tech_ts70k2var97rcxfqp4553wkk29858k5g",
+        "name": "Background Remover"
+      },
+      "run_id": "run_s57e2k2gvjrkn1gf4sdwa6qsas874rdj",
+      "charged_cost": 0.002,
+      "status": "output_asset_ready",
+      "output_asset_id": "asset_jd75cpsk9nyjz1p0cawaznxvq5875pjq",
+      "output_url": "https://media.flora.ai/node-inputs/2026/5/21/anonymous/0aefc956-601e-4fa8-b323-246e623cb83a_1xYTJCxaI.png",
+      "local_file": "social-studio/experiments/flora_bg_remover_test.png",
+      "verification": {
+        "width": 1772,
+        "height": 1772,
+        "corner_alpha": 0,
+        "result": "Background removal succeeded; output PNG has transparent background."
+      },
+      "api_notes": [
+        "The normalized run endpoint created the job and charged 0.002.",
+        "The nested run retrieve endpoint still returns Technique run not found.",
+        "For image-output techniques, the practical retrieval path is currently assets list, not run polling."
+      ]
+    }
+  }
+}

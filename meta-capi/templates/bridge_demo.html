@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAPI Bridge — Canlı Demo (Pixel + CAPI)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .pulse { animation: p 1.2s ease-out; } @keyframes p { from { background:#FEF2F2; } to { background:transparent; } }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-1">
+    <div class="w-10 h-10 rounded-xl bg-[#E31E24] text-white grid place-items-center font-bold text-lg">X</div>
+    <div>
+      <h1 class="text-xl font-bold text-slate-900">CAPI Bridge — Canlı Demo</h1>
+      <p class="text-sm text-slate-500">Hər event eyni anda <b>Pixel</b> + <b>CAPI</b>-yə gedir, eyni <code>event_id</code> ilə dedup olunur</p>
+    </div>
+  </div>
+  <div class="text-xs mb-6">
+    <span class="px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">🧪 TEST rejimi — Events Manager → Test Events-ə gedir, production-a TOXUNMUR</span>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6">
+
+    <!-- Left: the funnel -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <h2 class="font-bold text-slate-900 mb-1">KASKO funnel-i</h2>
+      <p class="text-sm text-slate-500 mb-4">Düymələrə bas — hər biri funnel addımıdır. Bunlar adətən <b>yalnız Pixel</b> olur (adblocker-də itir). Burada CAPI backup-u var.</p>
+
+      <div class="space-y-2">
+        <button data-ev="ViewContent" data-cd='{"content_name":"KASKO səhifəsi"}'
+          class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200">
+          <span class="font-semibold">1. ViewContent</span> <span class="text-slate-400 text-sm">— səhifəyə baxış</span></button>
+
+        <button data-ev="Search" data-cd='{"search_string":"kasko qiymeti"}'
+          class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200">
+          <span class="font-semibold">2. Search</span> <span class="text-slate-400 text-sm">— qiymət axtarışı</span></button>
+
+        <button data-ev="Step_FormStart" data-cd='{"step":"form_start"}'
+          class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200">
+          <span class="font-semibold">3. Step_FormStart</span> <span class="text-slate-400 text-sm">— forma başladı (custom)</span></button>
+
+        <button data-ev="InitiateCheckout" data-cd='{"content_name":"KASKO","value":480,"currency":"AZN"}'
+          class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200">
+          <span class="font-semibold">4. InitiateCheckout</span> <span class="text-slate-400 text-sm">— ödənişə keçid</span></button>
+
+        <button id="lead-btn" data-ev="Lead" data-cd='{"content_name":"KASKO"}'
+          class="w-full text-left px-4 py-3 rounded-xl bg-[#E31E24] text-white hover:bg-[#B3171C]">
+          <span class="font-semibold">5. Lead</span> <span class="text-white/70 text-sm">— müştəri tanınır (identify + dedup)</span></button>
+      </div>
+
+      <div class="mt-4 text-xs text-slate-400">
+        “5. Lead”-dən əvvəl <code>capi.identify(email, phone)</code> çağırılır — server tərəfdə daha yüksək match.
+      </div>
+    </div>
+
+    <!-- Right: live evidence -->
+    <div class="space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h2 class="font-bold text-slate-900 mb-3">Canlı sübut</h2>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="rounded-xl bg-slate-50 p-3 text-center">
+            <div id="s-recv" class="text-2xl font-bold text-slate-700">0</div>
+            <div class="text-[11px] text-slate-500 mt-1">qəbul edildi</div></div>
+          <div class="rounded-xl bg-emerald-50 p-3 text-center">
+            <div id="s-sent" class="text-2xl font-bold text-emerald-600">0</div>
+            <div class="text-[11px] text-slate-500 mt-1">Meta-ya getdi</div></div>
+          <div class="rounded-xl bg-red-50 p-3 text-center">
+            <div id="s-fail" class="text-2xl font-bold text-red-600">0</div>
+            <div class="text-[11px] text-slate-500 mt-1">xəta</div></div>
+        </div>
+        <div id="mode" class="mt-3 text-xs text-slate-400"></div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h2 class="font-bold text-slate-900 mb-3">Event jurnalı</h2>
+        <div id="log" class="space-y-1 text-xs font-mono max-h-72 overflow-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="text-center text-xs text-slate-400 mt-8">
+    Pixel (stub) + CAPI gateway · eyni event_id → dedup · meta-capi/gateway.py
+  </p>
+</div>
+
+<!-- A tiny fbq STUB so the demo visibly shows the Pixel side firing too.
+     On a real site this is the genuine Meta Pixel base code. -->
+<script>
+window.fbq = function(){ var a = Array.prototype.slice.call(arguments);
+  logLine('pixel', a[1], a[3] && a[3].eventID); };
+</script>
+<!-- The real bridge, same-origin, in TEST mode. -->
+<script src="/capi-bridge.js" data-test="1"></script>
+
+<script>
+const $ = s => document.querySelector(s);
+function logLine(kind, name, id){
+  const el = document.createElement('div');
+  const tag = kind === 'pixel'
+    ? '<span class="text-blue-600">PIXEL</span>'
+    : '<span class="text-[#E31E24]">CAPI&nbsp;</span>';
+  el.className = 'pulse';
+  el.innerHTML = `${tag} <b>${name}</b> <span class="text-slate-400">id=${(id||'').slice(0,8)}…</span>`;
+  $('#log').prepend(el);
+}
+
+// Pretend a known customer appears before the Lead step.
+$('#lead-btn').addEventListener('click', () => {
+  capi.identify({ email: 'demo.musteri@mail.az', phone: '+994501112233' });
+});
+
+document.querySelectorAll('button[data-ev]').forEach(b => {
+  b.addEventListener('click', () => {
+    const name = b.dataset.ev;
+    const cd = JSON.parse(b.dataset.cd || '{}');
+    const id = capi.track(name, cd);           // fires Pixel stub + CAPI
+    logLine('capi', name, id);                 // CAPI side log (pixel logs itself)
+  });
+});
+
+async function refresh(){
+  try {
+    const s = await (await fetch('/stats')).json();
+    $('#s-recv').textContent = s.received;
+    $('#s-sent').textContent = s.sent;
+    $('#s-fail').textContent = s.failed;
+  } catch(e){}
+  try {
+    const h = await (await fetch('/healthz')).json();
+    $('#mode').innerHTML = `dataset: <b>${h.dataset||'—'}</b> · ` +
+      (h.dry_run ? 'DRY-RUN (göndərilmir)' : h.test_mode ? 'TEST Events' : 'PRODUCTION');
+  } catch(e){}
+}
+setInterval(refresh, 1500); refresh();
+</script>
+</body>
+</html>

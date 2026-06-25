@@ -1,0 +1,18 @@
+{
+  "description": "Royalty-free music library for Xalq Insurance Digital OS Video Studio. render.py reads this when an edit spec asks for music.track = \"auto\": it filters tracks by the requested mood tag and picks one. Add an entry for every file you drop into music/. The audio files themselves are git-ignored - only this manifest is tracked.",
+  "mood_tags": [
+    "energetic-electronic",
+    "corporate-upbeat",
+    "ambient-calm",
+    "cinematic"
+  ],
+  "_entry_format": {
+    "file": "filename of the audio in music/ (mp3/wav/m4a)",
+    "title": "human-readable track name",
+    "moods": ["one or more tags from mood_tags"],
+    "bpm": "tempo, integer (optional)",
+    "source": "where it was downloaded from",
+    "license": "license terms - keep proof you may use it commercially"
+  },
+  "tracks": []
+}

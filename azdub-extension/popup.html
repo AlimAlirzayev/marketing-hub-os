@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="az">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>AZ Dublyaj</title>
+  </head>
+  <body>
+    <h1>AZ Dublyaj</h1>
+
+    <label class="row switch">
+      <span>Dublyaj aktiv</span>
+      <input type="checkbox" id="enabled" />
+    </label>
+
+    <label class="row">
+      <span>Dublyaj dili</span>
+      <select id="targetLang">
+        <option value="az">Azerbaycanca</option>
+        <option value="tr">Turkce</option>
+      </select>
+    </label>
+
+    <label class="row">
+      <span>Ses</span>
+      <select id="voice">
+        <option value="az-AZ-BabekNeural">Babek (kisi)</option>
+        <option value="az-AZ-BanuNeural">Banu (qadin)</option>
+        <option value="tr-TR-AhmetNeural">Ahmet (Turkce kisi)</option>
+        <option value="tr-TR-EmelNeural">Emel (Turkce qadin)</option>
+      </select>
+    </label>
+
+    <label class="row">
+      <span>Suret: <b id="rateVal">0%</b></span>
+      <input type="range" id="rate" min="-30" max="30" step="5" value="0" />
+    </label>
+
+    <div class="row col">
+      <span class="lbl">Orijinal ses</span>
+      <label class="radio"
+        ><input type="radio" name="orig" id="origMute" /> Tam kis</label
+      >
+      <label class="radio"
+        ><input type="radio" name="orig" id="origDuck" /> Fonda saxla</label
+      >
+    </div>
+
+    <label class="row">
+      <span>Kecilecek diller</span>
+      <input type="text" id="skip" placeholder="az, tr" />
+    </label>
+
+    <label class="row switch">
+      <span>Ses alinmasa brauzer sesi</span>
+      <input type="checkbox" id="fallback" />
+    </label>
+
+    <div class="row col">
+      <span class="lbl">TTS server</span>
+      <input
+        type="text"
+        id="proxy"
+        class="wide"
+        placeholder="https://istifadeci-azdub-tts.hf.space"
+      />
+      <span class="hint2">HF Space proxy: Edge, Gemini veya ElevenLabs provider.</span>
+    </div>
+
+    <p class="hint">
+      Deyisiklikler avtomatik yadda saxlanilir. YouTube sehifesini yenilemeye
+      ehtiyac yoxdur.
+    </p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

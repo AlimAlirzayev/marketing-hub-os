@@ -1,0 +1,84 @@
+{
+  "$schema": "https://ramin-os.local/social-studio/creative-audit-rubric.v2.json",
+  "version": "2.0.0",
+  "name": "Xalq Insurance Digital OS Social Studio Creative Audit Rubric",
+  "scoring_scale": {
+    "min": 0,
+    "max": 100,
+    "approval_threshold": 85,
+    "revision_threshold": 70,
+    "reject_below": 55
+  },
+  "score_meaning": {
+    "automated_gate_score": "Objective production checks only. This is not final creative quality.",
+    "creative_judgment_score": "Vision-capable LLM or senior human review of concept, craft, taste, and market strength.",
+    "final_score": "Only available when automated gate and creative judgment are both present."
+  },
+  "weights": {
+    "brand_fit": 0.22,
+    "art_direction": 0.22,
+    "marketing_clarity": 0.18,
+    "compliance_safety": 0.18,
+    "production_readiness": 0.20
+  },
+  "final_weights": {
+    "automated_gate": 0.35,
+    "creative_judgment": 0.65
+  },
+  "creative_judgment_weights": {
+    "concept_strength": 0.16,
+    "brand_distinctiveness": 0.14,
+    "art_direction_quality": 0.18,
+    "message_clarity": 0.12,
+    "emotional_strategy": 0.10,
+    "craft_realism": 0.14,
+    "platform_performance": 0.08,
+    "memorability": 0.08
+  },
+  "dimensions": {
+    "brand_fit": [
+      "Uses brand red as accent or atmosphere, not as a heavy full-frame wash.",
+      "Feels premium, restrained, trust-led, and financial-services appropriate.",
+      "Avoids fake logos, fake readable text, random marks, and AI typography.",
+      "Keeps official logo, legal text, and contact lockup as deterministic layers."
+    ],
+    "art_direction": [
+      "Has a clean upper-left copy zone for the headline.",
+      "Keeps key subjects away from footer and edge-safe zones.",
+      "Maintains clear visual hierarchy between subject, prop, message, and footer.",
+      "Looks like premium commercial photography rather than generic stock."
+    ],
+    "marketing_clarity": [
+      "The travel-insurance need is legible within one second.",
+      "The campaign context is clear without overexplaining.",
+      "The headline and image reinforce the same idea.",
+      "The post informs calmly and does not create panic."
+    ],
+    "compliance_safety": [
+      "Legal or regulatory claims have a source, review date, and owner.",
+      "Mandatory legal microcopy is not paraphrased.",
+      "No promise implies guaranteed coverage, border entry, visa status, or claim payout.",
+      "Dates are explicit and checked against the current campaign calendar."
+    ],
+    "production_readiness": [
+      "Export dimensions and aspect ratios match target placements.",
+      "Footer zone is visually calm enough for logo, legal text, and contacts.",
+      "Headline zone is visually calm enough for readable Azerbaijani copy.",
+      "No crop variant damages the main subject or required safe areas."
+    ]
+  },
+  "critical_blockers": [
+    "Wrong export dimensions for the placement.",
+    "AI-generated readable logo, legal text, phone number, or website inside the image.",
+    "Missing mandatory legal review for a regulatory claim.",
+    "Footer zone too busy for mandatory legal text.",
+    "A generated face, hand, passport, or document looks visibly broken."
+  ],
+  "creative_review_rules": [
+    "Do not give a final approve decision from deterministic metrics alone.",
+    "Do not score 100 unless the work is both technically clean and creatively exceptional.",
+    "A visually acceptable post can still fail if the idea is generic, emotionally flat, off-brand, or weak as promotion.",
+    "A background-only audit cannot approve the final published asset; it can only approve the background gate.",
+    "Human or vision-LLM feedback should be recorded after each serious attempt so future prompt patches learn from real taste decisions."
+  ]
+}

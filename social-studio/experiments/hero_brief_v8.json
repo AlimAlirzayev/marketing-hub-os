@@ -1,0 +1,54 @@
+{
+  "$comment": "V8 brief generated from v6 creative review and feedback memory. This is prompt-compilation, not model fine-tuning.",
+  "campaign": "xalqsigorta-travel-insurance-georgia-train",
+  "version": "v8",
+  "format": {
+    "aspect": "4:5",
+    "resolution": [
+      1080,
+      1350
+    ]
+  },
+  "headline_overlay_done_later": "Gürcüstana qatarla səyahət artıq mümkündür",
+  "subheadline_overlay_done_later": "Səyahət sığortanı unutma.",
+  "prompt": "Use case: ads-marketing.\nAsset type: final-production photographic background for Xalq Sigorta Instagram/Facebook campaign.\nGenerate background only; no headline text, no logo, no contact text, no legal text, no random readable writing.\n\nFINAL PRODUCTION QUALITY DIRECTIVE:\nCreate a premium advertising-grade image with high pixel clarity, crisp edges, clean realistic faces and hands, controlled depth of field, realistic lens optics, refined commercial retouching, no muddy compression, no painterly smearing, no warped objects. Think high-end financial-services campaign photography, prepared for a 1080x1350 social media export with post-production text and vector footer added later.\n\nBrand art direction:\nXalq Sigorta / Xalq Bank social media family: deep corporate red, white, charcoal black, polished financial-services advertising, restrained premium mood. IMPORTANT: do not apply a full-frame red color grade or red wash. Keep the overall scene natural, neutral, charcoal, glass, steel, soft daylight, and premium. Use brand red only as controlled accents: one red suitcase, tiny abstract red-white insurance UI shapes, and very subtle reflections at the edges. Skin, train interior, window glass, mountains, and sky must not be tinted red.\n\nScene:\nA realistic Azerbaijan-to-Georgia train travel moment, suggesting Baku-Tbilisi route. Interior of a modern intercity passenger train beside a large window. Outside: scenic Caucasus mountains, railway bridge, and soft daylight, realistic regional international rail travel, not futuristic.\n\nForeground:\nA stylish young Azerbaijani couple seated by the window, calm and confident. They hold passports and travel documents. Include a red hard-shell suitcase as the only strong brand-color travel prop. Add a clean travel-insurance prop: smartphone or document folder with abstract red-and-white insurance UI shapes only, no readable fake text.\n\nProtection concept:\nA very subtle transparent shield reflection on the train window, integrated as a realistic glass reflection. Minimal and elegant, almost invisible; no fantasy glow or sci-fi effect.\n\nComposition:\nVertical 4:5 feed composition. Leave the upper-left third as calm dark neutral negative space for Azerbaijani headline text. That upper-left zone should have smooth low-detail shadow, no faces, no hands, no bright landscape highlights, no busy window frames, and no high-contrast objects. Keep the couple and travel props in the right and lower-right visual focus, but do not place important details in the bottom footer zone. Reserve the bottom 180 px as a clean dark-to-transparent footer area with no faces, hands, suitcase handles, passports, documents, or bright details.\n\nLighting and style:\nCinematic corporate daylight, soft window light, premium contrast, realistic skin tones, sharp but natural details, modern European/Caucasus travel aesthetic. Refined financial-services campaign photography; calm, trustworthy, premium.\n\nNegative constraints:\nNo fake logo, no generated text, no random letters, no watermark, no low-quality faces, no distorted hands, no clutter, no cheap stock-photo look, no cartoon style, no exaggerated shield, no excessive glow, no oversaturation, no fantasy train, no impossible architecture, no visible brand names, no red filter over the whole image, no saturated red wash.\n\nNON-NEGOTIABLE BRIEF INVARIANTS:\nThese constraints override every creative upgrade below. Do not reinterpret the campaign as a studio, office, desk, moodboard, agency, creator, or production setup.\n- Non-negotiable: the image must be inside a modern passenger train with a young Azerbaijani couple traveling, not in a studio, office, desk, home, agency, or creator workspace.\n- Non-negotiable: include a red suitcase, passports or travel documents, and a subtle travel-insurance UI prop.\n- Non-negotiable: show an outside railway/Caucasus/Georgia travel cue through the train window.\n- Do not depict cameras, laptops, moodboards, content studios, office desks, plants, notebooks, or production equipment.\n\nV8 CREATIVE DIRECTOR UPGRADE:\nThe previous version passed production safety but was not yet world-class. Improve concept strength, brand distinctiveness, art direction quality, craft realism, platform performance, and memorability without losing the successful v6 restraint.\n\nHard creative corrections from review memory:\n- Non-negotiable: the image must be inside a modern passenger train with a young Azerbaijani couple traveling, not in a studio, office, desk, home, agency, or creator workspace.\n- Non-negotiable: include a red suitcase, passports or travel documents, and a subtle travel-insurance UI prop.\n- Non-negotiable: show an outside railway/Caucasus/Georgia travel cue through the train window.\n- Do not depict cameras, laptops, moodboards, content studios, office desks, plants, notebooks, or production equipment.\n- Make the scene feel like an authentic Baku-Tbilisi rail journey, not a generic train stock photo.\n- Use more candid, less posed body language while keeping faces premium and trustworthy.\n- Make the shield reflection barely perceptible and physically plausible in the window glass.\n- Do not increase red wash; keep red limited to the suitcase and tiny UI accents.\n\nWorld-class promotion standard:\n- The image should feel like an authored financial-services campaign, not stock photography.\n- The Baku-Tbilisi rail context must be legible through authentic regional detail, not text.\n- The subjects should feel candid, calm, and protected, with natural micro-expression rather than posed lifestyle smiling.\n- Make one clear visual idea: travel freedom plus quiet insurance protection.\n- Keep negative space elegant and premium; no extra props or clutter.\n- Keep the bottom footer zone clean and dark because final legal/contact layers will be added by code.\n- No generated readable text anywhere in the image.\n",
+  "negative": [
+    "fake logo",
+    "generated text",
+    "random letters",
+    "watermark",
+    "low-quality faces",
+    "distorted hands",
+    "clutter",
+    "cheap stock-photo look",
+    "cartoon style",
+    "exaggerated shield",
+    "excessive glow",
+    "oversaturation",
+    "fantasy train",
+    "impossible architecture",
+    "visible brand names",
+    "full-frame red wash",
+    "red color filter over skin or landscape",
+    "generic stock photo",
+    "posed stock lifestyle smile",
+    "obvious AI shield icon",
+    "tourism brochure look",
+    "extra text on documents",
+    "fake station signage",
+    "overly perfect plastic faces"
+  ],
+  "providers": {
+    "gpt_image_2": {
+      "model": "gpt-image-2",
+      "via": "codex CLI subscription quota",
+      "output": "experiments/hero_gpt_image_2_v8.png"
+    }
+  },
+  "generated_from": {
+    "base": "social-studio\\experiments\\hero_brief_v6.json",
+    "review": "social-studio\\audit\\reviews\\xalqsigorta-v7-post-review.json",
+    "feedback_records_used": 2,
+    "generated_at": "2026-05-20T15:28:17"
+  }
+}

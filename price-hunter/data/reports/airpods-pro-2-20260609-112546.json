@@ -1,0 +1,159 @@
+{
+  "query": "airpods pro 2",
+  "generated_at": "2026-06-09T11:25:46",
+  "spec": {
+    "query": "airpods pro 2",
+    "canonical_name": "Apple AirPods Pro 2",
+    "brand": "Apple",
+    "family": "AirPods Pro",
+    "generation": "2",
+    "variants": [
+      "USB-C",
+      "Lightning"
+    ],
+    "model_codes": [
+      "MQD83",
+      "MTJV3",
+      "MQD83AM/A",
+      "MTJV3AM/A",
+      "MQD83ZP/A",
+      "MTJV3TY/A"
+    ],
+    "must_include": [
+      "airpods",
+      "pro",
+      "2"
+    ],
+    "must_exclude": [
+      "case",
+      "kabro",
+      "qabi",
+      "qabı",
+      "strap",
+      "tips",
+      "holder",
+      "replika",
+      "kopya",
+      "1:1",
+      "lux",
+      "silikon",
+      "chexol",
+      "cover",
+      "qoruyucu",
+      "i12",
+      "pro3",
+      "pro4",
+      "gen 1",
+      "1st",
+      "gen 3",
+      "3rd",
+      "airpods 3",
+      "airpods 4"
+    ],
+    "fair_low": 380.0,
+    "fair_high": 550.0,
+    "notes": "Ensure the listing is for the actual earphones, not just silicone cases (kabro/qab) or cheap 1:1 replicas."
+  },
+  "best_legit": {
+    "title": "Simsiz qulaqlıq Apple AirPods Pro (2nd generation) with MagSafe Case (USB‑C) - MTJV3RU/A",
+    "price": 759.99,
+    "url": "https://bakuelectronics.az/simsiz-qulaqlq-apple-airpods-pro-2nd-generation-with-magsafe-case-usbc-mtjv3rua-194753",
+    "source": "bakuelectronics.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "unknown",
+    "official": true,
+    "warranty": "",
+    "in_stock": true,
+    "model_code": "194753",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "model_code:MTJV3",
+    "trust": 0.8999999999999999,
+    "deal_score": 456.0,
+    "flags": []
+  },
+  "cheapest": {
+    "title": "Simsiz qulaqlıq Apple AirPods Pro (2nd generation) with MagSafe Case (USB‑C) - MTJV3RU/A",
+    "price": 759.99,
+    "url": "https://bakuelectronics.az/simsiz-qulaqlq-apple-airpods-pro-2nd-generation-with-magsafe-case-usbc-mtjv3rua-194753",
+    "source": "bakuelectronics.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "unknown",
+    "official": true,
+    "warranty": "",
+    "in_stock": true,
+    "model_code": "194753",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "model_code:MTJV3",
+    "trust": 0.8999999999999999,
+    "deal_score": 456.0,
+    "flags": []
+  },
+  "verdict": "Bakuelectronics.az-da 759.99 AZN-ə təklif olunan AirPods Pro 2 etibarlı (89% trust) və orijinal olsa da, bu qiymət 380-550 AZN-lik real bazar dəyərindən həddən artıq yüksəkdir və tamamilə əlverişsizdir. Siyahıda başqa alternativ olmadığı üçün bu həm də yeganə və ən \"ucuz\" variantdır, lakin bu qiymətə almaq rəsmi zəmanətə rəğmən cibinizə ciddi ziyandır. Növbəti addım olaraq, bu təklifdən yayınmaq və qiyməti 500 AZN civarında olan digər etibarlı yerli mağazaların təkliflərini axtarmaqdır.",
+  "offers": [
+    {
+      "title": "Simsiz qulaqlıq Apple AirPods Pro (2nd generation) with MagSafe Case (USB‑C) - MTJV3RU/A",
+      "price": 759.99,
+      "url": "https://bakuelectronics.az/simsiz-qulaqlq-apple-airpods-pro-2nd-generation-with-magsafe-case-usbc-mtjv3rua-194753",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": true,
+      "model_code": "194753",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "model_code:MTJV3",
+      "trust": 0.8999999999999999,
+      "deal_score": 456.0,
+      "flags": []
+    }
+  ],
+  "source_status": [
+    {
+      "source": "qiymetleri.az",
+      "status": "ok",
+      "note": "html->llm extraction"
+    },
+    {
+      "source": "bakuelectronics.az",
+      "status": "ok",
+      "note": "5 structured offers"
+    },
+    {
+      "source": "birmarket.az",
+      "status": "ok",
+      "note": "html->llm extraction"
+    },
+    {
+      "source": "tap.az",
+      "status": "ok",
+      "note": "21 structured offers"
+    },
+    {
+      "source": "kontakt.az",
+      "status": "blocked",
+      "note": "HTTP 403 (anti-bot; Apify fallback needed)"
+    },
+    {
+      "source": "irshad.az",
+      "status": "ok",
+      "note": "html->llm extraction"
+    },
+    {
+      "source": "lalafo.az",
+      "status": "skipped",
+      "note": "query filter unreliable on public API - skipped to avoid noise"
+    }
+  ],
+  "stats": {
+    "total_seen": 78,
+    "rejected": 77,
+    "matched": 1
+  }
+}

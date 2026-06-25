@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Influencer Seçim Motoru</title>
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#15181d; --card:#1d2229; --card2:#11151a; --line:#2c333d;
+    --text:#eef2f6; --muted:#909cab; --faint:#6b7682;
+    --red:#e31e24; --cyan:#19a7a8; --green:#22c55e; --amber:#f59e0b; --blue:#60a5fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#15212b 0%,var(--bg) 55%);color:var(--text);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  header{display:flex;gap:14px;align-items:center;padding:15px 22px;border-bottom:1px solid var(--line);
+    background:rgba(15,18,22,.85);backdrop-filter:blur(8px);position:sticky;top:0;z-index:5}
+  .brand{display:flex;align-items:center;gap:10px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 12px var(--red)}
+  h1{font-size:17px;margin:0;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:12px}
+  .status{margin-left:auto;color:var(--muted);font-size:12px;border:1px solid var(--line);padding:5px 10px;border-radius:20px;display:flex;gap:8px;align-items:center}
+  .status .live{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+  .status.on .live{background:var(--green);box-shadow:0 0 8px var(--green)}
+  main{max-width:1240px;margin:0 auto;padding:22px}
+  .grid{display:grid;grid-template-columns:1.02fr .98fr;gap:18px;align-items:start}
+  @media(max-width:920px){.grid{grid-template-columns:1fr}header{position:static;flex-wrap:wrap}.status{margin-left:0}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  label{display:block;color:var(--muted);font-size:12px;margin:0 0 6px;font-weight:600}
+  textarea,input,button{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;width:100%}
+  textarea{min-height:120px;resize:vertical}
+  textarea:focus,input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(25,167,168,.15)}
+  button{width:auto;cursor:pointer;font-weight:700}
+  button.primary{background:var(--red);border-color:var(--red);color:#fff;min-width:140px;transition:transform .05s,filter .15s}
+  button.primary:hover:not(:disabled){filter:brightness(1.08)}
+  button.primary:active:not(:disabled){transform:translateY(1px)}
+  button:disabled{opacity:.55;cursor:default}
+  .row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:12px}
+  .row>div{flex:1;min-width:150px}
+  .row .small{max-width:118px}
+  .check{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px}
+  .check input{width:auto}
+  .brief{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+  @media(max-width:700px){.brief{grid-template-columns:1fr}}
+  .kv{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--card2)}
+  .kv b{display:block;font-size:10.5px;color:var(--faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+  .section-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .section-title::before{content:"";width:3px;height:14px;border-radius:3px;background:var(--red)}
+  /* decision box */
+  .decision-box h2{font-size:14px;margin:0 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .decision-box p{margin:8px 0}
+  .answer{font-size:16px;font-weight:750;line-height:1.45}
+  .qline{font-size:13px;color:var(--text);font-weight:600;border-left:2px solid var(--cyan);padding-left:10px}
+  .conf{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--line);border-radius:20px;padding:3px 10px}
+  .conf b{text-transform:capitalize}
+  .conf.high{color:var(--green);border-color:rgba(34,197,94,.4)}
+  .conf.mid{color:var(--amber);border-color:rgba(245,158,11,.4)}
+  .conf.low{color:var(--faint)}
+  .blockers{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:#f6c768;border-radius:10px;padding:9px 11px;font-size:12.5px;margin:10px 0}
+  .nextstep{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+  .nextstep b{color:var(--cyan)}
+  .strategy-note{max-height:210px;overflow:auto;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--card2);padding:12px}
+  .strategy-note b{color:var(--amber)}
+  .strategy-note p{margin:6px 0 0;font-size:13px}
+  .chip{display:inline-block;border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--muted);font-size:11.5px;margin:4px 5px 0 0;background:var(--card2)}
+  .stat-line{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;color:var(--faint);font-size:12px}
+  .stat-line b{color:var(--text)}
+  /* candidate cards */
+  .cards{display:flex;flex-direction:column;gap:14px}
+  .candidate{background:linear-gradient(180deg,#1f252d,#1a1f26);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+  .candidate.top{border-color:rgba(34,197,94,.45)}
+  .candidate.top::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--green),var(--cyan))}
+  .head{display:flex;gap:13px;align-items:flex-start}
+  .avatar{position:relative;width:52px;height:52px;border-radius:12px;flex:none;overflow:hidden;
+    background:linear-gradient(135deg,var(--cyan),#4f46e5);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff}
+  .avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .rank-badge{position:absolute;-webkit-text-fill-color:initial;top:-6px;left:-6px}
+  .role{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--green)}
+  .role.alt{color:var(--muted)}
+  .name{font-size:16.5px;font-weight:800;line-height:1.2;margin-top:1px}
+  .name .full{color:var(--muted);font-weight:500;font-size:13px}
+  .meta{color:var(--faint);font-size:12.5px;margin-top:3px}
+  .meta b{color:var(--text);font-weight:600}
+  .er-strong{color:var(--green)} .er-normal{color:var(--blue)} .er-weak{color:var(--amber)}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .muted{color:var(--muted)}
+  .scorebox{margin-left:auto;text-align:right;flex:none}
+  .score{font-size:30px;font-weight:850;line-height:1}
+  .score.s-high{color:var(--green)} .score.s-mid{color:var(--amber)} .score.s-low{color:var(--faint)}
+  .score-band{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin-top:3px}
+  .decision-line{font-size:14.5px;font-weight:700;margin:12px 0 0}
+  .why{margin:9px 0 0;padding-left:18px}
+  .why li{margin:3px 0;color:#c8d2dd}
+  .bars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:13px 0 0}
+  @media(max-width:720px){.bars{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .bar span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}
+  .bar span b{color:var(--text);font-weight:700}
+  .meter{height:7px;background:#2b323b;border-radius:20px;overflow:hidden}
+  .meter i{display:block;height:100%;border-radius:20px}
+  .m-high{background:linear-gradient(90deg,var(--cyan),var(--green))}
+  .m-mid{background:linear-gradient(90deg,#caa23a,var(--amber))}
+  .m-low{background:linear-gradient(90deg,#b4474b,var(--red))}
+  details.more{margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
+  details.more>summary{cursor:pointer;color:var(--muted);font-size:12px;list-style:none;user-select:none}
+  details.more>summary::-webkit-details-marker{display:none}
+  details.more>summary::before{content:"▸ ";color:var(--cyan)}
+  details.more[open]>summary::before{content:"▾ "}
+  .note{margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .note b{color:var(--text)}
+  .ai-note{border-left:2px solid var(--cyan);padding-left:9px}
+  .warn-note{border-left:2px solid var(--amber);padding-left:9px;color:#f6c768}
+  .evidence{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+  .ev{padding:8px 0;border-bottom:1px solid #262d36}
+  .ev:last-child{border-bottom:0}
+  .tag{display:inline-block;color:#0b0d10;background:var(--amber);font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 7px;margin-right:7px;text-transform:uppercase;letter-spacing:.03em}
+  .tag.reel{background:var(--cyan)} .tag.comment{background:#a78bfa}
+  .ev-text{color:#c8d2dd;margin-top:3px}
+  .filtered-row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:11px;background:var(--card2);padding:10px 12px;margin:8px 0}
+  .mini-ava{width:34px;height:34px;border-radius:9px;overflow:hidden;position:relative;background:linear-gradient(135deg,#3a4350,#222831);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#cdd6e0;flex:none}
+  .mini-ava img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:top}
+  th{color:var(--faint);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .ok{color:var(--green)} .warn{color:var(--amber)} .bad{color:var(--red)}
+  .empty{padding:18px;color:var(--muted);border:1px dashed var(--line);border-radius:12px;text-align:center}
+  /* progress */
+  .progress{padding:22px;border:1px solid var(--line);border-radius:12px;background:var(--card2)}
+  .progress .pbar{height:6px;background:#2b323b;border-radius:20px;overflow:hidden;margin:14px 0 12px}
+  .progress .pbar i{display:block;height:100%;width:30%;border-radius:20px;background:linear-gradient(90deg,var(--cyan),var(--green));
+    animation:slide 1.4s ease-in-out infinite}
+  @keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
+  .pstage{font-weight:700}
+  .pelapsed{color:var(--faint);font-size:12px;margin-top:4px}
+  .psteps{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .pstep{font-size:11.5px;color:var(--faint);border:1px solid var(--line);border-radius:20px;padding:3px 9px}
+  .pstep.done{color:var(--green);border-color:rgba(34,197,94,.35)}
+  .pstep.active{color:var(--cyan);border-color:var(--cyan)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--red);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span><h1>Influencer Seçim Motoru</h1></div>
+  <div class="sub">kampaniya üçün kimi kontakta çıxaraq?</div>
+  <div class="status" id="eng"><span class="live"></span><span id="engtxt">...</span></div>
+</header>
+<main>
+  <div class="grid">
+    <section class="panel">
+      <label for="q">Kampaniya tapşırığı</label>
+      <textarea id="q">Xalq Sigorta üçün səyahət sığortası barədə emosional selling proposition yönümlü Instagram Reel ssenarisini canlandıracaq Azərbaycanlı travel/lifestyle influencer lazımdır.</textarea>
+      <div class="row">
+        <div><label for="seed">Əlavə yoxlanacaq profillər</label><input id="seed" placeholder="@profil1, @profil2"/></div>
+        <div class="small"><label for="top">Namizəd sayı</label><input id="top" type="number" min="1" max="10" value="3"/></div>
+        <div class="small"><label for="minscore">Minimum bal</label><input id="minscore" type="number" min="0" max="10" step="0.5" value="0"/></div>
+        <div class="small"><label for="minfollowers">Minimum izləyici</label><input id="minfollowers" type="number" min="0" step="1000" value="20000"/></div>
+      </div>
+      <div class="row">
+        <label class="check"><input id="comments" type="checkbox" checked/> rəy analizi</label>
+        <label class="check"><input id="verdict" type="checkbox" checked/> AI qərar qeydi</label>
+        <label class="check"><input id="unknownfollowers" type="checkbox"/> izləyicisi bilinməyənləri burax</label>
+        <button class="primary" id="go">Namizəd tap</button>
+      </div>
+      <div id="brief" class="brief"></div>
+    </section>
+    <section class="panel">
+      <div id="summary" class="empty">Tapşırığı yazın: sistem bu kampaniya üçün kimə ilk yazmağın daha doğru olduğunu qərar dili ilə göstərəcək.</div>
+    </section>
+  </div>
+  <section id="out" style="margin-top:18px"></section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct = n => Math.max(0, Math.min(100, Number(n||0)*10));
+const fmt = n => n==null ? '-' : Number(n).toLocaleString('az');
+const er = n => n ? (Number(n)*100).toFixed(2)+'%' : '-';
+const cleanVerdict = s => esc(String(s || '').replace(/\*\*/g,'').replace(/\n{3,}/g,'\n\n')).replace(/\n/g,'<br>');
+const band = n => n>=7 ? 'high' : n>=5 ? 'mid' : 'low';
+const confClass = c => /yüksək/i.test(c)?'high':/orta/i.test(c)?'mid':'low';
+const erClass = b => b==='güclü'?'er-strong':b==='normal'?'er-normal':b==='zəif'?'er-weak':'';
+
+function avatarHTML(c, cls){
+  const letter = esc((c.handle||'?').slice(0,1).toUpperCase());
+  const img = c.avatar ? `<img src="${esc(c.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"/>` : '';
+  return `<div class="${cls}">${letter}${img}</div>`;
+}
+
+async function health(){
+  try{
+    const h = await (await fetch('/api/health')).json();
+    $('#engtxt').textContent = 'AI: '+h.llm+' · Instagram: '+(h.apify?'aktiv':'sönülü');
+    $('#eng').classList.toggle('on', !!h.apify);
+  }catch(e){ $('#engtxt').textContent = 'backend işləmir'; }
+}
+
+function seedHandles(){
+  return $('#seed').value.split(',').map(x=>x.trim().replace(/^@/,'')).filter(Boolean);
+}
+
+function renderBrief(b){
+  const fields = [
+    ['Brend', b.brand], ['Məhsul', b.product], ['Emosional bucaq', b.selling_angle],
+    ['Auditoriya', b.audience], ['Format', b.content_format],
+    ['Mövzular', (b.must_have_topics||[]).join(', ')],
+    ['Namizəd tipi', (b.creator_archetypes||[]).join(', ')],
+    ['Axtarış hashtag-ləri', (b.hashtags||[]).map(x=>'#'+x).join(' ')]
+  ];
+  $('#brief').innerHTML = fields.map(([k,v])=>`<div class="kv"><b>${esc(k)}</b>${esc(v||'-')}</div>`).join('');
+}
+
+function meter(v){
+  const b = band(Number(v||0));
+  const cls = b==='high'?'m-high':b==='mid'?'m-mid':'m-low';
+  return `<div class="meter"><i class="${cls}" style="width:${pct(v)}%"></i></div>`;
+}
+function barItem(k,v){
+  return `<div class="bar"><span>${esc(k)} <b>${Number(v||0).toFixed(1)}</b></span>${meter(v)}</div>`;
+}
+function bars(c){
+  const s = c.scores || {};
+  const key = [['Auditoriya', s.audience_fit],['Kontent', s.content_fit],['Qarşılıqlı əlaqə', s.engagement_quality],['Təhlükəsizlik', s.brand_safety]];
+  const more = [['AI uyğunluq', s.ai_fit],['Lokal bazar', s.market_fit],['Rəy', s.feedback_sentiment],['Etibarlılıq', s.authenticity],['Sübut', s.proof_density],['Təsir gücü', s.influence_power]];
+  return `<div class="bars">${key.map(([k,v])=>barItem(k,v)).join('')}</div>
+    <details class="more"><summary>Bütün göstəricilər</summary>
+      <div class="bars">${more.map(([k,v])=>barItem(k,v)).join('')}</div>
+    </details>`;
+}
+
+function renderDecision(d){
+  const dec = d.decision || {};
+  const ranked = dec.what_was_ranked || [];
+  const blockers = dec.blockers || [];
+  return `<div class="decision-box">
+    <h2>Bu nəticə nə üçündür?</h2>
+    <p class="muted">${esc(dec.purpose || 'Bu brief üçün uyğun creator seçimi.')}</p>
+    <p class="qline">${esc(dec.campaign_question || '')}</p>
+    <p class="muted">Aktiv seçim filteri: <b>${esc(dec.active_gate || '-')}</b></p>
+    <p class="answer">${esc(dec.answer || '')}</p>
+    <p><span class="conf ${confClass(dec.confidence||'')}">Əminlik: <b>${esc(dec.confidence || '-')}</b></span> <span class="muted">${esc(dec.confidence_reason || '')}</span></p>
+    ${blockers.length?`<div class="blockers">⚠ ${esc(blockers.join(' · '))}</div>`:''}
+    <div class="nextstep"><b>Növbəti addım:</b> ${esc(dec.recommended_next_step || '')}</div>
+    <div style="margin-top:10px">${ranked.map(x=>`<span class="chip">${esc(x)}</span>`).join('')}</div>
+  </div>`;
+}
+
+function evidence(c){
+  const ev = (c.evidence||[]).slice().sort((a,b)=>(b.relevance||0)-(a.relevance||0)).slice(0,6);
+  if(!ev.length) return '<div class="muted" style="margin-top:10px">Sübut tapılmadı.</div>';
+  return `<div class="evidence">${ev.map(e=>{
+    const m = e.metrics || {};
+    const meta = `bəyənmə ${fmt(m.likes||0)} · rəy ${fmt(m.comments||0)} · baxış ${fmt(m.video_views||0)} · uyğunluq ${Number(e.relevance||0).toFixed(1)}`;
+    const kind = e.kind === 'comment' ? 'rəy' : e.kind === 'post' ? 'paylaşım' : 'reel';
+    const tagCls = e.kind === 'comment' ? 'comment' : e.kind === 'reel' ? 'reel' : '';
+    return `<div class="ev"><span class="tag ${tagCls}">${esc(kind)}</span>${e.url?`<a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(meta)}</a>`:`<span class="muted">${esc(meta)}</span>`}
+      <div class="ev-text">${esc((e.text||'').slice(0,260))}</div></div>`;
+  }).join('')}</div>`;
+}
+
+function candidate(c,i){
+  const score = c.scores ? c.scores.total : 0;
+  const dec = c.decision || {};
+  const why = dec.why || [];
+  const checks = dec.next_checks || [];
+  const marketReasons = c.market_reasons || [];
+  const aiReasons = c.ai_reasons || [];
+  const sb = band(Number(score||0));
+  const eb = c.engagement_band || 'naməlum';
+  const isTop = i < 3;
+  return `<article class="candidate ${isTop?'top':''}">
+    <div class="head">
+      ${avatarHTML(c,'avatar')}
+      <div style="flex:1;min-width:0">
+        <div class="role ${isTop?'':'alt'}">${esc(dec.role || (i===0?'İlk əlaqə':'Namizəd'))}</div>
+        <div class="name"><a href="${esc(c.url)}" target="_blank" rel="noopener">@${esc(c.handle)}</a> <span class="full">${esc(c.name||'')}</span></div>
+        <div class="meta">izləyici <b>${fmt(c.followers)}</b> · qarşılıqlı əlaqə <b class="${erClass(eb)}">${er(c.engagement_rate)}${eb!=='naməlum'?' ('+esc(eb)+')':''}</b> · paylaşım <b>${fmt(c.posts_count)}</b></div>
+      </div>
+      <div class="scorebox">
+        <div class="score s-${sb==='high'?'high':sb==='mid'?'mid':'low'}">${Number(score||0).toFixed(1)}</div>
+        <div class="score-band">${esc(dec.score_band || '')}</div>
+      </div>
+    </div>
+    <p class="decision-line">${esc(dec.decision || c.proof_summary || '')}</p>
+    ${why.length?`<ul class="why">${why.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+    ${bars(c)}
+    ${aiReasons.length?`<div class="note ai-note"><b>AI mühakiməsi:</b> ${esc(aiReasons.slice(0,3).join(' · '))}</div>`:''}
+    ${marketReasons.length?`<div class="note"><b>Lokal siqnal:</b> ${esc(marketReasons.slice(0,3).join(' · '))}</div>`:''}
+    ${(c.flags&&c.flags.length)?`<div class="note warn-note">${esc(c.flags.join('; '))}</div>`:''}
+    ${checks.length?`<div class="note"><b>Yoxla:</b> ${esc(checks.join(' · '))}</div>`:''}
+    ${evidence(c)}
+  </article>`;
+}
+
+function filteredRow(c){
+  const score = c.scores ? c.scores.total : 0;
+  const reason = (c.flags && c.flags.length) ? c.flags.join('; ') : 'hazırki filterlərə uyğun gəlmədi';
+  return `<div class="filtered-row">
+    ${avatarHTML(c,'mini-ava')}
+    <div style="min-width:0">
+      <b><a href="${esc(c.url)}" target="_blank" rel="noopener">@${esc(c.handle)}</a></b>
+      <span class="muted">${esc(c.name||'')}</span>
+      <div class="meta">izləyici ${fmt(c.followers)} · qarşılıqlı əlaqə ${er(c.engagement_rate)} · paylaşım ${fmt(c.posts_count)}</div>
+      <div class="warn" style="font-size:12.5px;margin-top:3px">${esc(reason)}</div>
+    </div>
+    <div class="score s-low" style="font-size:22px">${Number(score||0).toFixed(1)}</div>
+  </div>`;
+}
+
+function coverage(rows){
+  if(!rows || !rows.length) return '';
+  return `<section class="panel" style="margin-top:14px"><div class="section-title">Mənbə əhatəsi</div>
+    <table><thead><tr><th>Mənbə</th><th>Status</th><th>Qeyd</th></tr></thead><tbody>${
+    rows.map(r=>{
+      const cls = r.status==='ok'?'ok':(r.status==='skipped'||r.status==='empty')?'warn':'bad';
+      return `<tr><td>${esc(r.source)}</td><td class="${cls}">${esc(r.status)}</td><td class="muted">${esc(r.note)}</td></tr>`;
+    }).join('')
+  }</tbody></table></section>`;
+}
+
+function render(d){
+  renderBrief(d.brief || {});
+  const totals = d.totals || {};
+  const filters = d.filters || {};
+  $('#summary').className = 'panel';
+  $('#summary').innerHTML = `${renderDecision(d)}
+    <div class="stat-line">
+      <span>seçim <b>${totals.shortlisted||0}/${totals.ranked||0}</b></span>
+      <span>filterdən kənar <b>${fmt(totals.filtered_out||0)}</b></span>
+      <span>skan <b>${fmt(totals.seen)}</b></span>
+      <span>minimum izləyici <b>${fmt(filters.min_followers)}</b></span>
+    </div>
+    ${d.verdict?`<div class="strategy-note"><b>Strateji qeyd</b><p>${cleanVerdict(d.verdict)}</p></div>`:''}`;
+  const shortlist = d.shortlist || [];
+  const rest = (d.candidates||[]).filter(c=>!shortlist.some(s=>s.handle===c.handle));
+  const filtered = d.filtered_out || [];
+  $('#out').innerHTML = `
+    <div class="section-title">İlk əlaqə üçün seçim</div>
+    <section class="cards">${shortlist.map(candidate).join('') || '<div class="empty">Seçim siyahısı boşdur — filterləri yumşaldın və ya seed profil əlavə edin.</div>'}</section>
+    ${rest.length?`<section class="panel" style="margin-top:16px"><div class="section-title">Ehtiyat araşdırma siyahısı</div><p class="muted" style="margin-top:-4px">Bunlar əsas seçim deyil; lazım olsa ehtiyat yoxlama üçün saxlanılır.</p><div class="cards">${rest.slice(0,12).map(candidate).join('')}</div></section>`:''}
+    ${filtered.length?`<section class="panel" style="margin-top:16px"><div class="section-title">Filterdən kənar qalanlar</div><p class="muted" style="margin-top:-4px">Bu hesablar hazırki filterlərə görə əsas seçimə buraxılmadı.</p>${filtered.slice(0,20).map(filteredRow).join('')}</section>`:''}
+    ${coverage(d.coverage)}
+  `;
+}
+
+const STAGES = [
+  'Brief açılır və axtarış strategiyası qurulur…',
+  'Instagram bazarı skan edilir (hashtag · axtarış · profil)…',
+  'Son paylaşımlar və rəylər toplanır…',
+  'Namizədlər sübut əsasında qiymətləndirilir…',
+  'AI top namizədləri yenidən mühakimə edir…'
+];
+const STEP_LABELS = ['Brief','Skan','Sübut','Skor','AI qərar'];
+let _timer = null;
+function startProgress(){
+  const t0 = Date.now();
+  let idx = 0;
+  const draw = () => {
+    const sec = Math.floor((Date.now()-t0)/1000);
+    // advance roughly one stage every ~7s, but never finish the last one until done
+    idx = Math.min(STAGES.length-1, Math.floor(sec/7));
+    const steps = STEP_LABELS.map((l,i)=>`<span class="pstep ${i<idx?'done':i===idx?'active':''}">${esc(l)}</span>`).join('');
+    $('#summary').innerHTML = `<div class="progress">
+      <div class="pstage"><span class="spin"></span>${esc(STAGES[idx])}</div>
+      <div class="pelapsed">keçən vaxt: ${sec}s · canlı skan adətən 30–120s çəkir</div>
+      <div class="pbar"><i></i></div>
+      <div class="psteps">${steps}</div>
+    </div>`;
+  };
+  draw();
+  _timer = setInterval(draw, 1000);
+}
+function stopProgress(){ if(_timer){ clearInterval(_timer); _timer=null; } }
+
+async function run(){
+  const body = {
+    query: $('#q').value,
+    top_n: Number($('#top').value || 3),
+    min_score: Number($('#minscore').value || 0),
+    min_followers: Number($('#minfollowers').value || 0),
+    allow_unknown_followers: $('#unknownfollowers').checked,
+    seed_handles: seedHandles(),
+    deep_comments: $('#comments').checked,
+    verdict: $('#verdict').checked
+  };
+  $('#go').disabled = true;
+  $('#summary').className = 'panel';
+  $('#out').innerHTML = '';
+  startProgress();
+  try{
+    const r = await fetch('/api/hunt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    stopProgress();
+    if(d.error){ $('#summary').className='empty'; $('#summary').innerHTML = esc(d.error); }
+    else render(d);
+  }catch(e){
+    stopProgress();
+    $('#summary').className='empty';
+    $('#summary').innerHTML = 'Xəta: '+esc(e);
+  }
+  $('#go').disabled = false;
+}
+
+$('#go').onclick = run;
+/* health() skipped in demo */
+</script>
+<script>
+const DEMO_PAYLOAD = {"query": "Xalq Sigorta üçün səyahət sığortası barədə emosional Instagram Reel ssenarisini canlandıracaq Azərbaycanlı travel/lifestyle influencer lazımdır.", "brief": {"query": "Xalq Sigorta üçün səyahət sığortası barədə emosional Instagram Reel ssenarisini canlandıracaq Azərbaycanlı travel/lifestyle influencer lazımdır.", "brand": "Xalq Sigorta", "product": "Səyahət sığortası", "objective": "Səyahət sığortasına dair emosional hekayə vasitəsilə məlumatlılığı və marağı artırmaq.", "audience": "Səyahət edən və ya səyahət etməyi planlaşdıran, təhlükəsizliyə və rahatlığa dəyər verən Azərbaycanlı şəxslər.", "market": "Azərbaycan", "language": "Azərbaycan dili", "content_format": "Instagram Reel", "selling_angle": "Gözlənilməz hallarda belə səyahətlərdən narahat olmadan zövq almaq üçün rahatlıq və təhlükəsizlik.", "tone": "Emosional, ruhlandırıcı, əminlik verən, səmimi.", "must_have_topics": ["Səyahət təcrübələri", "Gözlənilməz, lakin kiçik çətinliklər (məsələn, gecikən baqaj, kiçik xəsarət)", "Səyahət zamanı rahatlıq və əminlik hissi", "Anı yaşamağın vacibliyi", "Xalq Sığortanın səyahət sığortasının faydaları"], "avoid_topics": ["Böyük qəzalar və ya faciəli hadisələr", "Qorxu yaradan ssenarilər", "Mürəkkəb sığorta terminologiyası", "Rəqiblərin adları"], "creator_archetypes": ["Azərbaycanlı travel influencer", "Azərbaycanlı lifestyle influencer"], "hashtags": ["azerbaijanblogger", "bakublogger", "travelbloggeraz", "aztravelblogger", "azerbaijaninfluencer", "azblogger", "azeriinfluencer", "bakutravelblogger", "AzərbaycanSəyahət", "HəyatTərziAz", "AzərbaycanInfluencer", "ReelsAzərbaycan"], "seed_handles": []}, "filters": {"min_followers": 20000, "min_score": 0.0, "min_recommendation_score": 6.0, "allow_unknown_followers": false, "require_human_creator": true, "require_local_market": true, "require_campaign_fit": true, "min_audience_fit": 5.0, "min_content_fit": 5.0, "min_proof_density": 3.0, "exclude_competitors": true, "exclude_corporate_accounts": true}, "decision": {"purpose": "Bu konkret kampaniya brief-i üçün ilk kimə yazacağımızı seçmək.", "campaign_question": "Xalq Sigorta / Səyahət sığortası üçün emosional Instagram Reel kontentini kim daha inandırıcı canlandıra bilər?", "active_gate": "Azərbaycan/local auditoriya siqnalı · fərdi influencer/blogger · kampaniya-fit sübutu · minimum tövsiyə balı: 6.0+ · minimum izləyici: 20,000+", "answer": "@demo_aytac_travels ilə başlayın. Bu seçim siyahısı Xalq Sigorta üçün Səyahət sığortası mövzusunda Instagram Reel kontenti canlandıra bilən və aktiv seçim filterlərindən keçən influencer/blogger namizədlərini göstərir.", "confidence": "orta", "confidence_reason": "Seçim siyahısı ilk əlaqə üçün yararlıdır, amma bəzi sübutlar əl ilə yoxlanmalıdır.", "what_was_ranked": ["Azərbaycan/local auditoriya siqnalı · fərdi influencer/blogger · kampaniya-fit sübutu · minimum tövsiyə balı: 6.0+ · minimum izləyici: 20,000+", "kampaniya auditoriyası və mövzu uyğunluğu", "tapşırığa uyğun Reels/post sübutları", "təkcə izləyici sayı yox, engagement keyfiyyəti", "izləyici rəylərinin sentimenti", "brend təhlükəsizliyi və authenticity riski", "əl ilə baxıla bilən sübutların miqdarı"], "blockers": ["3 hesab aktiv filterlərə görə kənarda qaldı."], "recommended_next_step": "Linkdəki sübutlara baxın, top 1-2 namizədi seçin, sonra qiymət və Reels insight-larını istəyin."}, "verdict": "Ən yaxşı 3 seçim:\n\n1. @demo_aytac_travels: Auditoriyası səyahətə uyğundur. \"Baqaj itdi, xəstələndik, sığorta hər şeyi qarşıladı\" kimi Reel-ləri, \"Real təcrübədir, məsləhətə görə sığorta etdim\" kimi şərh-ləri ilə emosional və əminlik verən tonu əks etdirir. Risk: Bəzi Reel-lərdəki məlumatlar daha detallı ola bilər.\n\n2. @demo_familytrip_az: Ailəvi səyahətlərə fokuslanması ilə hədəf auditoriyaya yaxındır. \"Uşaqlarla xaricə çıxarkən sığorta niyə vacibdir — qızım xəstələndi, klinika bahalı idi, sığorta ödədi\" Reel-i, \"Səyahət çantası check-list: pasport, viza, sığorta polisi\" postu ilə praktik və emosional yanaşır. Risk: Bəzi kontentləri daha çox \"lifestyle\" yönümlüdür.\n\n3. @demo_kamran_explores: Geniş auditoriyası olsa da, \"Solo səyahətdə baqajım itdi — sığorta olmadan necə əziyyət çəkdiyimi danışıram\" Reel-i ilə gözlənilməz hallara toxunur. \"Möhtəşəm kontentdir, real və dürüst\" kimi şərh-ləri səmimiyyətini göstərir. Risk: Auditoriyasının səyahət sığortası ilə birbaşa əlaqəsi digərlərinə nisbətən zəifdir.", "shortlist": [{"handle": "demo_aytac_travels", "name": "Aytac (DEMO) · Səyahət bloggeri", "platform": "instagram", "url": "https://www.instagram.com/demo_aytac_travels/", "avatar": "", "bio": "Bakı əsaslı travel blogger. Gürcüstan, Türkiyə, ailə səyahətləri və real təcrübələr.", "followers": 128000, "following": 820, "posts_count": 640, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Travel", "Lifestyle"], "contact": "", "flags": ["LLM risk: Heç bir ciddi risk görünmür."], "scores": {"audience_fit": 9.12, "content_fit": 9.01, "engagement_quality": 0.0, "feedback_sentiment": 9.65, "brand_safety": 10.0, "authenticity": 7.7, "proof_density": 5.1, "influence_power": 4.91, "market_fit": 10.0, "ai_fit": 9.0, "total": 8.01}, "market_reasons": ["profil bio/ad/handle-da Azərbaycan/Bakı siqnalı var", "profil mətnində Azərbaycan dili hərfləri var", "son kontent Azərbaycan dilində görünür", "profil mətni Azərbaycan dili leksikasına uyğundur", "caption/rəy mətni Azərbaycan dili leksikasına uyğundur", "xarici lokasiya siqnalı: turkiye"], "ai_reasons": ["Səyahət sığortası ilə bağlı real və emosional hekayələr paylaşır, hədəf auditoriyaya uyğundur, yüksək nişanlanma göstəriciləri var. Kampaniyanın tonuna və mövzularına tam cavab ver"], "ai_verdict": "Kampaniya üçün əla namizəddir.", "decision": {"role": "İlk əlaqə", "score_band": "güclü", "decision": "Bu kampaniya üçün i̇lk əlaqə", "why": ["auditoriya və mövzu uyğunluğu güclüdür", "son kontent Reels/video hekayəçilik üçün uyğundur", "engagement zəif görünür", "izləyici reaksiyası əsasən müsbətdir", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri.", "Namizədi təsdiqləməzdən əvvəl linkdəki Reels/postlara əl ilə baxın."]}, "proof_summary": "auditoriya uyğunluğu güclüdür; Reels/video sübutu var; izləyici reaksiyası müsbətdir; brend təhlükəsizliyi riski aşağıdır; 3 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "reel", "url": "https://www.instagram.com/reel/DEMOaytac1/", "source": "instagram", "title": "", "text": "Gürcüstana uçmadan əvvəl mütləq səyahət sığortası edin — baqaj itdi, xəstələndik, sığorta hər şeyi qarşıladı. Real hekayə.", "author": "", "created_at": "", "metrics": {"likes": 5400, "comments": 260, "video_views": 92000}, "sentiment": 1.0, "relevance": 6.25, "reason": ""}, {"kind": "reel", "url": "https://www.instagram.com/reel/DEMOaytac2/", "source": "instagram", "title": "", "text": "Ailəcən tətil: uçuş gecikdi, sığorta sayəsində oteldə qaldıq. Bu vacib məqamı izah edirəm.", "author": "", "created_at": "", "metrics": {"likes": 4100, "comments": 190, "video_views": 71000}, "sentiment": 0.0, "relevance": 2.5, "reason": ""}, {"kind": "comment", "url": "", "source": "instagram", "title": "", "text": "Çox faydalı oldu, təşəkkürlər! Real təcrübədir, məsləhətə görə sığorta etdim.", "author": "", "created_at": "", "metrics": {"is_comment": true}, "sentiment": 1.0, "relevance": 1.25, "reason": ""}, {"kind": "comment", "url": "", "source": "instagram", "title": "", "text": "Əla izah etdin, bunu bilmirdim. Gələn səfərə hökmən edəcəm.", "author": "", "created_at": "", "metrics": {"is_comment": true}, "sentiment": 1.0, "relevance": 0.0, "reason": ""}]}, {"handle": "demo_familytrip_az", "name": "Nigar (DEMO) · Ailə & Səyahət", "platform": "instagram", "url": "https://www.instagram.com/demo_familytrip_az/", "avatar": "", "bio": "Azərbaycanlı ana. Uşaqlarla səyahət, təhlükəsizlik və rahatlıq. Bakı.", "followers": 64500, "following": 410, "posts_count": 380, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Family", "Travel"], "contact": "", "flags": ["LLM risk: Nişanlanma dərəcəsi digər yüksək profilli namizədlərə nisbətən bir qədər aşağı ola bilər."], "scores": {"audience_fit": 9.24, "content_fit": 7.76, "engagement_quality": 0.0, "feedback_sentiment": 9.3, "brand_safety": 10.0, "authenticity": 7.7, "proof_density": 4.85, "influence_power": 3.88, "market_fit": 10.0, "ai_fit": 8.0, "total": 7.5}, "market_reasons": ["profil bio/ad/handle-da Azərbaycan/Bakı siqnalı var", "handle lokal AZ siqnalı daşıyır", "profil mətnində Azərbaycan dili hərfləri var", "son kontent Azərbaycan dilində görünür", "profil mətni Azərbaycan dili leksikasına uyğundur", "caption/rəy mətni Azərbaycan dili leksikasına uyğundur"], "ai_reasons": ["Ailə səyahətləri və uşaqların təhlükəsizliyi mövzusunda emosional hekayələr paylaşır, bu da hədəf auditoriya üçün çox cəlbedicidir. Yerli bazara uyğundur və kampaniyanın emosional "], "ai_verdict": "Kampaniya üçün çox uyğun və etibarlı namizəddir.", "decision": {"role": "İkinci seçim", "score_band": "perspektivli", "decision": "Bu kampaniya üçün i̇kinci seçim", "why": ["auditoriya və mövzu uyğunluğu güclüdür", "son kontent Reels/video hekayəçilik üçün uyğundur", "engagement zəif görünür", "izləyici reaksiyası əsasən müsbətdir", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Təsdiqli tövsiyə saymazdan əvvəl daha çox son Reels və rəy toplayın.", "Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri."]}, "proof_summary": "auditoriya uyğunluğu güclüdür; Reels/video sübutu var; izləyici reaksiyası müsbətdir; brend təhlükəsizliyi riski aşağıdır; 3 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "reel", "url": "https://www.instagram.com/reel/DEMOfam1/", "source": "instagram", "title": "", "text": "Uşaqlarla xaricə çıxarkən sığorta niyə vacibdir — qızım xəstələndi, klinika bahalı idi, sığorta ödədi.", "author": "", "created_at": "", "metrics": {"likes": 2600, "comments": 140, "video_views": 48000}, "sentiment": -1.0, "relevance": 1.25, "reason": ""}, {"kind": "post", "url": "https://www.instagram.com/p/DEMOfam2/", "source": "instagram", "title": "", "text": "Səyahət çantası check-list: pasport, viza, sığorta polisi, dərmanlar.", "author": "", "created_at": "", "metrics": {"likes": 1800, "comments": 60, "video_views": 0}, "sentiment": 0.0, "relevance": 2.5, "reason": ""}, {"kind": "comment", "url": "", "source": "instagram", "title": "", "text": "Çox doğru deyirsən, güvən və rahatlıq üçün vacibdir.", "author": "", "created_at": "", "metrics": {"is_comment": true}, "sentiment": 1.0, "relevance": 3.75, "reason": ""}]}, {"handle": "demo_kamran_explores", "name": "Kamran (DEMO) · Macəra", "platform": "instagram", "url": "https://www.instagram.com/demo_kamran_explores/", "avatar": "", "bio": "Adventure & travel creator from Baku. Dağlar, dənizlər, yeni ölkələr.", "followers": 212000, "following": 300, "posts_count": 910, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Travel", "Adventure"], "contact": "", "flags": ["LLM risk: Bəzi kontentləri (məsələn, sığorta olmadan çətinliklər) kampaniyanın 'qorxu yaratmayan' və 'əminlik verən' tonuna tam uyğun gəlməyə bilər. Kontent tonu üzərində işləmək lazım gələ "], "scores": {"audience_fit": 6.16, "content_fit": 6.97, "engagement_quality": 0.0, "feedback_sentiment": 9.3, "brand_safety": 10.0, "authenticity": 7.7, "proof_density": 4.85, "influence_power": 5.92, "market_fit": 7.5, "ai_fit": 7.0, "total": 6.39}, "market_reasons": ["profil bio/ad/handle-da Azərbaycan/Bakı siqnalı var", "profil mətnində Azərbaycan dili hərfləri var", "son kontent Azərbaycan dilində görünür"], "ai_reasons": ["Yüksək izləyici kütləsi və nişanlanma dərəcəsi var. Səyahət mövzusunda aktivdir və sığortanın vacibliyini vurğulayan kontent yaradır."], "ai_verdict": "Yüksək təsir gücünə malikdir, lakin kontentin tonu kampaniya tələblərinə uyğunlaşdırılmalıdır.", "decision": {"role": "Üçüncü seçim", "score_band": "əl ilə yoxlanmalıdır", "decision": "Hələ təsdiqli creator deyil, araşdırma lead-i kimi saxlayın", "why": ["auditoriya uyğunluğu var, amma əl ilə yoxlanmalıdır", "kontent brief ilə qismən uyğun gəlir", "engagement zəif görünür", "izləyici reaksiyası əsasən müsbətdir", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Təsdiqli tövsiyə saymazdan əvvəl daha çox son Reels və rəy toplayın.", "Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri."]}, "proof_summary": "izləyici reaksiyası müsbətdir; brend təhlükəsizliyi riski aşağıdır; 3 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "reel", "url": "https://www.instagram.com/reel/DEMOkam1/", "source": "instagram", "title": "", "text": "Solo səyahətdə baqajım itdi — sığorta olmadan necə əziyyət çəkdiyimi danışıram.", "author": "", "created_at": "", "metrics": {"likes": 9800, "comments": 410, "video_views": 180000}, "sentiment": 0.0, "relevance": 2.5, "reason": ""}, {"kind": "reel", "url": "https://www.instagram.com/reel/DEMOkam2/", "source": "instagram", "title": "", "text": "Ən gözəl 5 ölkə və hər birində niyə sığorta etdim.", "author": "", "created_at": "", "metrics": {"likes": 7200, "comments": 230, "video_views": 140000}, "sentiment": 1.0, "relevance": 1.25, "reason": ""}, {"kind": "comment", "url": "", "source": "instagram", "title": "", "text": "Möhtəşəm kontentdir, real və dürüst.", "author": "", "created_at": "", "metrics": {"is_comment": true}, "sentiment": 1.0, "relevance": 0.0, "reason": ""}]}], "candidates": [{"handle": "demo_aytac_travels", "name": "Aytac (DEMO) · Səyahət bloggeri", "platform": "instagram", "url": "https://www.instagram.com/demo_aytac_travels/", "avatar": "", "bio": "Bakı əsaslı travel blogger. Gürcüstan, Türkiyə, ailə səyahətləri və real təcrübələr.", "followers": 128000, "following": 820, "posts_count": 640, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Travel", "Lifestyle"], "contact": "", "flags": ["LLM risk: Heç bir ciddi risk görünmür."], "scores": {"audience_fit": 9.12, "content_fit": 9.01, "engagement_quality": 0.0, "feedback_sentiment": 9.65, "brand_safety": 10.0, "authenticity": 7.7, "proof_density": 5.1, "influence_power": 4.91, "market_fit": 10.0, "ai_fit": 9.0, "total": 8.01}, "market_reasons": ["profil bio/ad/handle-da Azərbaycan/Bakı siqnalı var", "profil mətnində Azərbaycan dili hərfləri var", "son kontent Azərbaycan dilində görünür", "profil mətni Azərbaycan dili leksikasına uyğundur", "caption/rəy mətni Azərbaycan dili leksikasına uyğundur", "xarici lokasiya siqnalı: turkiye"], "ai_reasons": ["Səyahət sığortası ilə bağlı real və emosional hekayələr paylaşır, hədəf auditoriyaya uyğundur, yüksək nişanlanma göstəriciləri var. Kampaniyanın tonuna və mövzularına tam cavab ver"], "ai_verdict": "Kampaniya üçün əla namizəddir.", "decision": {"role": "İlk əlaqə", "score_band": "güclü", "decision": "Bu kampaniya üçün i̇lk əlaqə", "why": ["auditoriya və mövzu uyğunluğu güclüdür", "son kontent Reels/video hekayəçilik üçün uyğundur", "engagement zəif görünür", "izləyici reaksiyası əsasən müsbətdir", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri.", "Namizədi təsdiqləməzdən əvvəl linkdəki Reels/postlara əl ilə baxın."]}, "proof_summary": "auditoriya uyğunluğu güclüdür; Reels/video sübutu var; izləyici reaksiyası müsbətdir; brend təhlükəsizliyi riski aşağıdır; 3 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "reel", "url": "https://www.instagram.com/reel/DEMOaytac1/", "source": "instagram", "title": "", "text": "Gürcüstana uçmadan əvvəl mütləq səyahət sığortası edin — baqaj itdi, xəstələndik, sığorta hər şeyi qarşıladı. Real hekayə.", "author": "", "created_at": "", "metrics": {"likes": 5400, "comments": 260, "video_views": 92000}, "sentiment": 1.0, "relevance": 6.25, "reason": ""}, {"kind": "reel", "url": "https://www.instagram.com/reel/DEMOaytac2/", "source": "instagram", "title": "", "text": "Ailəcən tətil: uçuş gecikdi, sığorta sayəsində oteldə qaldıq. Bu vacib məqamı izah edirəm.", "author": "", "created_at": "", "metrics": {"likes": 4100, "comments": 190, "video_views": 71000}, "sentiment": 0.0, "relevance": 2.5, "reason": ""}, {"kind": "comment", "url": "", "source": "instagram", "title": "", "text": "Çox faydalı oldu, təşəkkürlər! Real təcrübədir, məsləhətə görə sığorta etdim.", "author": "", "created_at": "", "metrics": {"is_comment": true}, "sentiment": 1.0, "relevance": 1.25, "reason": ""}, {"kind": "comment", "url": "", "source": "instagram", "title": "", "text": "Əla izah etdin, bunu bilmirdim. Gələn səfərə hökmən edəcəm.", "author": "", "created_at": "", "metrics": {"is_comment": true}, "sentiment": 1.0, "relevance": 0.0, "reason": ""}]}, {"handle": "demo_familytrip_az", "name": "Nigar (DEMO) · Ailə & Səyahət", "platform": "instagram", "url": "https://www.instagram.com/demo_familytrip_az/", "avatar": "", "bio": "Azərbaycanlı ana. Uşaqlarla səyahət, təhlükəsizlik və rahatlıq. Bakı.", "followers": 64500, "following": 410, "posts_count": 380, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Family", "Travel"], "contact": "", "flags": ["LLM risk: Nişanlanma dərəcəsi digər yüksək profilli namizədlərə nisbətən bir qədər aşağı ola bilər."], "scores": {"audience_fit": 9.24, "content_fit": 7.76, "engagement_quality": 0.0, "feedback_sentiment": 9.3, "brand_safety": 10.0, "authenticity": 7.7, "proof_density": 4.85, "influence_power": 3.88, "market_fit": 10.0, "ai_fit": 8.0, "total": 7.5}, "market_reasons": ["profil bio/ad/handle-da Azərbaycan/Bakı siqnalı var", "handle lokal AZ siqnalı daşıyır", "profil mətnində Azərbaycan dili hərfləri var", "son kontent Azərbaycan dilində görünür", "profil mətni Azərbaycan dili leksikasına uyğundur", "caption/rəy mətni Azərbaycan dili leksikasına uyğundur"], "ai_reasons": ["Ailə səyahətləri və uşaqların təhlükəsizliyi mövzusunda emosional hekayələr paylaşır, bu da hədəf auditoriya üçün çox cəlbedicidir. Yerli bazara uyğundur və kampaniyanın emosional "], "ai_verdict": "Kampaniya üçün çox uyğun və etibarlı namizəddir.", "decision": {"role": "İkinci seçim", "score_band": "perspektivli", "decision": "Bu kampaniya üçün i̇kinci seçim", "why": ["auditoriya və mövzu uyğunluğu güclüdür", "son kontent Reels/video hekayəçilik üçün uyğundur", "engagement zəif görünür", "izləyici reaksiyası əsasən müsbətdir", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Təsdiqli tövsiyə saymazdan əvvəl daha çox son Reels və rəy toplayın.", "Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri."]}, "proof_summary": "auditoriya uyğunluğu güclüdür; Reels/video sübutu var; izləyici reaksiyası müsbətdir; brend təhlükəsizliyi riski aşağıdır; 3 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "reel", "url": "https://www.instagram.com/reel/DEMOfam1/", "source": "instagram", "title": "", "text": "Uşaqlarla xaricə çıxarkən sığorta niyə vacibdir — qızım xəstələndi, klinika bahalı idi, sığorta ödədi.", "author": "", "created_at": "", "metrics": {"likes": 2600, "comments": 140, "video_views": 48000}, "sentiment": -1.0, "relevance": 1.25, "reason": ""}, {"kind": "post", "url": "https://www.instagram.com/p/DEMOfam2/", "source": "instagram", "title": "", "text": "Səyahət çantası check-list: pasport, viza, sığorta polisi, dərmanlar.", "author": "", "created_at": "", "metrics": {"likes": 1800, "comments": 60, "video_views": 0}, "sentiment": 0.0, "relevance": 2.5, "reason": ""}, {"kind": "comment", "url": "", "source": "instagram", "title": "", "text": "Çox doğru deyirsən, güvən və rahatlıq üçün vacibdir.", "author": "", "created_at": "", "metrics": {"is_comment": true}, "sentiment": 1.0, "relevance": 3.75, "reason": ""}]}, {"handle": "demo_kamran_explores", "name": "Kamran (DEMO) · Macəra", "platform": "instagram", "url": "https://www.instagram.com/demo_kamran_explores/", "avatar": "", "bio": "Adventure & travel creator from Baku. Dağlar, dənizlər, yeni ölkələr.", "followers": 212000, "following": 300, "posts_count": 910, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Travel", "Adventure"], "contact": "", "flags": ["LLM risk: Bəzi kontentləri (məsələn, sığorta olmadan çətinliklər) kampaniyanın 'qorxu yaratmayan' və 'əminlik verən' tonuna tam uyğun gəlməyə bilər. Kontent tonu üzərində işləmək lazım gələ "], "scores": {"audience_fit": 6.16, "content_fit": 6.97, "engagement_quality": 0.0, "feedback_sentiment": 9.3, "brand_safety": 10.0, "authenticity": 7.7, "proof_density": 4.85, "influence_power": 5.92, "market_fit": 7.5, "ai_fit": 7.0, "total": 6.39}, "market_reasons": ["profil bio/ad/handle-da Azərbaycan/Bakı siqnalı var", "profil mətnində Azərbaycan dili hərfləri var", "son kontent Azərbaycan dilində görünür"], "ai_reasons": ["Yüksək izləyici kütləsi və nişanlanma dərəcəsi var. Səyahət mövzusunda aktivdir və sığortanın vacibliyini vurğulayan kontent yaradır."], "ai_verdict": "Yüksək təsir gücünə malikdir, lakin kontentin tonu kampaniya tələblərinə uyğunlaşdırılmalıdır.", "decision": {"role": "Üçüncü seçim", "score_band": "əl ilə yoxlanmalıdır", "decision": "Hələ təsdiqli creator deyil, araşdırma lead-i kimi saxlayın", "why": ["auditoriya uyğunluğu var, amma əl ilə yoxlanmalıdır", "kontent brief ilə qismən uyğun gəlir", "engagement zəif görünür", "izləyici reaksiyası əsasən müsbətdir", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Təsdiqli tövsiyə saymazdan əvvəl daha çox son Reels və rəy toplayın.", "Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri."]}, "proof_summary": "izləyici reaksiyası müsbətdir; brend təhlükəsizliyi riski aşağıdır; 3 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "reel", "url": "https://www.instagram.com/reel/DEMOkam1/", "source": "instagram", "title": "", "text": "Solo səyahətdə baqajım itdi — sığorta olmadan necə əziyyət çəkdiyimi danışıram.", "author": "", "created_at": "", "metrics": {"likes": 9800, "comments": 410, "video_views": 180000}, "sentiment": 0.0, "relevance": 2.5, "reason": ""}, {"kind": "reel", "url": "https://www.instagram.com/reel/DEMOkam2/", "source": "instagram", "title": "", "text": "Ən gözəl 5 ölkə və hər birində niyə sığorta etdim.", "author": "", "created_at": "", "metrics": {"likes": 7200, "comments": 230, "video_views": 140000}, "sentiment": 1.0, "relevance": 1.25, "reason": ""}, {"kind": "comment", "url": "", "source": "instagram", "title": "", "text": "Möhtəşəm kontentdir, real və dürüst.", "author": "", "created_at": "", "metrics": {"is_comment": true}, "sentiment": 1.0, "relevance": 0.0, "reason": ""}]}], "filtered_out": [{"handle": "demo_india_traveler", "name": "DEMO Traveler", "platform": "instagram", "url": "https://www.instagram.com/demo_india_traveler/", "avatar": "", "bio": "Travel creator from India. Exploring the world, based in Mumbai.", "followers": 156000, "following": 500, "posts_count": 700, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Travel"], "contact": "", "flags": ["LLM: Azərbaycan/local bazar uyğunluğu zəifdir", "LLM: final tövsiyə üçün sübut yetərsizdir", "LLM risk: Hədəf auditoriyaya çatmaq mümkün olmayacaq. Kampaniya büdcəsi səmərəsiz xərclənəcək.", "Azərbaycan/local auditoriya siqnalı zəifdir"], "scores": {"audience_fit": 1.69, "content_fit": 5.35, "engagement_quality": 0.0, "feedback_sentiment": 3.25, "brand_safety": 10.0, "authenticity": 7.0, "proof_density": 3.8, "influence_power": 2.77, "market_fit": 0.0, "ai_fit": 1.0, "total": 3.65}, "market_reasons": ["profil özünü xarici bazara bağlayır", "xarici lokasiya siqnalı: india"], "ai_reasons": ["Influencer Hindistandan olduğu üçün Azərbaycan bazarı üçün uyğun deyil. Kampaniya tələblərində 'Azərbaycanlı travel/lifestyle influencer' axtarılır."], "ai_verdict": "Yerli bazar tələbinə görə rədd edilir.", "decision": {"role": "Ehtiyat namizəd", "score_band": "zəif", "decision": "Hələ təsdiqli creator deyil, araşdırma lead-i kimi saxlayın", "why": ["kontent brief ilə qismən uyğun gəlir", "engagement zəif görünür", "rəy sentimenti əl ilə yoxlanmalıdır", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Təsdiqli tövsiyə saymazdan əvvəl daha çox son Reels və rəy toplayın.", "Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri."]}, "proof_summary": "brend təhlükəsizliyi riski aşağıdır; 1 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "reel", "url": "https://www.instagram.com/reel/DEMOind1/", "source": "instagram", "title": "", "text": "My trip to Dubai and Maldives — travel tips!", "author": "", "created_at": "", "metrics": {"likes": 4000, "comments": 100, "video_views": 80000}, "sentiment": 0.0, "relevance": 2.5, "reason": ""}]}, {"handle": "demo_some_insurance", "name": "DEMO Sığorta Şirkəti", "platform": "instagram", "url": "https://www.instagram.com/demo_some_insurance/", "avatar": "", "bio": "Official insurance company account. Sığorta məhsulları və xidmətlər.", "followers": 41000, "following": 15, "posts_count": 300, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Company"], "contact": "", "flags": ["LLM: fərdi creator deyil", "LLM: final tövsiyə üçün sübut yetərsizdir", "LLM risk: Kampaniyanın məqsədinə (influencer vasitəsilə məlumatlılığı artırmaq) çatmaq mümkün olmaz. Auditoriya tərəfindən birbaşa reklam kimi qəbul ediləcək.", "korporativ/brend hesabıdır, fərdi influencer deyil"], "scores": {"audience_fit": 3.17, "content_fit": 2.18, "engagement_quality": 0.0, "feedback_sentiment": 3.6, "brand_safety": 10.0, "authenticity": 4.9, "proof_density": 3.8, "influence_power": 1.41, "market_fit": 4.5, "ai_fit": 0.0, "total": 3.48}, "market_reasons": ["profil mətnində Azərbaycan dili hərfləri var", "son kontent Azərbaycan dilində görünür"], "ai_reasons": ["Bu, bir sığorta şirkətinin rəsmi hesabıdır, influencer deyil. Kampaniya tələblərinə (emosional ssenarini canlandıracaq influencer) uyğun gəlmir."], "ai_verdict": "Namizəd deyil, rədd edilir.", "decision": {"role": "Ehtiyat namizəd", "score_band": "zəif", "decision": "Hələ təsdiqli creator deyil, araşdırma lead-i kimi saxlayın", "why": ["engagement zəif görünür", "rəy sentimenti əl ilə yoxlanmalıdır", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Təsdiqli tövsiyə saymazdan əvvəl daha çox son Reels və rəy toplayın.", "Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri."]}, "proof_summary": "brend təhlükəsizliyi riski aşağıdır; 1 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "post", "url": "https://www.instagram.com/p/DEMOins1/", "source": "instagram", "title": "", "text": "Yeni səyahət sığortası məhsulumuz.", "author": "", "created_at": "", "metrics": {"likes": 120, "comments": 4, "video_views": 0}, "sentiment": 0.0, "relevance": 2.5, "reason": ""}]}, {"handle": "demo_foodbaku", "name": "Bakı Yeməkləri (DEMO)", "platform": "instagram", "url": "https://www.instagram.com/demo_foodbaku/", "avatar": "", "bio": "Bakının ən dadlı restoranları və reseptləri. Food blogger.", "followers": 98000, "following": 120, "posts_count": 1200, "avg_likes": 0.0, "avg_comments": 0.0, "avg_views": 0.0, "engagement_rate": 0.0, "engagement_band": "naməlum", "categories": ["Food"], "contact": "", "flags": ["LLM: final tövsiyə üçün sübut yetərsizdir", "LLM risk: Kampaniya mesajı hədəf auditoriyaya çatmayacaq və ya qəbul edilməyəcək. Marka üçün uyğunsuzluq yarana bilər.", "kampaniya auditoriyası ilə uyğunluq zəifdir (0.6 < 5.0)"], "scores": {"audience_fit": 0.55, "content_fit": 1.61, "engagement_quality": 0.0, "feedback_sentiment": 3.25, "brand_safety": 10.0, "authenticity": 7.0, "proof_density": 4.6, "influence_power": 2.19, "market_fit": 10.0, "ai_fit": 0.0, "total": 2.62}, "market_reasons": ["profil bio/ad/handle-da Azərbaycan/Bakı siqnalı var", "son kontentdə Azərbaycan/Bakı siqnalı var", "profil mətnində Azərbaycan dili hərfləri var", "son kontent Azərbaycan dilində görünür", "profil mətni Azərbaycan dili leksikasına uyğundur"], "ai_reasons": ["Bu influencer yemək mövzusunda ixtisaslaşıb, səyahət sığortası kampaniyası üçün uyğun deyil. Kontent brief-in tələblərinə cavab vermir."], "ai_verdict": "Kontent uyğunsuzluğuna görə rədd edilir.", "decision": {"role": "Ehtiyat namizəd", "score_band": "zəif", "decision": "Hələ təsdiqli creator deyil, araşdırma lead-i kimi saxlayın", "why": ["engagement zəif görünür", "rəy sentimenti əl ilə yoxlanmalıdır", "toplanan sübutlarda brend təhlükəsizliyi riski aşağıdır"], "next_checks": ["Təsdiqli tövsiyə saymazdan əvvəl daha çox son Reels və rəy toplayın.", "Əlaqədən əvvəl brend təhlükəsizliyi və authenticity qeydlərini yoxlayın.", "Qiymət siyahısı, istifadə hüquqları və eksklüzivlik şərtlərini soruşun.", "Son 30 gün Reels insight-larını istəyin: reach, izləmə müddəti, save, share və auditoriya şəhərləri."]}, "proof_summary": "brend təhlükəsizliyi riski aşağıdır; 2 uyğun sübut bu seçimi dəstəkləyir.", "evidence": [{"kind": "reel", "url": "https://www.instagram.com/reel/DEMOfood1/", "source": "instagram", "title": "", "text": "Bakıda ən yaxşı kababçılar — top 5 ünvan!", "author": "", "created_at": "", "metrics": {"likes": 3200, "comments": 90, "video_views": 60000}, "sentiment": 0.0, "relevance": 0.0, "reason": ""}, {"kind": "post", "url": "https://www.instagram.com/p/DEMOfood2/", "source": "instagram", "title": "", "text": "Ev şəraitində plov resepti.", "author": "", "created_at": "", "metrics": {"likes": 2100, "comments": 40, "video_views": 0}, "sentiment": 0.0, "relevance": 0.0, "reason": ""}]}], "coverage": [{"source": "DEMO", "status": "ok", "note": "Sintetik namizədlər real pipeline-dan keçirildi (canlı Apify deyil)"}, {"source": "apify (canlı)", "status": "skipped", "note": "Pulsuz $5/ay limiti dolub (5.09/5); sıfırlanma ~5 İyul 2026"}], "totals": {"seen": 6, "ranked": 3, "filtered_out": 3, "shortlisted": 3, "rejected": 0}, "engines": {"llm": "gemini:gemini-3.5-flash, groq:llama-3.3-70b-versatile", "apify": true, "actors": {"search": "apify/instagram-scraper", "profile": "apify/instagram-profile-scraper", "post": "apify/instagram-post-scraper", "comment": "apify/instagram-comment-scraper", "hashtag": "apify/instagram-hashtag-scraper"}}};
+document.body.insertAdjacentHTML('afterbegin', "<div style=\"background:#7a1115;color:#fff;text-align:center;padding:9px 14px;font:700 13px/1.4 -apple-system,Segoe UI,Arial;letter-spacing:.03em\">\u26a0 DEMO \u00d6N\u0130ZL\u018fM\u018f \u2014 sintetik (demo_*) namiz\u0259dl\u0259r real pipeline-dan ke\u00e7ib. Canl\u0131 Instagram datas\u0131 deyil: Apify pulsuz $5/ay limiti dolub, ~5 \u0130yul 2026-da s\u0131f\u0131rlan\u0131r.</div>");
+window.fetch = async () => ({ json: async () => ({}) });
+document.getElementById('engtxt').textContent = 'DEMO rejimi · canlı backend qoşulu deyil';
+render(DEMO_PAYLOAD);
+</script>
+</body>
+</html>

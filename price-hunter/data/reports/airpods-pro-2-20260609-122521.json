@@ -1,0 +1,298 @@
+{
+  "query": "airpods pro 2",
+  "generated_at": "2026-06-09T12:25:21",
+  "spec": {
+    "query": "airpods pro 2",
+    "canonical_name": "Apple AirPods Pro 2nd generation",
+    "brand": "Apple",
+    "family": "AirPods Pro",
+    "generation": "2",
+    "variants": [],
+    "model_codes": [
+      "MQD83LL/A",
+      "MQD83",
+      "A2931",
+      "A2699",
+      "A2698"
+    ],
+    "must_include": [
+      "airpods",
+      "pro",
+      "2"
+    ],
+    "must_exclude": [
+      "pro 1",
+      "airpods 1",
+      "gen 1",
+      "pro 3",
+      "airpods 3",
+      "gen 3",
+      "pro 4",
+      "airpods 4",
+      "gen 4",
+      "pro 5",
+      "airpods 5",
+      "gen 5",
+      "airpods pro 1",
+      "case",
+      "qabi",
+      "kabro",
+      "strap",
+      "replika",
+      "kopya",
+      "1:1",
+      "lux kopya"
+    ],
+    "fair_low": 250.0,
+    "fair_high": 450.0,
+    "notes": "Ensure the listing specifies the 2nd generation and is not an accessory or replica."
+  },
+  "best_legit": {
+    "title": "AirPods Pro 2, Ağ",
+    "price": 349.0,
+    "url": "https://ispace.az/az/product/mtjv3rua-od-mtjv3ru-a-od",
+    "source": "ispace.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "new",
+    "official": true,
+    "warranty": "official Apple partner",
+    "in_stock": true,
+    "model_code": "MTJV3RU/A-OD",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.8999999999999999,
+    "deal_score": 209.4,
+    "flags": []
+  },
+  "cheapest": {
+    "title": "AirPods Pro 2, Ağ",
+    "price": 349.0,
+    "url": "https://ispace.az/az/product/mtjv3rua-od-mtjv3ru-a-od",
+    "source": "ispace.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "new",
+    "official": true,
+    "warranty": "official Apple partner",
+    "in_stock": true,
+    "model_code": "MTJV3RU/A-OD",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.8999999999999999,
+    "deal_score": 209.4,
+    "flags": []
+  },
+  "verdict": "Ən yaxşı qiymətə və etibarlı mənbədən almaq üçün **ispace.az** saytına baxın. Orada 349 AZN-ə yeni AirPods Pro 2-ni tapa bilərsiniz, bu da qiymət və etibarlılıq baxımından ən uyğun variantdır. **qiymetleri.az** saytındakı ucuz təkliflər (349 AZN-dən başlayan) ya istifadə olunmuş, ya da saxta məhsul ola bilər, çünki etibarlılıq faizi aşağıdır və məhsulun vəziyyəti qeyd olunmayıb. Növbəti addım olaraq, ispace.az saytında məhsulun detallarını yoxlayıb sifariş etmək tövsiyə olunur.",
+  "offers": [
+    {
+      "title": "AirPods Pro 2, Ağ",
+      "price": 349.0,
+      "url": "https://ispace.az/az/product/mtjv3rua-od-mtjv3ru-a-od",
+      "source": "ispace.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "new",
+      "official": true,
+      "warranty": "official Apple partner",
+      "in_stock": true,
+      "model_code": "MTJV3RU/A-OD",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.8999999999999999,
+      "deal_score": 209.4,
+      "flags": []
+    },
+    {
+      "title": "Apple AirPods Pro 2",
+      "price": 370.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "Digər elanlar",
+      "currency": "AZN",
+      "condition": "new",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.7,
+      "deal_score": 296.0,
+      "flags": []
+    },
+    {
+      "title": "AirPods Pro 2",
+      "price": 349.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "Apple AirPods Pro 3",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.6,
+      "deal_score": 314.1,
+      "flags": []
+    },
+    {
+      "title": "Airpods pro 2",
+      "price": 359.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "Apple AirPods Pro 3",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.6,
+      "deal_score": 323.1,
+      "flags": []
+    },
+    {
+      "title": "AirPods Pro 2",
+      "price": 369.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "Apple AirPods Pro (2nd Generation)",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.6,
+      "deal_score": 332.1,
+      "flags": []
+    },
+    {
+      "title": "AirPods Pro 2",
+      "price": 399.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "Apple AirPods Pro 3",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.6,
+      "deal_score": 359.1,
+      "flags": []
+    },
+    {
+      "title": "Simsiz qulaqlıq Apple AirPods Pro (2nd generation) with MagSafe Case (USB‑C) - MTJV3RU/A",
+      "price": 759.99,
+      "url": "https://bakuelectronics.az/simsiz-qulaqlq-apple-airpods-pro-2nd-generation-with-magsafe-case-usbc-mtjv3rua-194753",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": true,
+      "model_code": "194753",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.6499999999999999,
+      "deal_score": 646.0,
+      "flags": [
+        "above typical retail"
+      ]
+    }
+  ],
+  "source_status": [
+    {
+      "source": "qiymetleri.az",
+      "status": "ok",
+      "note": "html->llm extraction (27 price lines)"
+    },
+    {
+      "source": "bakuelectronics.az",
+      "status": "ok",
+      "note": "5 structured offers"
+    },
+    {
+      "source": "birmarket.az",
+      "status": "ok",
+      "note": "html->llm extraction (132 price lines)"
+    },
+    {
+      "source": "tap.az",
+      "status": "ok",
+      "note": "26 structured offers"
+    },
+    {
+      "source": "irshad.az",
+      "status": "ok",
+      "note": "html->llm extraction (80 price lines)"
+    },
+    {
+      "source": "optimal.az",
+      "status": "blocked",
+      "note": "HTTP 403 (anti-bot; survived TLS impersonation)"
+    },
+    {
+      "source": "ispace.az",
+      "status": "ok",
+      "note": "18 API offers (official Apple)"
+    },
+    {
+      "source": "kontakt.az",
+      "status": "ok",
+      "note": "13 GraphQL offers (official)"
+    },
+    {
+      "source": "lalafo.az",
+      "status": "skipped",
+      "note": "JSON API ignores the query filter - skipped to avoid noise (used market)"
+    },
+    {
+      "source": "qiymeti.net",
+      "status": "skipped",
+      "note": "WordPress ajax_search renders client-side (JS XHR, nonce-gated); TLS impersonation gets the shell but not the prices - needs headless (TODO)"
+    },
+    {
+      "source": "umico.az / ucuzu.az",
+      "status": "skipped",
+      "note": "price-aggregator SPAs, prices load via JS XHR - need API reverse-engineering or headless (TODO)"
+    },
+    {
+      "source": "maxi.az",
+      "status": "skipped",
+      "note": "Cloudflare 525 (origin down/blocked) at the edge (TODO)"
+    },
+    {
+      "source": "soliton.az / trendyol.az",
+      "status": "skipped",
+      "note": "search path/JS not resolved - low priority (TODO)"
+    }
+  ],
+  "stats": {
+    "total_seen": 68,
+    "rejected": 60,
+    "matched": 7
+  }
+}

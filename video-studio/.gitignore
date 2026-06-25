@@ -1,0 +1,25 @@
+# Portable binaries (Node.js + FFmpeg) - reinstalled via install-video-tools.ps1
+tools/
+
+# Raw and finished media - never commit large binaries
+input/*
+output/*
+work/
+!input/.gitkeep
+!output/.gitkeep
+
+# Generated edit specs (one per video job)
+jobs/*.json
+!jobs/.gitkeep
+
+# Music library content - tracks are downloaded locally (see music/README.md)
+music/*.mp3
+music/*.wav
+music/*.m4a
+
+# Remotion build artefacts
+remotion/node_modules/
+remotion/public/base.mp4
+remotion/public/props.json
+remotion/public/logo.png
+remotion/.remotion/

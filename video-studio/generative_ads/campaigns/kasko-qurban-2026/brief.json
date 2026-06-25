@@ -1,0 +1,168 @@
+{
+  "version": "1",
+  "campaign": {
+    "slug": "kasko-qurban-2026",
+    "name": "Qurban Bayramina KASKO teklifi",
+    "language": "az",
+    "owner": "Xalq Sigorta Marketing",
+    "source_brief": "C:/Users/a.alirzayev/Desktop/Xalq/Sales and Marketing/kampaniyalar/Kasko 2026 kampaniya son.docx"
+  },
+  "platform": {
+    "name": "meta",
+    "placement": "instagram-facebook-reels",
+    "paid_media_notes": "10-second paid Reels. The hook must read as a sponsored Open Graph-style social card in the first second."
+  },
+  "format": {
+    "aspect": "9:16",
+    "duration_s": 10,
+    "resolution": [1080, 1920],
+    "fps": 30,
+    "safe_area": "Keep important copy in central 900x1500 px. Leave lower app UI zone clear except CTA."
+  },
+  "objective": {
+    "primary": "Drive KASKO insurance consideration during Qurban holiday campaign.",
+    "audience": "Azerbaijani private passenger-car owners eligible for KASKO, excluding taxi, rent-a-car and passenger transport use cases.",
+    "single_minded_message": "Get KASKO insurance during the campaign and receive an Azpetrol fuel card gift.",
+    "conversion_action": "Learn more / contact Xalq Sigorta"
+  },
+  "brand": {
+    "name": "Xalq Sigorta",
+    "identity_source": "social-studio/brand_kit/brand.md",
+    "tone": ["premium", "trust-led", "clear", "holiday-positive", "not clickbait"],
+    "palette": ["#E31E24", "#2B2A29", "#FFFFFF", "#149040"],
+    "typography": ["Inter Tight or Manrope for headlines", "Inter for body/legal"],
+    "rules": [
+      "Xalq Sigorta logo is deterministic overlay or approved poster artwork only.",
+      "AZPETROL identity must remain green, clean, and recognizable.",
+      "Campaign terms, dates, prices, and CTA must be deterministic overlay.",
+      "No AI-generated new Azerbaijani copy in foreground."
+    ]
+  },
+  "offer": {
+    "headline": "Qurban bayramina ozel teklif",
+    "subheadline": "KASKO sigortasi al, yanacaq kartin hediyye olsun!",
+    "dates": "25 may - 5 iyun",
+    "cta": "Etrafli bax",
+    "terms": [
+      "Təklif yalnız bonus əmsalı 1.0-dan aşağı olan sürücülərə məxsus minik avtomobillərinə aiddir.",
+      "Taksi, rent a car və sərnişin daşımalarında istifadə olunan avtomobillər kampaniyaya daxil deyil.",
+      "Kampaniya buraxılış ili son 10 ilə qədər olan minik avtomobillərinə şamil olunur.",
+      "Kampaniya sığorta haqqı 750 AZN-dən yuxarı avtomobillər üçün nəzərdə tutulmuşdur."
+    ]
+  },
+  "assets": [
+    {
+      "role": "campaign_key_visual",
+      "path_or_url": "C:/Users/a.alirzayev/Desktop/Xalq/Logo/bayram kampaniyasi .png",
+      "asset_id": "asset_jd74qh6a2zqckt3gevr685v5xn877nhb",
+      "usage": "Approved visual reference: fuel pump, red car, gift box, Azpetrol cards, holiday color system.",
+      "must_preserve": ["red car", "Azpetrol fuel pump", "gift box", "fuel cards", "holiday green/red visual language"]
+    },
+    {
+      "role": "overlay_lockup",
+      "path_or_url": "output/kasko-flora-og-start.png",
+      "asset_id": "asset_jd7fffw7rs81x62qr5dnvm6etn877w1b",
+      "usage": "Open Graph-style vertical start-frame reference for composition and hook.",
+      "must_preserve": ["sponsored card structure", "rounded card", "CTA area", "mobile Reels feel"]
+    },
+    {
+      "role": "brand_logo",
+      "path_or_url": "social-studio/brand_kit/xalqsigorta-logo-official.svg",
+      "usage": "Final deterministic overlay logo.",
+      "must_preserve": ["exact logo geometry", "official color"]
+    },
+    {
+      "role": "partner_logo",
+      "path_or_url": "embedded in approved campaign key visual; request separate vector from marketing when available",
+      "usage": "Partner brand reference and final overlay if separate vector is supplied.",
+      "must_preserve": ["AZPETROL green", "partner mark integrity"]
+    }
+  ],
+  "storyboard": [
+    {
+      "time": "0.0-1.5s",
+      "beat": "Open Graph hook",
+      "visual": "A clean sponsored social preview card floats over a soft holiday campaign backdrop.",
+      "motion": "Gentle card float, slight push-in, soft green-red ambient sweep.",
+      "overlay": "Sponsored / Xalq Sigorta / Reels 9:16 / campaign headline."
+    },
+    {
+      "time": "1.5-4.0s",
+      "beat": "Offer reveal",
+      "visual": "The card opens into the KASKO campaign world: Azpetrol pump, red car, gift box and cards.",
+      "motion": "Controlled 3D parallax, light sweep across the fuel cards, no fast shake.",
+      "overlay": "KASKO al, yanacaq kartı qazan."
+    },
+    {
+      "time": "4.0-7.5s",
+      "beat": "Terms made simple",
+      "visual": "Three clean offer chips/cards appear over the branded motion plate.",
+      "motion": "Staggered slide-in with subtle shadow and settle.",
+      "overlay": "25 MAY - 5 İYUN / 750 AZN+ / AZPETROL."
+    },
+    {
+      "time": "7.5-10.0s",
+      "beat": "CTA settle",
+      "visual": "Final clean card with approved campaign visual, logo lockup and CTA.",
+      "motion": "Slow settle, stable end frame for last 0.8 seconds.",
+      "overlay": "Avtomobilinizi qoruyun, yanacaq kartı qazanın / 25 may - 5 iyun / Xalq Sigorta x AZPETROL."
+    }
+  ],
+  "model_strategy": {
+    "recommended": [
+      "i2v-seedance-2-0-reference-i2v-enhancor",
+      "i2v-runway-gen-4.5",
+      "i2v-sora2-pro"
+    ],
+    "fallbacks": [
+      "i2v-kling-2.6",
+      "i2v-seedance-1.5-pro",
+      "deterministic-remotion"
+    ],
+    "variant_count": 3,
+    "selection_criteria": [
+      "Open Graph hook remains premium and readable",
+      "red car, fuel pump, gift box and fuel cards stay recognizable",
+      "no AI-generated foreground text is required for final comprehension",
+      "motion feels like paid social, not random cinematic drift",
+      "final frame is stable enough for CTA and Meta thumbnail"
+    ]
+  },
+  "text_policy": {
+    "ai_text_rule": "Do not generate final readable Azerbaijani campaign copy. Generate motion plate and card movement; exact copy is added as deterministic overlay.",
+    "overlay_text": [
+      "Qurban bayramına özəl təklif",
+      "KASKO al, yanacaq kartın hədiyyə olsun!",
+      "25 may - 5 iyun",
+      "750 AZN+",
+      "AZPETROL",
+      "Ətraflı bax",
+      "Avtomobilinizi qoruyun, yanacaq kartı qazanın"
+    ],
+    "forbidden": [
+      "mutated Azerbaijani text",
+      "invented prices",
+      "wrong dates",
+      "fake Xalq Sigorta logo",
+      "fake AZPETROL logo",
+      "new sponsor brands",
+      "warped UI controls"
+    ]
+  },
+  "qa": {
+    "reject_if": [
+      "Azerbaijani text is generated or visibly malformed in foreground",
+      "Xalq Sigorta or AZPETROL identity is altered",
+      "the red car, fuel pump, gift cards or gift box are deformed",
+      "the offer is not understandable without audio",
+      "the final CTA is not readable for at least the last 0.8 seconds"
+    ],
+    "approve_if": [
+      "the first second reads as a high-quality sponsored social card",
+      "the motion plate supports the approved poster concept",
+      "all final copy is locked as overlay text",
+      "terms are simplified without contradicting the legal brief",
+      "the video is ready for Meta Reels upload"
+    ]
+  }
+}

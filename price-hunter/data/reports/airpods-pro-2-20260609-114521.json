@@ -1,0 +1,98 @@
+{
+  "query": "airpods pro 2",
+  "generated_at": "2026-06-09T11:45:21",
+  "spec": {
+    "query": "airpods pro 2",
+    "canonical_name": "Apple AirPods Pro 2",
+    "brand": "Apple",
+    "family": "AirPods Pro",
+    "generation": "2",
+    "variants": [
+      "USB-C",
+      "Lightning"
+    ],
+    "model_codes": [
+      "A2698",
+      "A2699",
+      "A2700",
+      "A3048",
+      "A3049",
+      "A3050"
+    ],
+    "must_include": [
+      "airpods",
+      "pro",
+      "2",
+      "2nd gen"
+    ],
+    "must_exclude": [
+      "case",
+      "kabro",
+      "qabi",
+      "strap",
+      "tips",
+      "holder",
+      "replika",
+      "kopya",
+      "1:1",
+      "lux kopya",
+      "1",
+      "3",
+      "max"
+    ],
+    "fair_low": 350.0,
+    "fair_high": 600.0,
+    "notes": "Be aware of two main variants (Lightning or USB-C charging case) and many convincing replicas on the market."
+  },
+  "best_legit": null,
+  "cheapest": null,
+  "verdict": "",
+  "offers": [],
+  "source_status": [
+    {
+      "source": "qiymetleri.az",
+      "status": "ok",
+      "note": "html->llm extraction (27 price lines)"
+    },
+    {
+      "source": "bakuelectronics.az",
+      "status": "ok",
+      "note": "5 structured offers"
+    },
+    {
+      "source": "birmarket.az",
+      "status": "ok",
+      "note": "html->llm extraction (132 price lines)"
+    },
+    {
+      "source": "tap.az",
+      "status": "ok",
+      "note": "25 structured offers"
+    },
+    {
+      "source": "kontakt.az",
+      "status": "blocked",
+      "note": "HTTP 403 (anti-bot; Apify fallback needed)"
+    },
+    {
+      "source": "irshad.az",
+      "status": "ok",
+      "note": "html->llm extraction (80 price lines)"
+    },
+    {
+      "source": "lalafo.az",
+      "status": "skipped",
+      "note": "query filter unreliable on public API - skipped to avoid noise"
+    },
+    {
+      "source": "qiymeti.net",
+      "status": "skipped",
+      "note": "WordPress ajax_search renders results client-side (no SSR prices, nonce-gated) - needs headless/Apify fallback (TODO)"
+    }
+  ],
+  "stats": {
+    "total_seen": 36,
+    "rejected": 36,
+    "matched": 0
+  }
+}

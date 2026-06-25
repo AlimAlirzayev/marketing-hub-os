@@ -1,0 +1,42 @@
+# ============================================================
+# Xalq Insurance Digital OS - Jarvis voice assistant config
+# Copy to "config.yaml" and adjust. install-jarvis.ps1 does this automatically.
+# ============================================================
+
+# Wake word that activates the assistant
+wake_word: "hey jarvis"
+
+# Speech-to-text: local Whisper (offline, multilingual)
+stt:
+  engine: whisper
+  model: base          # tiny | base | small | medium
+  language: auto       # auto-detect; supports Turkish and Azerbaijani
+
+# Text-to-speech
+tts:
+  engine: system       # use the OS voice; swap for piper for offline neural TTS
+
+# Local brain: Ollama
+llm:
+  backend: ollama
+  base_url: http://localhost:11434
+  model: gemma3:4b     # fast, fits in 16 GB RAM
+
+# Conversation memory
+memory:
+  backend: sqlite
+  path: ./memory.db
+  vector_embeddings: true
+
+# Skills the assistant can invoke
+skills:
+  - chrome_control     # open URLs, run searches
+  - datetime           # current time, date, location
+  - web_fetch          # read web pages on demand
+  - mcp_bridge         # call MCP servers from claude-agents/.claude/settings.json
+
+# Bridge to the CrewAI orchestrator (voice command -> crew dispatch)
+orchestrator_bridge:
+  enabled: true
+  module: orchestrator.crews.jarvis_bridge
+  entry: dispatch_from_jarvis

@@ -1,0 +1,35 @@
+{
+  "reviewer": "Codex visual review",
+  "review_date": "2026-05-20",
+  "asset": "output/social/xalqsigorta-georgia-train-travel-insurance-post-v8-1080x1350.png",
+  "scores": {
+    "concept_strength": 84,
+    "brand_distinctiveness": 82,
+    "art_direction_quality": 86,
+    "message_clarity": 90,
+    "emotional_strategy": 84,
+    "craft_realism": 86,
+    "platform_performance": 85,
+    "memorability": 78
+  },
+  "blockers": [],
+  "top_findings": [
+    "V8 restores the core brief: train interior, Azerbaijani couple, passports, red suitcase, insurance UI, and Georgia/Caucasus railway view are present.",
+    "The image is more campaign-ready than v6 and far stronger than v7.",
+    "The visual still needs slightly more distinctiveness and less obvious shield symbolism to be world-class.",
+    "The red suitcase is partly buried in the footer area; keep brand prop visible but away from mandatory legal/footer layers.",
+    "The scene is clean and persuasive, but memorability is still below approval threshold."
+  ],
+  "revision_brief": [
+    "Keep the v8 scene structure and restraint.",
+    "Move or crop the red suitcase higher/clearer so it does not compete with footer legal text.",
+    "Make the shield reflection more physically subtle and less icon-like.",
+    "Add a stronger authentic rail journey cue without adding text or clutter."
+  ],
+  "next_prompt_patch": [
+    "Keep the exact v8 scene structure: couple inside train, window, Caucasus railway view, passports, red suitcase, subtle insurance UI.",
+    "Place the red suitcase above the bottom footer zone, visible but not under logo/legal text.",
+    "Make the shield reflection barely visible, broken by real glass reflections, not a clean icon.",
+    "Add one authentic rail-travel detail such as seat fabric, carriage edge, or window reflection, but no readable signage."
+  ]
+}

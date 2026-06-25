@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vebsayt Analitikası — GA4 · Xalq Sigorta</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .card { background:#fff; border:1px solid #E5E7EB; border-radius:1rem; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .spin { animation: s 1s linear infinite; } @keyframes s { to { transform: rotate(360deg); } }
+  .skel { background:linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%); background-size:400% 100%; animation:sh 1.2s ease infinite; } @keyframes sh { 0%{background-position:100% 0} 100%{background-position:0 0} }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+<div class="max-w-6xl mx-auto px-4 py-7">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-center gap-3 mb-6">
+    <div class="w-11 h-11 rounded-xl bg-[#E31E24] text-white grid place-items-center font-bold text-xl">X</div>
+    <div class="mr-auto">
+      <h1 class="text-xl font-bold text-slate-900">Vebsayt Analitikası <span class="text-slate-400 font-normal">· GA4</span></h1>
+      <p class="text-sm text-slate-500" id="tagline">Google Analytics 4 · Xalq Sigorta</p>
+    </div>
+    <select id="period" class="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+      <option value="7">Son 7 gün</option>
+      <option value="28" selected>Son 28 gün</option>
+      <option value="90">Son 90 gün</option>
+    </select>
+    <span id="mode-badge" class="px-3 py-1.5 rounded-full text-xs font-semibold">…</span>
+  </div>
+
+  <div id="range-line" class="text-xs text-slate-400 mb-4"></div>
+
+  <!-- KPI row -->
+  <div id="kpis" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6"></div>
+
+  <!-- Trend -->
+  <div class="card p-5 mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-bold text-slate-900">Gündəlik trend</h2>
+      <div class="flex gap-4 text-xs">
+        <span class="flex items-center gap-1"><span class="w-3 h-1.5 rounded bg-[#2563EB] inline-block"></span>Sessiyalar</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-1.5 rounded bg-[#E31E24] inline-block"></span>Konversiyalar</span>
+      </div>
+    </div>
+    <div id="trend"><div class="skel h-40 rounded-lg"></div></div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-6 mb-6">
+    <!-- Channels -->
+    <div class="card p-5">
+      <h2 class="font-bold text-slate-900 mb-1">Kanallar</h2>
+      <p class="text-xs text-slate-400 mb-3">Trafik haradan gəlir + hansı daha yaxşı konvert edir</p>
+      <div id="channels" class="space-y-2"></div>
+    </div>
+    <!-- Funnel -->
+    <div class="card p-5">
+      <h2 class="font-bold text-slate-900 mb-1">Cəlb funneli</h2>
+      <p class="text-xs text-slate-400 mb-3">Ziyarət → cəlb → konversiya</p>
+      <div id="funnel" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- Top pages -->
+  <div class="card p-5 mb-6">
+    <h2 class="font-bold text-slate-900 mb-3">Ən çox baxılan səhifələr</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="text-left text-slate-400 border-b border-slate-100">
+          <th class="py-2 font-medium">Səhifə</th><th class="py-2 font-medium text-right">Baxış</th>
+          <th class="py-2 font-medium text-right">İstifadəçi</th><th class="py-2 font-medium text-right">Orta cəlb</th>
+        </tr></thead>
+        <tbody id="pages"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-6 mb-6">
+    <!-- Devices + Geo -->
+    <div class="card p-5">
+      <h2 class="font-bold text-slate-900 mb-3">Cihaz & Şəhər</h2>
+      <div id="devices" class="space-y-2 mb-4"></div>
+      <div id="geo" class="flex flex-wrap gap-2"></div>
+    </div>
+    <!-- Insights -->
+    <div class="card p-5">
+      <h2 class="font-bold text-slate-900 mb-3">Avtomatik müşahidələr</h2>
+      <div id="insights" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- AI -->
+  <div class="card p-5 mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-bold text-slate-900">AI icmal <span class="text-xs text-slate-400 font-normal">· Gemini</span></h2>
+      <button id="ai-btn" class="px-4 py-2 rounded-lg bg-[#7C3AED] text-white text-sm font-semibold hover:bg-[#6D28D9] disabled:opacity-40">✨ İcmal yarat</button>
+    </div>
+    <div id="ai" class="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">Düyməyə bas — dövrün GA4 datasından qısa Azərbaycanca icmal.</div>
+  </div>
+
+  <p class="text-center text-xs text-slate-400 mt-2">
+    Mənbə dürüst etiketlənir · DEMO rəqəmləri sintetikdir · GA4 Studio · Marketing OS
+  </p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const fmt = n => (n||0).toLocaleString('az-AZ');
+const pct = n => (n==null ? '—' : (n>=0?'+':'')+n.toFixed(1)+'%');
+
+function deltaHtml(d){
+  if(d==null || d.delta_pct==null) return '<span class="text-slate-300 text-xs">—</span>';
+  const good = d.good;
+  const cls = good===null ? 'text-slate-400' : good ? 'text-emerald-600' : 'text-red-500';
+  const arrow = d.delta_pct>=0 ? '▲' : '▼';
+  return `<span class="${cls} text-xs font-medium">${arrow} ${pct(d.delta_pct)}</span>`;
+}
+
+const KPI_DEFS = [
+  ['sessions','Sessiyalar', v=>fmt(v)],
+  ['users','İstifadəçilər', v=>fmt(v)],
+  ['conversions','Konversiyalar', v=>fmt(v)],
+  ['conversion_rate','Konversiya %', v=>(v*100).toFixed(2)+'%'],
+  ['engagement_rate','Cəlb nisbəti', v=>(v*100).toFixed(0)+'%'],
+  ['avg_engagement_sec','Orta cəlb', v=>v+' san'],
+];
+
+function renderKpis(r){
+  $('#kpis').innerHTML = KPI_DEFS.map(([k,label,f])=>`
+    <div class="card p-4">
+      <div class="text-xs text-slate-500">${label}</div>
+      <div class="text-2xl font-bold text-slate-900 mt-1">${f(r.totals[k])}</div>
+      <div class="mt-1">${deltaHtml(r.deltas[k])}</div>
+    </div>`).join('');
+}
+
+function renderTrend(r){
+  const t = r.trend; if(!t.length){ $('#trend').innerHTML=''; return; }
+  const W=900,H=170,P=8;
+  const maxS = Math.max(...t.map(d=>d.sessions),1);
+  const maxC = Math.max(...t.map(d=>d.conversions),1);
+  const x = i => P + i*(W-2*P)/Math.max(t.length-1,1);
+  const yS = v => H-P - v/maxS*(H-2*P);
+  const yC = v => H-P - v/maxC*(H-2*P);
+  const path = (arr,y)=>arr.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(d).toFixed(1)).join(' ');
+  const area = path(t,yS)+` L ${x(t.length-1)} ${H-P} L ${x(0)} ${H-P} Z`;
+  $('#trend').innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="w-full" style="height:170px">
+    <path d="${area}" fill="#2563EB" opacity="0.08"/>
+    <path d="${path(t,yS)}" fill="none" stroke="#2563EB" stroke-width="2"/>
+    <path d="${path(t,yC)}" fill="none" stroke="#E31E24" stroke-width="2"/>
+  </svg>
+  <div class="flex justify-between text-[10px] text-slate-400 mt-1"><span>${t[0].date}</span><span>${t[t.length-1].date}</span></div>`;
+}
+
+function renderChannels(r){
+  const max = Math.max(...r.channels.map(c=>c.sessions),1);
+  $('#channels').innerHTML = r.channels.map(c=>`
+    <div>
+      <div class="flex justify-between text-sm mb-0.5">
+        <span class="font-medium text-slate-700">${c.channel_az}</span>
+        <span class="text-slate-500">${fmt(c.sessions)} <span class="text-slate-300">·</span> ${(c.conversion_rate*100).toFixed(2)}% konv</span>
+      </div>
+      <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div class="h-2 bg-[#2563EB] rounded-full" style="width:${(c.sessions/max*100).toFixed(1)}%"></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderFunnel(r){
+  $('#funnel').innerHTML = r.funnel.map((f,i)=>`
+    <div>
+      <div class="flex justify-between text-sm mb-0.5">
+        <span class="font-medium text-slate-700">${f.step} <span class="text-slate-400 font-normal">· ${f.desc}</span></span>
+        <span class="text-slate-600">${fmt(f.value)} <span class="text-slate-400">(${f.of_top}%)</span></span>
+      </div>
+      <div class="h-6 bg-slate-100 rounded-lg overflow-hidden">
+        <div class="h-6 rounded-lg ${i===2?'bg-[#16A34A]':'bg-[#E31E24]'}" style="width:${f.of_top}%"></div>
+      </div>
+      ${i?`<div class="text-[11px] text-amber-600 mt-0.5">↓ əvvəlki addımdan ${f.drop_from_prev}% itki</div>`:''}
+    </div>`).join('');
+}
+
+function renderPages(r){
+  $('#pages').innerHTML = r.top_pages.map(p=>`
+    <tr class="border-b border-slate-50">
+      <td class="py-2"><span class="font-medium text-slate-700">${p.title||p.page}</span>
+        <span class="text-slate-400 text-xs block">${p.page}</span></td>
+      <td class="py-2 text-right">${fmt(p.views)}</td>
+      <td class="py-2 text-right text-slate-500">${fmt(p.users)}</td>
+      <td class="py-2 text-right ${p.avg_engagement_sec<30?'text-amber-600 font-medium':'text-slate-500'}">${p.avg_engagement_sec} san</td>
+    </tr>`).join('');
+}
+
+function renderDevices(r){
+  const colors={mobile:'#2563EB',desktop:'#E31E24',tablet:'#F59E0B'};
+  $('#devices').innerHTML = r.devices.map(d=>`
+    <div class="flex items-center gap-2 text-sm">
+      <span class="w-16 text-slate-600 capitalize">${d.device}</span>
+      <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div class="h-2 rounded-full" style="width:${(d.share*100).toFixed(0)}%;background:${colors[d.device]||'#94a3b8'}"></div></div>
+      <span class="w-10 text-right text-slate-500">${(d.share*100).toFixed(0)}%</span>
+    </div>`).join('');
+  $('#geo').innerHTML = r.geo.map(g=>`
+    <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs">${g.city} · ${fmt(g.sessions)}</span>`).join('');
+}
+
+function renderInsights(r){
+  const tone={good:'bg-emerald-50 text-emerald-800',warn:'bg-amber-50 text-amber-800',info:'bg-slate-50 text-slate-700'};
+  $('#insights').innerHTML = (r.insights||[]).map(i=>`
+    <div class="flex gap-2 p-2.5 rounded-lg ${tone[i.tone]||tone.info} text-sm">
+      <span>${i.icon}</span><span>${i.text}</span></div>`).join('') || '<div class="text-sm text-slate-400">Müşahidə yoxdur.</div>';
+}
+
+function renderMode(c){
+  const b=$('#mode-badge');
+  if(c.mode==='live'){ b.className='px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700';
+    b.textContent='● CANLI · '+(c.property||''); }
+  else { b.className='px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700';
+    b.textContent='● DEMO'; b.title=(c.blockers||[]).join(' · ')||'Sintetik məlumat'; }
+  $('#tagline').textContent=c.tagline||'';
+  if(!c.has_ai) $('#ai-btn').disabled=true;
+}
+
+let CUR_DAYS=28;
+async function load(){
+  const c = await (await fetch('/api/config')).json();
+  renderMode(c);
+  const r = await (await fetch('/api/report?days='+CUR_DAYS)).json();
+  if(!r.ok){ $('#range-line').textContent='Xəta: '+(r.error||''); return; }
+  $('#range-line').textContent = r.range.label + ' · mənbə: ' + r.property;
+  renderKpis(r); renderTrend(r); renderChannels(r); renderFunnel(r);
+  renderPages(r); renderDevices(r); renderInsights(r);
+}
+
+$('#period').addEventListener('change', e=>{ CUR_DAYS=+e.target.value; load(); });
+$('#ai-btn').addEventListener('click', async ()=>{
+  const btn=$('#ai-btn'); btn.disabled=true; const old=btn.textContent; btn.textContent='Düşünür…';
+  $('#ai').innerHTML='<span class="text-slate-400">Gemini icmalı hazırlayır…</span>';
+  try{
+    const a = await (await fetch('/api/ai?days='+CUR_DAYS)).json();
+    $('#ai').textContent = a.ok ? a.text : ('⚠ '+(a.error||'alınmadı'));
+  }catch(e){ $('#ai').textContent='⚠ '+e; }
+  btn.disabled=false; btn.textContent=old;
+});
+load();
+</script>
+</body>
+</html>

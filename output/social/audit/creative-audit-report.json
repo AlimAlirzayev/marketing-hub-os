@@ -1,0 +1,194 @@
+{
+  "generated_at": "2026-05-20T11:17:13",
+  "campaign": "xalqsigorta-travel-insurance-georgia-train",
+  "brand": "Xalq Sigorta",
+  "decision": "revise",
+  "overall_score": 59.6,
+  "rubric": {
+    "name": "Xalq Insurance Digital OS Social Studio Creative Audit Rubric",
+    "version": "1.0.0"
+  },
+  "scores": {
+    "brand_fit": 0.0,
+    "art_direction": 79.4,
+    "marketing_clarity": 88.0,
+    "compliance_safety": 35.0,
+    "production_readiness": 99.8
+  },
+  "findings": [
+    {
+      "severity": "critical",
+      "code": "regulatory_claim_unverified",
+      "message": "Regulatory claim exists but compliance status is not verified."
+    },
+    {
+      "severity": "major",
+      "code": "headline_zone_busy_edges",
+      "message": "output\\social\\xalqsigorta-georgia-train-travel-insurance-post-v5-1080x1350.png: Upper-left headline zone has high edge energy; typography may need a stronger fade or a calmer crop."
+    },
+    {
+      "severity": "minor",
+      "code": "headline_zone_contrasty",
+      "message": "output\\social\\xalqsigorta-georgia-train-travel-insurance-post-v5-1080x1350.png: Upper-left headline zone has high luminance variation."
+    },
+    {
+      "severity": "major",
+      "code": "red_wash_risk",
+      "message": "output\\social\\xalqsigorta-georgia-train-travel-insurance-post-v5-1080x1350.png: Red pixel ratio is 54.7%; this risks reading as a heavy red wash."
+    },
+    {
+      "severity": "major",
+      "code": "red_wash_risk",
+      "message": "output\\social\\xalqsigorta-georgia-train-travel-insurance-square-v5-1080x1080.png: Red pixel ratio is 59.3%; this risks reading as a heavy red wash."
+    },
+    {
+      "severity": "major",
+      "code": "red_wash_risk",
+      "message": "output\\social\\xalqsigorta-georgia-train-travel-insurance-story-v5-1080x1920.png: Red pixel ratio is 62.9%; this risks reading as a heavy red wash."
+    }
+  ],
+  "prompt_patch": [
+    "Reduce the full-frame red overlay. Keep brand red only in the suitcase, subtle reflections, small UI accents, and very soft edge atmosphere.",
+    "Avoid a saturated red wash across skin, windows, train interior, or landscape.",
+    "Make the upper-left third calmer and darker, with fewer objects, fewer bright highlights, and smoother negative space for Azerbaijani headline text.",
+    "Do not publish regulatory wording until the manifest contains a verified source URL, review date, and responsible owner."
+  ],
+  "exports": [
+    {
+      "path": "output\\social\\xalqsigorta-georgia-train-travel-insurance-post-v5-1080x1350.png",
+      "exists": true,
+      "placement": "feed_4x5",
+      "dimensions": {
+        "width": 1080,
+        "height": 1350,
+        "expected_width": 1080,
+        "expected_height": 1350,
+        "ok": true
+      },
+      "metrics": {
+        "full": {
+          "luminance_mean": 0.19423158466815948,
+          "luminance_std": 0.20423904061317444,
+          "edge_energy": 0.05783730745315552
+        },
+        "footer": {
+          "luminance_mean": 0.0910712257027626,
+          "luminance_std": 0.13666102290153503,
+          "edge_energy": 0.06421942263841629
+        },
+        "headline_zone": {
+          "luminance_mean": 0.1595228910446167,
+          "luminance_std": 0.2496633380651474,
+          "edge_energy": 0.09102442860603333
+        },
+        "red_ratio": 0.54661865234375
+      },
+      "scores": {
+        "production_readiness": 99.4,
+        "art_direction": 78.3,
+        "brand_fit": 0.0
+      },
+      "findings": [
+        {
+          "severity": "major",
+          "code": "headline_zone_busy_edges",
+          "message": "Upper-left headline zone has high edge energy; typography may need a stronger fade or a calmer crop."
+        },
+        {
+          "severity": "minor",
+          "code": "headline_zone_contrasty",
+          "message": "Upper-left headline zone has high luminance variation."
+        },
+        {
+          "severity": "major",
+          "code": "red_wash_risk",
+          "message": "Red pixel ratio is 54.7%; this risks reading as a heavy red wash."
+        }
+      ]
+    },
+    {
+      "path": "output\\social\\xalqsigorta-georgia-train-travel-insurance-square-v5-1080x1080.png",
+      "exists": true,
+      "placement": "square_1x1",
+      "dimensions": {
+        "width": 1080,
+        "height": 1080,
+        "expected_width": 1080,
+        "expected_height": 1080,
+        "ok": true
+      },
+      "metrics": {
+        "full": {
+          "luminance_mean": 0.17354200780391693,
+          "luminance_std": 0.18049705028533936,
+          "edge_energy": 0.04998299479484558
+        },
+        "footer": {
+          "luminance_mean": 0.12535890936851501,
+          "luminance_std": 0.134268119931221,
+          "edge_energy": 0.06210252270102501
+        },
+        "headline_zone": {
+          "luminance_mean": 0.14117997884750366,
+          "luminance_std": 0.22637546062469482,
+          "edge_energy": 0.08611144125461578
+        },
+        "red_ratio": 0.5934944152832031
+      },
+      "scores": {
+        "production_readiness": 100.0,
+        "art_direction": 80.0,
+        "brand_fit": 0.0
+      },
+      "findings": [
+        {
+          "severity": "major",
+          "code": "red_wash_risk",
+          "message": "Red pixel ratio is 59.3%; this risks reading as a heavy red wash."
+        }
+      ]
+    },
+    {
+      "path": "output\\social\\xalqsigorta-georgia-train-travel-insurance-story-v5-1080x1920.png",
+      "exists": true,
+      "placement": "story_9x16",
+      "dimensions": {
+        "width": 1080,
+        "height": 1920,
+        "expected_width": 1080,
+        "expected_height": 1920,
+        "ok": true
+      },
+      "metrics": {
+        "full": {
+          "luminance_mean": 0.1766040325164795,
+          "luminance_std": 0.1834663450717926,
+          "edge_energy": 0.04657617211341858
+        },
+        "footer": {
+          "luminance_mean": 0.0631353110074997,
+          "luminance_std": 0.12826275825500488,
+          "edge_energy": 0.050454460084438324
+        },
+        "headline_zone": {
+          "luminance_mean": 0.13912299275398254,
+          "luminance_std": 0.22810222208499908,
+          "edge_energy": 0.06911923736333847
+        },
+        "red_ratio": 0.6293183379120879
+      },
+      "scores": {
+        "production_readiness": 100.0,
+        "art_direction": 80.0,
+        "brand_fit": 0.0
+      },
+      "findings": [
+        {
+          "severity": "major",
+          "code": "red_wash_risk",
+          "message": "Red pixel ratio is 62.9%; this risks reading as a heavy red wash."
+        }
+      ]
+    }
+  ]
+}

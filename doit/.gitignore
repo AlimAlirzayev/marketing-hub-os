@@ -1,0 +1,3 @@
+# doit keeps an authenticated browser session here — never commit it.
+.profile-*/
+*.env

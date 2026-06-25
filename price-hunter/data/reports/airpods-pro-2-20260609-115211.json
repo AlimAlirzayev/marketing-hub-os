@@ -1,0 +1,239 @@
+{
+  "query": "airpods pro 2",
+  "generated_at": "2026-06-09T11:52:11",
+  "spec": {
+    "query": "airpods pro 2",
+    "canonical_name": "Apple AirPods Pro 2",
+    "brand": "Apple",
+    "family": "AirPods Pro",
+    "generation": "2",
+    "variants": [
+      "USB-C",
+      "Lightning"
+    ],
+    "model_codes": [
+      "A2698",
+      "A2699",
+      "A2700",
+      "A3048",
+      "A3049",
+      "A3050"
+    ],
+    "must_include": [
+      "airpods",
+      "pro",
+      "2"
+    ],
+    "must_exclude": [
+      "pro 1",
+      "airpods 1",
+      "gen 1",
+      "pro 3",
+      "airpods 3",
+      "gen 3",
+      "pro 4",
+      "airpods 4",
+      "gen 4",
+      "pro 5",
+      "airpods 5",
+      "gen 5",
+      "case",
+      "kabro",
+      "qabi",
+      "strap",
+      "tips",
+      "holder",
+      "replika",
+      "kopya",
+      "1:1",
+      "lux kopya",
+      "max"
+    ],
+    "fair_low": 350.0,
+    "fair_high": 600.0,
+    "notes": "Be aware of two main variants (Lightning or USB-C charging case) and many convincing replicas on the market."
+  },
+  "best_legit": {
+    "title": "Airpods pro 2",
+    "price": 359.0,
+    "url": "https://qiymetleri.az/airpods-pro-2",
+    "source": "qiymetleri.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "new",
+    "official": false,
+    "warranty": "",
+    "in_stock": null,
+    "model_code": "",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.7,
+    "deal_score": 287.2,
+    "flags": []
+  },
+  "cheapest": {
+    "title": "Airpods pro 2",
+    "price": 359.0,
+    "url": "https://qiymetleri.az/airpods-pro-2",
+    "source": "qiymetleri.az",
+    "seller": "",
+    "currency": "AZN",
+    "condition": "new",
+    "official": false,
+    "warranty": "",
+    "in_stock": null,
+    "model_code": "",
+    "raw_price": "",
+    "matched": true,
+    "match_reason": "include-tokens",
+    "trust": 0.7,
+    "deal_score": 287.2,
+    "flags": []
+  },
+  "verdict": "Dürüst və sərfəli alış üçün qiymetleri.az saytındakı 359 AZN-lik təklif ən cəlbedici görünür, lakin bu qiymətə orijinal Apple AirPods Pro 2 tapmaq çox çətindir. Mütləq ən ucuz təklif də elə 359 AZN-ə qiymetleri.az-dadır və böyük ehtimalla replika və ya qeyri-rəsmi məhsuldur, orijinal deyil. Alışdan əvvəl satıcıdan məhsulun orijinal olduğuna dair seriya nömrəsini və ya rəsmi zəmanət sənədlərini tələb edin.",
+  "offers": [
+    {
+      "title": "Airpods pro 2",
+      "price": 359.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "new",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.7,
+      "deal_score": 287.2,
+      "flags": []
+    },
+    {
+      "title": "Apple AirPods Pro (2nd Generation)",
+      "price": 369.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "By_Dodi Store",
+      "currency": "AZN",
+      "condition": "new",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.7,
+      "deal_score": 295.2,
+      "flags": []
+    },
+    {
+      "title": "Apple AirPods Pro 2",
+      "price": 370.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "new",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.7,
+      "deal_score": 296.0,
+      "flags": []
+    },
+    {
+      "title": "Apple AirPods Pro 2",
+      "price": 399.0,
+      "url": "https://qiymetleri.az/airpods-pro-2",
+      "source": "qiymetleri.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": false,
+      "warranty": "",
+      "in_stock": null,
+      "model_code": "",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.6,
+      "deal_score": 359.1,
+      "flags": []
+    },
+    {
+      "title": "Simsiz qulaqlıq Apple AirPods Pro (2nd generation) with MagSafe Case (USB‑C) - MTJV3RU/A",
+      "price": 759.99,
+      "url": "https://bakuelectronics.az/simsiz-qulaqlq-apple-airpods-pro-2nd-generation-with-magsafe-case-usbc-mtjv3rua-194753",
+      "source": "bakuelectronics.az",
+      "seller": "",
+      "currency": "AZN",
+      "condition": "unknown",
+      "official": true,
+      "warranty": "",
+      "in_stock": true,
+      "model_code": "194753",
+      "raw_price": "",
+      "matched": true,
+      "match_reason": "include-tokens",
+      "trust": 0.7,
+      "deal_score": 608.0,
+      "flags": []
+    }
+  ],
+  "source_status": [
+    {
+      "source": "qiymetleri.az",
+      "status": "ok",
+      "note": "html->llm extraction (27 price lines)"
+    },
+    {
+      "source": "bakuelectronics.az",
+      "status": "ok",
+      "note": "5 structured offers"
+    },
+    {
+      "source": "birmarket.az",
+      "status": "ok",
+      "note": "html->llm extraction (132 price lines)"
+    },
+    {
+      "source": "tap.az",
+      "status": "ok",
+      "note": "27 structured offers"
+    },
+    {
+      "source": "kontakt.az",
+      "status": "blocked",
+      "note": "HTTP 403 (anti-bot; Apify fallback needed)"
+    },
+    {
+      "source": "irshad.az",
+      "status": "ok",
+      "note": "html->llm extraction (80 price lines)"
+    },
+    {
+      "source": "lalafo.az",
+      "status": "skipped",
+      "note": "query filter unreliable on public API - skipped to avoid noise"
+    },
+    {
+      "source": "qiymeti.net",
+      "status": "skipped",
+      "note": "WordPress ajax_search renders results client-side (no SSR prices, nonce-gated) - needs headless/Apify fallback (TODO)"
+    }
+  ],
+  "stats": {
+    "total_seen": 37,
+    "rejected": 31,
+    "matched": 5
+  }
+}

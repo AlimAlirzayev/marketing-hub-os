@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier — Xalq Sigorta Creative Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: { extend: { colors: {
+    brand:   "#E31E24", brandDark: "#B3171C", burgundy: "#5C0F12",
+    ink:     "#0E0E10", panel: "#17171A", card: "#1E1E22",
+    line:    "#2A2A30", muted: "#8A8A93", paper: "#ECECEE",
+  }, fontFamily: { sans: ["Inter Tight","Inter","system-ui","sans-serif"] } } }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { background: #0E0E10; color: #ECECEE; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: #34343c; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .promptbox { white-space: pre-wrap; font-family: ui-monospace, "Cascadia Code", monospace;
+               font-size: 12px; line-height: 1.5; }
+  .dropzone.drag { border-color: #E31E24 !important; background: rgba(227,30,36,.08); }
+  .tabbtn[data-active="true"] { color:#fff; border-color:#E31E24; }
+  .star { cursor: pointer; transition: transform .08s; }
+  .star:hover { transform: scale(1.15); }
+  .fade-in { animation: fade .25s ease; }
+  @keyframes fade { from { opacity:0; transform: translateY(4px);} to {opacity:1;transform:none;} }
+  .skel { background: linear-gradient(90deg,#1c1c20 25%,#26262c 50%,#1c1c20 75%);
+          background-size: 200% 100%; animation: sh 1.2s infinite; }
+  @keyframes sh { from { background-position: 200% 0;} to { background-position:-200% 0;} }
+</style>
+</head>
+<body class="font-sans antialiased">
+
+<!-- Header -->
+<header class="sticky top-0 z-30 bg-ink/90 backdrop-blur border-b border-line">
+  <div class="max-w-[1400px] mx-auto px-5 h-14 flex items-center gap-4">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-md bg-brand grid place-items-center font-extrabold text-white text-sm">A</div>
+      <div class="leading-tight">
+        <div class="font-bold tracking-tight">Atelier</div>
+        <div class="text-[10px] text-muted -mt-0.5" id="tagline">Creative Lab</div>
+      </div>
+    </div>
+    <nav class="flex items-center gap-1 ml-4">
+      <button class="tabbtn px-3 py-1.5 text-sm font-semibold text-muted border-b-2 border-transparent" data-tab="lab" data-active="true">Creative Lab</button>
+      <button class="tabbtn px-3 py-1.5 text-sm font-semibold text-muted border-b-2 border-transparent" data-tab="brand">Brand Brain</button>
+    </nav>
+    <div class="ml-auto flex items-center gap-3">
+      <button id="historyBtn" class="text-sm text-muted hover:text-paper flex items-center gap-1.5">
+        <span>🕘</span> Tarixçə</button>
+      <div class="flex items-center gap-1.5 text-xs">
+        <span id="aiDot" class="w-2 h-2 rounded-full bg-muted"></span>
+        <span id="aiLabel" class="text-muted">AI…</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-[1400px] mx-auto px-5 py-6">
+
+  <!-- ============ CREATIVE LAB ============ -->
+  <section id="tab-lab">
+    <!-- Composer -->
+    <div class="bg-panel border border-line rounded-2xl p-5 mb-6">
+      <div class="flex items-start gap-4 flex-wrap">
+        <div class="flex-1 min-w-[280px]">
+          <label class="text-xs text-muted font-semibold">BRIEF</label>
+          <textarea id="brief" rows="2" placeholder="məs: KASKO Bayram push, Azpetrol partnyorluğu, təcili müraciət hissi"
+            class="mt-1 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm resize-y focus:border-brand outline-none"></textarea>
+        </div>
+      </div>
+      <div class="flex items-end gap-3 flex-wrap mt-3">
+        <div><label class="text-[11px] text-muted font-semibold block mb-1">Style DNA</label>
+          <select id="selStyle" class="bg-ink border border-line rounded-lg px-2.5 py-2 text-sm min-w-[180px] focus:border-brand outline-none"></select></div>
+        <div><label class="text-[11px] text-muted font-semibold block mb-1">Format</label>
+          <select id="selFormat" class="bg-ink border border-line rounded-lg px-2.5 py-2 text-sm focus:border-brand outline-none"></select></div>
+        <div><label class="text-[11px] text-muted font-semibold block mb-1">Model</label>
+          <select id="selDialect" class="bg-ink border border-line rounded-lg px-2.5 py-2 text-sm focus:border-brand outline-none"></select></div>
+        <div><label class="text-[11px] text-muted font-semibold block mb-1">Konsept</label>
+          <select id="selN" class="bg-ink border border-line rounded-lg px-2.5 py-2 text-sm focus:border-brand outline-none">
+            <option>2</option><option>3</option><option selected>4</option><option>6</option></select></div>
+        <label class="flex items-center gap-2 text-sm text-muted cursor-pointer select-none mb-0.5">
+          <input type="checkbox" id="withCaption" class="accent-brand w-4 h-4"> Caption (AZ)</label>
+        <button id="generateBtn" class="ml-auto bg-brand hover:bg-brandDark transition px-5 py-2.5 rounded-xl font-semibold text-white text-sm flex items-center gap-2">
+          <span>✦</span> Konsept yarat</button>
+      </div>
+    </div>
+
+    <!-- Board toolbar -->
+    <div id="boardBar" class="hidden items-center justify-between mb-3">
+      <div class="text-sm text-muted"><span id="briefEcho" class="text-paper font-semibold"></span>
+        <span id="sourceBadge" class="ml-2"></span></div>
+      <div class="flex items-center gap-1 bg-panel border border-line rounded-lg p-0.5">
+        <button class="viewbtn px-3 py-1 text-xs font-semibold rounded-md" data-view="cards" data-active="true">Kartlar</button>
+        <button class="viewbtn px-3 py-1 text-xs font-semibold rounded-md text-muted" data-view="gallery">Qalereya</button>
+      </div>
+    </div>
+
+    <div id="board" class="grid gap-4"></div>
+    <div id="emptyLab" class="text-center text-muted py-20">
+      <div class="text-5xl mb-3">✦</div>
+      <p class="text-sm">Brief yaz, Style DNA seç və <b class="text-paper">Konsept yarat</b>-a bas.<br>
+      Hər konsept üçün hazır prompt alıb ChatGPT-də şəkil yaradacaqsan, sonra geri yükləyib qiymətləndirəcəksən.</p>
+    </div>
+  </section>
+
+  <!-- ============ BRAND BRAIN ============ -->
+  <section id="tab-brand" class="hidden">
+    <div class="grid lg:grid-cols-3 gap-5">
+      <div class="lg:col-span-2 space-y-5">
+        <div class="bg-panel border border-line rounded-2xl p-5">
+          <h3 class="font-bold mb-1">Aktiv DNA</h3>
+          <p class="text-xs text-muted mb-4">Bütün konseptlər bu seçimlərdən doğur. Seçim dəyişəndə avtomatik yadda saxlanılır.</p>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div><label class="text-[11px] text-muted font-semibold block mb-1">Style DNA (vizual)</label>
+              <select id="bStyle" class="w-full bg-ink border border-line rounded-lg px-2.5 py-2 text-sm focus:border-brand outline-none"></select>
+              <p id="bStyleDesc" class="text-xs text-muted mt-2 leading-relaxed"></p></div>
+            <div><label class="text-[11px] text-muted font-semibold block mb-1">Voice DNA (caption)</label>
+              <select id="bVoice" class="w-full bg-ink border border-line rounded-lg px-2.5 py-2 text-sm focus:border-brand outline-none"></select>
+              <p id="bVoiceDesc" class="text-xs text-muted mt-2 leading-relaxed"></p></div>
+            <div><label class="text-[11px] text-muted font-semibold block mb-1">Default model</label>
+              <select id="bDialect" class="w-full bg-ink border border-line rounded-lg px-2.5 py-2 text-sm focus:border-brand outline-none"></select></div>
+            <div><label class="text-[11px] text-muted font-semibold block mb-1">Default format</label>
+              <select id="bFormat" class="w-full bg-ink border border-line rounded-lg px-2.5 py-2 text-sm focus:border-brand outline-none"></select></div>
+          </div>
+        </div>
+
+        <div class="bg-panel border border-line rounded-2xl p-5">
+          <h3 class="font-bold mb-1">House Rules</h3>
+          <p class="text-xs text-muted mb-3">Hər prompt-a əlavə olunan öz qaydaların (kampaniya konteksti, məcburi/qadağan elementlər).</p>
+          <textarea id="houseRules" rows="4" placeholder="məs: Bu rüb bütün vizuallarda insan üzü olsun. Avtomobil həmişə yan profildə."
+            class="w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm resize-y focus:border-brand outline-none"></textarea>
+          <h4 class="font-semibold text-sm mt-4 mb-2">Əlavə qadağalar (exclusions)</h4>
+          <textarea id="extraExcl" rows="2" placeholder="✗ heç vaxt qırmızı fon\n✗ rəqib brendlər"
+            class="w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm resize-y focus:border-brand outline-none"></textarea>
+          <div class="flex items-center gap-3 mt-3">
+            <button id="saveRules" class="bg-brand hover:bg-brandDark transition px-4 py-2 rounded-lg font-semibold text-white text-sm">Yadda saxla</button>
+            <span id="rulesSaved" class="text-xs text-green-400 opacity-0 transition">✓ saxlanıldı</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-5">
+        <div class="bg-panel border border-line rounded-2xl p-5">
+          <h3 class="font-bold mb-2 flex items-center gap-2">🚫 AI-tells filtri</h3>
+          <p class="text-xs text-muted mb-3">AI-nin "süni" göründüyünü ələ verən imzalar — hər prompt-dan avtomatik çıxarılır.</p>
+          <pre id="aiTells" class="promptbox text-muted max-h-64 overflow-auto bg-ink rounded-lg p-3 border border-line"></pre>
+        </div>
+        <div class="bg-panel border border-line rounded-2xl p-5">
+          <h3 class="font-bold mb-2">🏛 Brend kimliyi</h3>
+          <pre id="brandId" class="promptbox text-muted max-h-72 overflow-auto bg-ink rounded-lg p-3 border border-line"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- History drawer -->
+<div id="historyPanel" class="fixed inset-y-0 right-0 w-80 bg-panel border-l border-line z-40 translate-x-full transition-transform duration-200 flex flex-col">
+  <div class="h-14 px-4 flex items-center justify-between border-b border-line">
+    <span class="font-bold">Tarixçə</span>
+    <button id="historyClose" class="text-muted hover:text-paper">✕</button>
+  </div>
+  <div id="historyList" class="flex-1 overflow-auto p-3 space-y-2"></div>
+</div>
+<div id="historyBackdrop" class="fixed inset-0 bg-black/50 z-30 hidden"></div>
+
+<!-- Lightbox -->
+<div id="lightbox" class="fixed inset-0 bg-black/90 z-50 hidden items-center justify-center p-8" onclick="this.classList.add('hidden');this.classList.remove('flex')">
+  <img id="lightboxImg" class="max-h-full max-w-full rounded-lg" src="" alt="">
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-card border border-line px-4 py-2.5 rounded-xl text-sm z-50 opacity-0 transition pointer-events-none"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

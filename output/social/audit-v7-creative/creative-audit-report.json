@@ -1,0 +1,146 @@
+{
+  "generated_at": "2026-05-20T15:27:36",
+  "campaign": "xalqsigorta-travel-insurance-georgia-train-v7-background",
+  "brand": "Xalq Sigorta",
+  "decision": "revise",
+  "automated_gate_score": 82.0,
+  "overall_score": 57.2,
+  "rubric": {
+    "name": "Xalq Insurance Digital OS Social Studio Creative Audit Rubric",
+    "version": "2.0.0"
+  },
+  "score_meaning": {
+    "automated_gate_score": "Objective production checks only. This is not final creative quality.",
+    "creative_judgment_score": "Vision-capable LLM or senior human review of concept, craft, taste, and market strength.",
+    "final_score": "Only available when automated gate and creative judgment are both present."
+  },
+  "scores": {
+    "brand_fit": 99.4,
+    "art_direction": 86.5,
+    "marketing_clarity": 88.0,
+    "compliance_safety": 100.0,
+    "production_readiness": 36.2
+  },
+  "creative_judgment": {
+    "status": "present",
+    "score": 43.8,
+    "reviewer": "Codex visual review",
+    "scores": {
+      "concept_strength": 30.0,
+      "brand_distinctiveness": 42.0,
+      "art_direction_quality": 55.0,
+      "message_clarity": 28.0,
+      "emotional_strategy": 35.0,
+      "craft_realism": 70.0,
+      "platform_performance": 52.0,
+      "memorability": 30.0
+    },
+    "top_findings": [
+      "V7 is technically clean but creatively off-brief.",
+      "The prompt compiler over-weighted abstract creative language and under-weighted non-negotiable scene invariants.",
+      "The model interpreted campaign creation/studio language as a literal studio setup.",
+      "This version should be rejected, not revised from the current image."
+    ],
+    "revision_brief": [
+      "Restore non-negotiable scene invariants: train interior, passenger couple, window, Caucasus/railway, red suitcase, passport or travel documents, subtle insurance UI.",
+      "Keep v6 restraint and v7 ambition, but do not allow a studio desk, camera, laptop, moodboard, office, or creator setup.",
+      "Treat authenticity improvements as details inside the train scene, not a change of setting."
+    ],
+    "next_prompt_patch": [
+      "Non-negotiable: the image must be inside a modern passenger train with a young Azerbaijani couple traveling, not in a studio, office, desk, home, agency, or creator workspace.",
+      "Non-negotiable: include a red suitcase, passports or travel documents, and a subtle travel-insurance UI prop.",
+      "Non-negotiable: show an outside railway/Caucasus/Georgia travel cue through the train window.",
+      "Do not depict cameras, laptops, moodboards, content studios, office desks, plants, notebooks, or production equipment."
+    ]
+  },
+  "findings": [
+    {
+      "severity": "critical",
+      "code": "creative_blocker",
+      "message": "The image does not depict train travel, Georgia, passengers, passports, luggage, or travel-insurance context."
+    },
+    {
+      "severity": "critical",
+      "code": "creative_blocker",
+      "message": "The background contradicts the headline and makes the campaign message incoherent."
+    },
+    {
+      "severity": "review",
+      "code": "creative_quality_below_approval",
+      "message": "Creative judgment score is 43.8; final approval requires 90+."
+    },
+    {
+      "severity": "critical",
+      "code": "wrong_dimensions",
+      "message": "output\\social\\xalqsigorta-georgia-train-travel-insurance-background-v7-1080x1350.png: xalqsigorta-georgia-train-travel-insurance-background-v7-1080x1350.png is 1672x941; expected 1080x1350."
+    },
+    {
+      "severity": "major",
+      "code": "footer_busy_contrast",
+      "message": "output\\social\\xalqsigorta-georgia-train-travel-insurance-background-v7-1080x1350.png: Footer zone has high contrast variance and may reduce legal text legibility."
+    },
+    {
+      "severity": "minor",
+      "code": "footer_not_dark_enough",
+      "message": "output\\social\\xalqsigorta-georgia-train-travel-insurance-background-v7-1080x1350.png: Footer zone is not meaningfully darker than the full image average."
+    }
+  ],
+  "prompt_patch": [
+    "Reserve the lower footer zone as a clean dark fade with no faces, hands, suitcase handles, documents, or high-contrast details.",
+    "Use the creative review blockers as hard prompt constraints for the next generation."
+  ],
+  "exports": [
+    {
+      "path": "output\\social\\xalqsigorta-georgia-train-travel-insurance-background-v7-1080x1350.png",
+      "exists": true,
+      "placement": "feed_4x5_background",
+      "dimensions": {
+        "width": 1672,
+        "height": 941,
+        "expected_width": 1080,
+        "expected_height": 1350,
+        "ok": false
+      },
+      "metrics": {
+        "full": {
+          "luminance_mean": 0.5983814001083374,
+          "luminance_std": 0.2561142146587372,
+          "edge_energy": 0.04825684055685997
+        },
+        "footer": {
+          "luminance_mean": 0.6616601943969727,
+          "luminance_std": 0.1863888055086136,
+          "edge_energy": 0.04947035387158394
+        },
+        "headline_zone": {
+          "luminance_mean": 0.6764402985572815,
+          "luminance_std": 0.18545681238174438,
+          "edge_energy": 0.025550590828061104
+        },
+        "red_ratio": 0.019510904947916668
+      },
+      "scores": {
+        "production_readiness": 36.2,
+        "art_direction": 86.5,
+        "brand_fit": 99.4
+      },
+      "findings": [
+        {
+          "severity": "critical",
+          "code": "wrong_dimensions",
+          "message": "xalqsigorta-georgia-train-travel-insurance-background-v7-1080x1350.png is 1672x941; expected 1080x1350."
+        },
+        {
+          "severity": "major",
+          "code": "footer_busy_contrast",
+          "message": "Footer zone has high contrast variance and may reduce legal text legibility."
+        },
+        {
+          "severity": "minor",
+          "code": "footer_not_dark_enough",
+          "message": "Footer zone is not meaningfully darker than the full image average."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,474 @@
+{
+  "id": "501b05001041",
+  "generated_at": 1782370802.4225001,
+  "generated_at_iso": "2026-06-25T07:00:02Z",
+  "mission": "Govern Hugging Face adoption for RAMIN OS without exposing sensitive data.",
+  "desktop_research_source": "C:\\Users\\a.alirzayev\\Desktop\\hugginface free oportunities.docx",
+  "official_references": [
+    {
+      "name": "Inference Providers",
+      "url": "https://huggingface.co/docs/inference-providers/index",
+      "why_it_matters": "Hosted Inference Providers and OpenAI-compatible APIs are useful for public-data PoCs, not a free production backbone."
+    },
+    {
+      "name": "Hub API for OpenAI-compatible models",
+      "url": "https://huggingface.co/docs/inference-providers/hub-api",
+      "why_it_matters": "The router can list chat models and provider metadata for governed comparison."
+    },
+    {
+      "name": "Hugging Face MCP Server",
+      "url": "https://huggingface.co/docs/hub/agents-mcp",
+      "why_it_matters": "Hub model, dataset, Space, documentation, and paper search can become a read-only discovery tool."
+    },
+    {
+      "name": "Spaces as MCP servers",
+      "url": "https://huggingface.co/docs/hub/spaces-mcp-servers",
+      "why_it_matters": "Public Spaces can expose tools, but they must be treated as untrusted external execution."
+    },
+    {
+      "name": "hf CLI and skills",
+      "url": "https://huggingface.co/docs/huggingface_hub/guides/cli",
+      "why_it_matters": "The hf CLI is the standard local control surface for Hub repos, downloads, and agent skills."
+    },
+    {
+      "name": "Text Embeddings Inference",
+      "url": "https://huggingface.co/docs/text-embeddings-inference/quick_tour",
+      "why_it_matters": "TEI is the strongest private RAG/embedding path for internal documents and customer-adjacent retrieval."
+    }
+  ],
+  "local_readiness": {
+    "hf_cli": true,
+    "docker": false,
+    "ollama": false,
+    "huggingface_hub_python": true,
+    "gradio_client_python": true,
+    "note": "Credential presence is intentionally not inspected by HF Radar."
+  },
+  "operating_principle": "Hosted HF services are for public/synthetic PoCs; internal documents and customer data use local or self-hosted models only.",
+  "system_fit_summary": {
+    "overall_rating": 91,
+    "avg_fit_score": 60.0,
+    "avg_risk_score": 54.9,
+    "best_variant": "Private RAG first, HF discovery second, hosted inference last.",
+    "why_not_api_first": "Free hosted inference is limited and external. The professional move is to govern model selection and build private retrieval/serving before routing sensitive work anywhere."
+  },
+  "recommendation": {
+    "name": "Private RAG Embedding Layer (TEI + HF embedding models)",
+    "decision": "pilot_now_private_path",
+    "fit_score": 84,
+    "risk_score": 24,
+    "verdict": "approved_for_sandbox"
+  },
+  "ranked_opportunities": [
+    {
+      "opportunity": {
+        "name": "Private RAG Embedding Layer (TEI + HF embedding models)",
+        "category": "private_rag",
+        "use_case": "internal document search, Brain retrieval, policy/FAQ retrieval, CX evidence lookup",
+        "description": "Self-host Text Embeddings Inference with open embedding models so RAMIN OS can search its own documents without sending sensitive content to public endpoints.",
+        "integration_points": [
+          "brain",
+          "gateway/rag.py",
+          "gateway/knowledge.py",
+          "cx-command-center",
+          "docs"
+        ],
+        "data_boundary": "private_or_internal_only",
+        "business_impact": 94,
+        "cost_leverage": 88,
+        "implementation_readiness": 80,
+        "implementation_effort": 3,
+        "external_calls": false,
+        "requires_token": false,
+        "handles_sensitive_data": true,
+        "sensitive_data_allowed": true,
+        "risks": [
+          "model quality must be benchmarked on Azerbaijani, Turkish, Russian, and insurance-domain text",
+          "local CPU/GPU capacity can limit latency",
+          "model licenses and versions must be pinned"
+        ],
+        "controls": [
+          "Use open-license embedding models only.",
+          "Keep the embedding server on localhost or a private host.",
+          "Do not upload customer data to public Spaces or hosted providers.",
+          "Run retrieval quality tests before replacing current Brain search."
+        ],
+        "references": [
+          "https://huggingface.co/docs/text-embeddings-inference/quick_tour"
+        ]
+      },
+      "evaluation": {
+        "value_score": 94,
+        "risk_score": 24,
+        "readiness_score": 68,
+        "privacy_score": 96,
+        "fit_score": 84,
+        "verdict": "approved_for_sandbox",
+        "decision": "pilot_now_private_path",
+        "reasons": [
+          "Private/self-host path can handle sensitive RAMIN OS data.",
+          "High strategic fit for RAMIN OS.",
+          "Strong zero/low-budget leverage."
+        ],
+        "required_controls": [
+          "No production use without a RAMIN OS sandbox/audit pass.",
+          "No secrets or credentials in reports, prompts, logs, or public Spaces.",
+          "Use open-license embedding models only.",
+          "Keep the embedding server on localhost or a private host.",
+          "Do not upload customer data to public Spaces or hosted providers.",
+          "Run retrieval quality tests before replacing current Brain search."
+        ]
+      }
+    },
+    {
+      "opportunity": {
+        "name": "Local Open-Weight LLM Serving (llama.cpp/vLLM/SGLang)",
+        "category": "private_llm",
+        "use_case": "private drafting, local analysis, fallback model for gateway and AI Council",
+        "description": "Run selected open-weight HF models behind an OpenAI-compatible local endpoint for tasks that must stay inside RAMIN OS.",
+        "integration_points": [
+          "llm_router.py",
+          "gateway/llm.py",
+          "orchestrator/router.py",
+          "brain"
+        ],
+        "data_boundary": "private_or_internal_only",
+        "business_impact": 90,
+        "cost_leverage": 84,
+        "implementation_readiness": 68,
+        "implementation_effort": 4,
+        "external_calls": false,
+        "requires_token": false,
+        "handles_sensitive_data": true,
+        "sensitive_data_allowed": true,
+        "risks": [
+          "model hallucination and weak Azerbaijani reasoning must be measured",
+          "Windows/corporate hardware may constrain useful model size",
+          "large model downloads need explicit operator approval"
+        ],
+        "controls": [
+          "Keep private tier routed to local endpoints only.",
+          "Benchmark against current Gemini/Groq outputs before promotion.",
+          "Record model id, quantization, license, and hardware requirements."
+        ],
+        "references": [
+          "https://huggingface.co/docs/huggingface.js/inference/README"
+        ]
+      },
+      "evaluation": {
+        "value_score": 91,
+        "risk_score": 28,
+        "readiness_score": 52,
+        "privacy_score": 96,
+        "fit_score": 78,
+        "verdict": "approved_for_sandbox",
+        "decision": "pilot_now_private_path",
+        "reasons": [
+          "Private/self-host path can handle sensitive RAMIN OS data.",
+          "High strategic fit for RAMIN OS.",
+          "Strong zero/low-budget leverage.",
+          "Needs an explicit implementation checkpoint before rollout."
+        ],
+        "required_controls": [
+          "No production use without a RAMIN OS sandbox/audit pass.",
+          "No secrets or credentials in reports, prompts, logs, or public Spaces.",
+          "Keep private tier routed to local endpoints only.",
+          "Benchmark against current Gemini/Groq outputs before promotion.",
+          "Record model id, quantization, license, and hardware requirements."
+        ]
+      }
+    },
+    {
+      "opportunity": {
+        "name": "HF MCP + hf CLI Discovery Workbench",
+        "category": "discovery_tooling",
+        "use_case": "model, dataset, Space, paper, and documentation discovery for agents",
+        "description": "Give Codex/Claude-style agents a read-only Hugging Face research surface through the HF MCP Server and hf CLI skills, while keeping execution and credentials out of automatic flows.",
+        "integration_points": [
+          "claude-agents",
+          "gateway/agent_radar.py",
+          "docs",
+          "scripts"
+        ],
+        "data_boundary": "public_metadata_only",
+        "business_impact": 78,
+        "cost_leverage": 82,
+        "implementation_readiness": 86,
+        "implementation_effort": 2,
+        "external_calls": true,
+        "requires_token": true,
+        "handles_sensitive_data": false,
+        "sensitive_data_allowed": false,
+        "risks": [
+          "MCP tools can expand agent capability faster than governance if installed casually",
+          "write-capable tokens could upload or mutate Hub repos"
+        ],
+        "controls": [
+          "Use read-only/fine-grained Hugging Face tokens for discovery.",
+          "Run candidate models, Spaces, and agents through Agent Radar before use.",
+          "Do not connect MCP tools to customer-data workflows."
+        ],
+        "references": [
+          "https://huggingface.co/docs/hub/agents-mcp",
+          "https://huggingface.co/docs/huggingface_hub/guides/cli"
+        ]
+      },
+      "evaluation": {
+        "value_score": 83,
+        "risk_score": 54,
+        "readiness_score": 78,
+        "privacy_score": 58,
+        "fit_score": 64,
+        "verdict": "sandbox_review",
+        "decision": "adopt_read_only_discovery",
+        "reasons": [
+          "External service/tooling is acceptable only for public or synthetic data.",
+          "Strong zero/low-budget leverage."
+        ],
+        "required_controls": [
+          "No production use without a RAMIN OS sandbox/audit pass.",
+          "No secrets or credentials in reports, prompts, logs, or public Spaces.",
+          "Use read-only/fine-grained Hugging Face tokens for discovery.",
+          "Run candidate models, Spaces, and agents through Agent Radar before use.",
+          "Do not connect MCP tools to customer-data workflows.",
+          "Use fine-grained/read-only tokens unless a human approves a write-capable workflow."
+        ]
+      }
+    },
+    {
+      "opportunity": {
+        "name": "Public Spaces API/MCP for Media Experiments",
+        "category": "public_space_tools",
+        "use_case": "music, SFX, TTS, image/video PoCs, and creative research",
+        "description": "Continue using public HF Spaces as cheap media R&D surfaces, but classify them as external sandbox tools with public or synthetic inputs only.",
+        "integration_points": [
+          "audio-studio",
+          "video-studio",
+          "social-studio",
+          "atelier"
+        ],
+        "data_boundary": "public_creative_inputs_only",
+        "business_impact": 72,
+        "cost_leverage": 86,
+        "implementation_readiness": 78,
+        "implementation_effort": 2,
+        "external_calls": true,
+        "requires_token": false,
+        "handles_sensitive_data": false,
+        "sensitive_data_allowed": false,
+        "risks": [
+          "public Spaces can change API signatures, sleep, or disappear",
+          "media prompts can accidentally include brand-confidential details",
+          "MCP-enabled Spaces are untrusted external tools"
+        ],
+        "controls": [
+          "Treat Spaces as sandbox providers, not core production infrastructure.",
+          "Keep provider ids configurable in environment/example files.",
+          "Never send customer records, claims, or private creative strategy to public Spaces."
+        ],
+        "references": [
+          "https://huggingface.co/docs/hub/spaces-mcp-servers"
+        ]
+      },
+      "evaluation": {
+        "value_score": 81,
+        "risk_score": 58,
+        "readiness_score": 70,
+        "privacy_score": 58,
+        "fit_score": 61,
+        "verdict": "sandbox_review",
+        "decision": "sandbox_public_data_only",
+        "reasons": [
+          "External service/tooling is acceptable only for public or synthetic data.",
+          "Strong zero/low-budget leverage."
+        ],
+        "required_controls": [
+          "No production use without a RAMIN OS sandbox/audit pass.",
+          "No secrets or credentials in reports, prompts, logs, or public Spaces.",
+          "Treat Spaces as sandbox providers, not core production infrastructure.",
+          "Keep provider ids configurable in environment/example files.",
+          "Never send customer records, claims, or private creative strategy to public Spaces."
+        ]
+      }
+    },
+    {
+      "opportunity": {
+        "name": "smolagents / tiny-agents Sandbox",
+        "category": "agent_framework",
+        "use_case": "small governed agents that can call internal tools during auditions",
+        "description": "Use HF agent frameworks only inside RAMIN OS sandbox auditions. They are useful for tool experiments, but the execution boundary matters more than the framework.",
+        "integration_points": [
+          "gateway/agent_radar.py",
+          "gateway/security.py",
+          "tests",
+          "claude-agents"
+        ],
+        "data_boundary": "sandbox_only",
+        "business_impact": 74,
+        "cost_leverage": 76,
+        "implementation_readiness": 64,
+        "implementation_effort": 3,
+        "external_calls": true,
+        "requires_token": false,
+        "handles_sensitive_data": false,
+        "sensitive_data_allowed": false,
+        "risks": [
+          "code-executing agents can perform unintended file/network actions",
+          "MCP or Space tools can broaden permissions quickly",
+          "framework demos often skip enterprise audit controls"
+        ],
+        "controls": [
+          "Agent Radar intake is mandatory before any sandbox trial.",
+          "Read-only tools first; no write/send/payment actions.",
+          "Run with logs, no secrets, no production credentials, and explicit human review."
+        ],
+        "references": [
+          "https://huggingface.co/docs/hub/agents-mcp"
+        ]
+      },
+      "evaluation": {
+        "value_score": 79,
+        "risk_score": 62,
+        "readiness_score": 52,
+        "privacy_score": 58,
+        "fit_score": 54,
+        "verdict": "quarantine",
+        "decision": "sandbox_only_after_controls",
+        "reasons": [
+          "External service/tooling is acceptable only for public or synthetic data."
+        ],
+        "required_controls": [
+          "No production use without a RAMIN OS sandbox/audit pass.",
+          "No secrets or credentials in reports, prompts, logs, or public Spaces.",
+          "Agent Radar intake is mandatory before any sandbox trial.",
+          "Read-only tools first; no write/send/payment actions.",
+          "Run with logs, no secrets, no production credentials, and explicit human review."
+        ]
+      }
+    },
+    {
+      "opportunity": {
+        "name": "HF Router PoC for Public Prompts",
+        "category": "hosted_inference",
+        "use_case": "quick non-sensitive model comparison for public marketing prompts",
+        "description": "Use Hugging Face Inference Providers/Router only for public-data experiments and model comparison. It is not treated as unlimited free production capacity.",
+        "integration_points": [
+          "llm_router.py",
+          "atelier",
+          "copy-studio",
+          "ads-studio"
+        ],
+        "data_boundary": "public_or_synthetic_prompts_only",
+        "business_impact": 66,
+        "cost_leverage": 55,
+        "implementation_readiness": 74,
+        "implementation_effort": 2,
+        "external_calls": true,
+        "requires_token": true,
+        "handles_sensitive_data": false,
+        "sensitive_data_allowed": false,
+        "risks": [
+          "free credit is small and not reliable for production",
+          "external providers can have their own retention/security policies",
+          "routing can select a provider that is unsuitable for regulated data"
+        ],
+        "controls": [
+          "Block customer data, policy documents, and claims data from this route.",
+          "Log provider/model usage through the existing LLM usage board.",
+          "Keep a local/private fallback for sensitive tasks."
+        ],
+        "references": [
+          "https://huggingface.co/docs/inference-providers/index",
+          "https://huggingface.co/docs/inference-providers/hub-api"
+        ]
+      },
+      "evaluation": {
+        "value_score": 69,
+        "risk_score": 58,
+        "readiness_score": 66,
+        "privacy_score": 58,
+        "fit_score": 51,
+        "verdict": "sandbox_review",
+        "decision": "sandbox_public_data_only",
+        "reasons": [
+          "External service/tooling is acceptable only for public or synthetic data.",
+          "Useful for comparison, but not reliable as unlimited free production API."
+        ],
+        "required_controls": [
+          "No production use without a RAMIN OS sandbox/audit pass.",
+          "No secrets or credentials in reports, prompts, logs, or public Spaces.",
+          "Block customer data, policy documents, and claims data from this route.",
+          "Log provider/model usage through the existing LLM usage board.",
+          "Keep a local/private fallback for sensitive tasks.",
+          "Use fine-grained/read-only tokens unless a human approves a write-capable workflow."
+        ]
+      }
+    },
+    {
+      "opportunity": {
+        "name": "Brand/Domain LoRA Track",
+        "category": "model_training",
+        "use_case": "future Xalq visual style models, Azerbaijani insurance-domain adapters, controlled fine-tuning",
+        "description": "Prepare a governed dataset path before any HF-hosted training or LoRA workflow. This can be a quality leap later, but it needs dataset rights, redaction, and approval first.",
+        "integration_points": [
+          "social-studio",
+          "atelier",
+          "copy-studio",
+          "data governance"
+        ],
+        "data_boundary": "approved_curated_dataset_only",
+        "business_impact": 82,
+        "cost_leverage": 58,
+        "implementation_readiness": 46,
+        "implementation_effort": 5,
+        "external_calls": true,
+        "requires_token": true,
+        "handles_sensitive_data": true,
+        "sensitive_data_allowed": false,
+        "risks": [
+          "training data can leak private brand, customer, or licensed material",
+          "dataset rights and model license terms must be reviewed",
+          "hosted training may persist artifacts outside RAMIN OS"
+        ],
+        "controls": [
+          "Create a curated dataset manifest before any training.",
+          "Use only licensed or internally approved assets.",
+          "Human approval required before upload, training, or publication."
+        ],
+        "references": [
+          "https://huggingface.co/docs/huggingface_hub/guides/cli"
+        ]
+      },
+      "evaluation": {
+        "value_score": 80,
+        "risk_score": 100,
+        "readiness_score": 26,
+        "privacy_score": 22,
+        "fit_score": 28,
+        "verdict": "reject",
+        "decision": "defer_until_controls_exist",
+        "reasons": [
+          "External path conflicts with sensitive-data handling.",
+          "Needs an explicit implementation checkpoint before rollout.",
+          "Training/fine-tuning requires dataset governance before any upload."
+        ],
+        "required_controls": [
+          "No production use without a RAMIN OS sandbox/audit pass.",
+          "No secrets or credentials in reports, prompts, logs, or public Spaces.",
+          "Create a curated dataset manifest before any training.",
+          "Use only licensed or internally approved assets.",
+          "Human approval required before upload, training, or publication.",
+          "Use fine-grained/read-only tokens unless a human approves a write-capable workflow.",
+          "Sensitive or customer data must stay out of this workflow."
+        ]
+      }
+    }
+  ],
+  "next_actions": [
+    "Pilot TEI/local embeddings for Brain and internal document retrieval.",
+    "Install/use HF MCP and hf CLI only as read-only discovery surfaces.",
+    "Keep HF Router tests limited to public marketing prompts and synthetic examples.",
+    "Run every public Space, MCP server, or agent framework through Agent Radar before use.",
+    "Create a dataset governance checklist before any LoRA, upload, or fine-tuning workflow."
+  ]
+}

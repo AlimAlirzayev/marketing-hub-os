@@ -1,0 +1,8 @@
+.env
+.git
+.tmp
+data/logs
+venv
+__pycache__
+node_modules
+*.db

@@ -1,0 +1,55 @@
+{
+  "version": "1",
+  "job": {
+    "input": "input/raw.mp4",
+    "output": "output/linkedin-clip.mp4",
+    "platform": "linkedin",
+    "title": "LinkedIn share - zero-budget AI agents"
+  },
+  "timeline": {
+    "trim": { "start": "00:00:02.000", "end": null },
+    "cuts": [],
+    "speed": 1.5
+  },
+  "format": {
+    "aspect": "1:1",
+    "resolution": [1080, 1080],
+    "fps": 30,
+    "fit": "cover"
+  },
+  "audio": {
+    "normalize": true,
+    "music": {
+      "track": "auto",
+      "mood": "energetic-electronic",
+      "gain_db": -18,
+      "ducking": true
+    }
+  },
+  "captions": {
+    "enabled": true,
+    "language": "en",
+    "style": "karaoke",
+    "position": "bottom"
+  },
+  "motion_graphics": {
+    "intro": {
+      "enabled": true,
+      "title": "I built an AI agent army",
+      "subtitle": "Zero budget. Full local control.",
+      "duration_s": 2.5
+    },
+    "outro": {
+      "enabled": true,
+      "cta": "Follow for more AI automation",
+      "duration_s": 3
+    },
+    "lower_thirds": [
+      { "at": "00:00:04", "line1": "Ramin Alirzayev", "line2": "Digital Marketing", "duration_s": 3.5 }
+    ],
+    "brand": {
+      "accent_color": "#00E5FF",
+      "logo": null
+    }
+  }
+}

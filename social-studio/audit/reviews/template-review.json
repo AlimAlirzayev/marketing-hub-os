@@ -1,0 +1,26 @@
+{
+  "$comment": "Copy this file for a real human or vision-LLM review. Do not use this template as a real score.",
+  "reviewer": "human_or_vision_llm_name",
+  "review_date": "YYYY-MM-DD",
+  "asset": "path/to/export.png",
+  "scores": {
+    "concept_strength": 0,
+    "brand_distinctiveness": 0,
+    "art_direction_quality": 0,
+    "message_clarity": 0,
+    "emotional_strategy": 0,
+    "craft_realism": 0,
+    "platform_performance": 0,
+    "memorability": 0
+  },
+  "blockers": [],
+  "top_findings": [
+    "What is not world-class yet?"
+  ],
+  "revision_brief": [
+    "Specific change for the next version."
+  ],
+  "next_prompt_patch": [
+    "Exact prompt patch to use in the next generation."
+  ]
+}

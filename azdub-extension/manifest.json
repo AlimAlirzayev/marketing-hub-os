@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "AZ Dublyaj — YouTube Azərbaycanca səsləndirmə",
+  "version": "1.0.0",
+  "description": "Automatically dubs YouTube videos into Azerbaijani in real time. Turkish and Azerbaijani videos are skipped.",
+  "permissions": ["storage", "webRequest"],
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://translate.googleapis.com/*",
+    "https://api.mymemory.translated.net/*",
+    "https://speech.platform.bing.com/*",
+    "https://*.hf.space/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+      "js": ["inject.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AZ Dublyaj"
+  }
+}

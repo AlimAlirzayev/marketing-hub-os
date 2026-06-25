@@ -1,0 +1,176 @@
+# Xalq Insurance Digital OS — Gateway (autonomous background runtime)
+
+The piece that turns Xalq Insurance Digital OS into a real **"throw a task, it executes in the
+background, you get the result"** agent — like Manus / Hermes / OpenClaw, but
+self-hosted, zero-budget, and firewall-safe.
+
+You are NOT meant to babysit it step by step. You submit a task and walk away;
+a worker process executes it in the background and delivers the result.
+
+## How it works
+
+```
+front-end          queue                worker
+---------          -----                ------
+submit.py (CLI) ┐                  ┌─> route (orchestrator.router)
+bot.py (Telegram)├─> data/jobs.sqlite ─┤   pick LLM tier
+                ┘   queued → running    └─> llm.complete (Gemini live)
+                        ↓                       ↓
+                    done/error  <───────  save artifact (output/jobs/)
+                        ↓
+                deliver: Telegram reply (or read from DB for CLI)
+```
+
+- **Durable queue** (SQLite, WAL): survives restarts; one writer, many readers.
+- **No Docker, no langchain/crewai**: light deps only (`google-genai`,
+  `requests`, `python-dotenv`) — safe on the locked-down corporate machine.
+- **Telegram = long-poll**: outbound HTTPS only, no open port/webhook/public IP.
+
+## Security prime directive
+
+Security is the highest law. The gateway has a central guard in
+`gateway/security.py` and refuses unsafe autonomous actions before tool use.
+
+- Job pre-flight blocks secret exposure, destructive actions, and payments.
+- Browser navigation blocks localhost, private IPs, metadata IPs, and URLs with
+  embedded credentials.
+- Studio automation can only run allowlisted scripts; path traversal and unknown
+  scripts are refused.
+- Every allow/block decision is redacted and appended to
+  `data/logs/security_audit.jsonl`.
+- External agents and marketplace tools go through Agent Radar before any
+  sandbox trial. Agent Radar records benefit, risk, trust, verdict, and required
+  controls in `data/agent_radar/candidates.jsonl`.
+- Safety tests live in `tests/test_security.py` and `tests/test_agent_radar.py`
+  and can be run with:
+
+```powershell
+python -m unittest discover -s tests
+```
+
+## Agent Radar
+
+Agent Radar is the intake layer for Moltbook-style agents, plugin marketplaces,
+or any outside automation tool. It is deliberately not an execution layer.
+Verdicts are `reject`, `quarantine`, `sandbox_review`, and
+`approved_for_sandbox`; there is no production approval verdict.
+
+For daily use, prefer the automatic Marketing OS scan. It compares our current
+modules with agent-governance patterns like Agent 365, AI Control Tower,
+Agentforce, UiPath, and OWASP guidance, then ranks the safest next agent work.
+
+```powershell
+python -m gateway.agent_radar autoscan
+python -m gateway.agent_radar autoscan-report
+
+# Optional daily Windows task:
+.\schedule_agent_radar.ps1
+
+# Manual intake remains available for one-off candidate checks:
+python -m gateway.agent_radar add --name "Support Triage Copilot" --use-case "customer support" --permissions network,database_read --evidence "docs,demo"
+python -m gateway.agent_radar report
+```
+
+## Hugging Face Opportunity Radar
+
+HF Radar is the Hugging Face-specific intake layer for models, Spaces, MCP
+servers, agent frameworks, and private RAG/serving options. It turns the Desktop
+HF research into a ranked, auditable adoption map.
+
+```powershell
+python -m gateway.hf_radar scan
+python -m gateway.hf_radar report
+python -m gateway.hf_radar doctor
+```
+
+The policy is strict: HF Router, public Spaces, and external MCP tools are only
+for public or synthetic prompts. Customer data, claims, policies, internal
+documents, and private strategy stay on local/self-hosted paths such as TEI,
+llama.cpp, vLLM, SGLang, Ollama, or another approved private endpoint.
+
+## Use it today (CLI, no setup)
+
+```powershell
+# 1. submit a task (returns instantly)
+python -m gateway.submit "research 3 marketing trends for car insurance, with post ideas"
+
+# 2. run the background worker (keep it running; this IS the background agent)
+python -m gateway.worker
+
+# 3. read results
+python -m gateway.submit --list
+python -m gateway.submit --status 1
+```
+
+Results are also saved to `output/jobs/job-<id>.md`.
+
+## Turn on Telegram (message it from your phone)
+
+1. In Telegram, message **@BotFather** → `/newbot` → follow prompts.
+2. Put the token in `.env`:  `TELEGRAM_BOT_TOKEN=123456:ABC...`
+3. Run both processes (two terminals):
+   ```powershell
+   python -m gateway.bot      # intake: receives messages, queues them
+   python -m gateway.worker   # executor: runs jobs, sends results back
+   ```
+4. Message your bot any task. You get an instant "queued" ack, then the
+   finished result arrives in the chat.
+
+## LLM config
+
+Routing lives in `orchestrator/router.py` (task → tier → provider). Only Gemini
+is wired today (free, key live). Override the model per tier in `.env`:
+
+```
+MODEL_FREE_BULK=gemini-3.5-flash   # gemini-2.0-flash has 0 free quota on this key
+```
+
+Other providers (anthropic/groq/ollama) fall back to Gemini until credentialed.
+
+## Autonomous browser (replaces screenshot-by-screenshot)
+
+When a task names a website or asks to browse (`http`, `.com`, `.az`, "go to",
+"sayt"...), the executor runs `agent.run_browser_agent`: a **manual Gemini
+function-calling loop** that drives a real headless Chromium (Playwright). The
+model decides each step (open → read → follow links), we execute it and feed the
+result back, until it writes the final deliverable. No human watches the steps.
+
+- Tools return **text** (titles, visible text, link lists), never screenshots —
+  far cheaper and faster. See `tools/browser.py`.
+- **Checkpoint:** irreversible clicks (buy/pay/submit/delete, AZ: al/ödə/sifariş/
+  təsdiq/sil) are refused and reported, not executed.
+- Tasks with fresh-data words but no specific site ("latest", "trend", "research",
+  "araşdır") use Gemini's **google_search grounding** (live web, no extra keys).
+
+Why a manual loop instead of the SDK's automatic function calling: AFC runs
+tools on a worker thread, but Playwright's sync API is thread-bound
+("greenlet: Cannot switch to a different thread"). We run the loop ourselves in
+the main thread.
+
+## Free-tier reality (important)
+
+The Gemini free tier is tight and flaky, so the agent is built to survive it:
+- `gemini-2.0-flash*` = **0 free quota** on this key (regional). Don't use it.
+- `gemini-3.5-flash` = only **5 requests/min** — too low for a multi-step loop.
+- The browser loop uses **`gemini-2.5-flash`** (`MODEL_AGENT`) and falls back
+  across models on rate-limit/overload.
+- `llm.py` retries `429`/`503`/`overloaded` with backoff (up to ~65s) — fine for
+  a background worker.
+- For heavier/faster autonomy, wire **Groq** (free, 30 rpm) or local **Ollama**.
+
+## Roadmap (next phases)
+
+- [x] **Autonomous browser**: real headless navigation + extraction, with checkpoints.
+- [x] **Governed credential acquisition**: a task naming an allowlisted provider
+  (e.g. `doit rapidapi`) routes to `gateway/tools/credentials.py`, which delegates
+  to the standalone `doit` agent. The gateway browser refuses login/secret flows by
+  design, so this is the safe path: allowlist + operator approval
+  (`GATEWAY_ALLOW_CREDENTIALS=1`) + a one-time human browser login. Default is a
+  checkpoint; the raw key is never returned (only a masked confirmation) — the
+  secret lands in `.env`, not in any reply or artifact.
+- [ ] **Voice intake**: transcribe Telegram voice notes via `video-studio/transcribe.py`.
+- [ ] **Form actions**: fill + submit with an approval/resume checkpoint (currently read/navigate only).
+- [ ] **Studios**: dispatch `/post` (social/copy) and video jobs from a task.
+- [ ] **Scheduling**: cron-style recurring jobs (e.g. a daily morning digest).
+- [ ] **More providers**: wire Groq (free) and local Ollama for private tasks.
+```

@@ -1,0 +1,35 @@
+{
+  "reviewer": "Codex visual review",
+  "review_date": "2026-05-20",
+  "asset": "output/social/xalqsigorta-georgia-train-travel-insurance-post-v6-1080x1350.png",
+  "scores": {
+    "concept_strength": 72,
+    "brand_distinctiveness": 74,
+    "art_direction_quality": 78,
+    "message_clarity": 86,
+    "emotional_strategy": 80,
+    "craft_realism": 73,
+    "platform_performance": 76,
+    "memorability": 68
+  },
+  "blockers": [],
+  "top_findings": [
+    "The automated gate is strong: crop, red ratio, headline space, and footer darkness are controlled.",
+    "The final creative still feels close to generic premium travel-insurance stock photography.",
+    "The shield reflection is acceptable but could be subtler and more integrated into the glass.",
+    "The couple and train scene are clean, but the idea needs a more ownable Azerbaijani/Baku-Tbilisi signal.",
+    "Footer phone icon issue was fixed with a deterministic vector icon.",
+    "The remaining gap is creative distinctiveness, not production safety."
+  ],
+  "revision_brief": [
+    "Make the next visual less generic: stronger Baku-Tbilisi rail context, more authentic regional cues, less stock-like posing.",
+    "Keep the successful v6 restraint: neutral palette, low red wash, clean copy zone, and calm premium mood.",
+    "Make the protection cue almost invisible, like a real window reflection rather than a visible insurance symbol."
+  ],
+  "next_prompt_patch": [
+    "Make the scene feel like an authentic Baku-Tbilisi rail journey, not a generic train stock photo.",
+    "Use more candid, less posed body language while keeping faces premium and trustworthy.",
+    "Make the shield reflection barely perceptible and physically plausible in the window glass.",
+    "Do not increase red wash; keep red limited to the suitcase and tiny UI accents."
+  ]
+}
