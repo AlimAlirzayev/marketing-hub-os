@@ -149,18 +149,21 @@ Pick the cheapest model that clears the bar. China labs (DeepSeek, GLM/Zhipu,
 Qwen, Kimi, MiniMax) are the value frontier — open-weight, OpenAI-API-shaped,
 free or ~5× cheaper.
 
-> **OpenCode — ADOPTED as the free second harness + a council member.** Installed
+> **OpenCode — ADOPTED as the free second harness (the executor arm).** Installed
 > (v1.17.x) into the portable Node (Docker-free, no admin); default model = free
 > **Gemini 2.5-flash** via `opencode.json` (Groq's 12k TPM is too small for the
 > ~42k agent context — see [`docs/OPENCODE.md`](../../../docs/OPENCODE.md)). It
 > runs the token-heavy 80% (bulk edits, scaffolds, model A/B, offline) on free
 > models; Claude Code keeps the 20% (planning, final review). The 20/80 split at
 > the *harness* level — complement to `llm_router` (the same split at the API-call
-> level). **Also wired into `gateway/council.py`** as the free, repo-aware voice
-> (`--agent plan`, read-only). Council prompt must lead with the task, not a
-> persona wrapper, or OpenCode just acknowledges. Launch the TUI in a scoped
-> subdir, not the repo root (first-run indexes heavy dirs). Full coordination map:
-> [`docs/ORCHESTRATION.md`](../../../docs/ORCHESTRATION.md).
+> level). **A council member only when it adds model diversity:** the panel
+> already has a Gemini voice, so OpenCode-on-Gemini would be a redundant 2nd Gemini
+> (correlated, slower, no new signal). `gateway/council.py` therefore admits it
+> *only* when configured with a distinct free model (`OPENCODE_COUNCIL_MODEL=`
+> deepseek/qwen via OpenRouter, or force `AI_COUNCIL_OPENCODE=1`); `--agent plan`,
+> read-only, and the prompt must lead with the task (a persona wrapper makes it
+> just acknowledge). Launch the TUI in a scoped subdir, not the repo root.
+> Full coordination map: [`docs/ORCHESTRATION.md`](../../../docs/ORCHESTRATION.md).
 
 **Implementation: `llm_router.py`** (repo root, LiteLLM-backed — the 2026
 standard: one OpenAI-compatible gateway, per-request routing + auto fallback).

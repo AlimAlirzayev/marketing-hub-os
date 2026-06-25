@@ -101,14 +101,24 @@ router is text-completion only and pushing these through it would lose capabilit
 `gateway/council.py` is our realized "multi-agent orchestrator" (what Grok called
 Planner/Executor/Reviewer). It already does the hard part:
 
-1. **Consult (parallel):** Codex, Claude Code, Gemini CLI, and **OpenCode** each
-   return an independent note on the task — intent, plan, risks, next action.
-   Each runs in its own process with a hard timeout, killed as a tree on Windows
-   so one stuck provider never hangs the round.
+1. **Consult (parallel):** Codex, Claude Code, and Gemini CLI each return an
+   independent note on the task — intent, plan, risks, next action. Each runs in
+   its own process with a hard timeout, killed as a tree on Windows so one stuck
+   provider never hangs the round.
 2. **Synthesize (chair):** one CLI (Codex → Claude → Gemini fallback) merges the
    notes into one decision + execution plan + next action, grounded only in the
    notes and real workspace files (no invented data).
 3. **Execute:** the normal `gateway.executor` performs the final task.
+
+> **Council quality = model *diversity*, not member count.** The three voices are
+> three distinct model families (Codex/GPT, Claude, Gemini) so they catch
+> different things. OpenCode is deliberately **not** a 4th member by default: the
+> only free model it can reliably run is Gemini (Groq's TPM is too small for its
+> context), and a second Gemini-backed voice is redundant — correlated opinions +
+> extra latency, no new signal. OpenCode joins the panel **only** when configured
+> with a *distinct* free model family (deepseek/qwen via OpenRouter →
+> `OPENCODE_COUNCIL_MODEL`, or force with `AI_COUNCIL_OPENCODE=1`). Its real role
+> is the free **executor**, below — not padding the advice panel.
 
 Auth discipline: council members use **subscriber CLIs / free keys**, never
 silent API billing. `_base_env()` strips paid API keys before each member runs.

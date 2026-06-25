@@ -410,9 +410,31 @@ def _ask_opencode(task: str) -> CouncilNote:
     return note
 
 
+def _opencode_in_council() -> bool:
+    """OpenCode joins the advice panel only when it adds a model the panel lacks.
+
+    A council's value is *diverse* models catching different things. The only free
+    model OpenCode can reliably run is Gemini (Groq's 12k TPM is too small for its
+    ~42k context), and the panel already has a Gemini voice — a second one is
+    redundant (correlated opinions, extra latency), not diversity. So OpenCode
+    joins ONLY when configured with a non-Gemini free model (e.g. deepseek/qwen via
+    OpenRouter). Force on/off with AI_COUNCIL_OPENCODE=1/0. OpenCode's primary role
+    stays the free *executor* (see docs/ORCHESTRATION.md), not a 4th opinion.
+    """
+    force = os.getenv("AI_COUNCIL_OPENCODE", "").strip().lower()
+    if force in {"1", "true", "yes", "on"}:
+        return True
+    if force in {"0", "false", "no", "off"}:
+        return False
+    model = os.getenv("OPENCODE_COUNCIL_MODEL", "google/gemini-2.5-flash").lower()
+    return "gemini" not in model and "google/" not in model
+
+
 def consult(task: str) -> list[CouncilNote]:
     """Collect independent advice from available subscriber-CLI council members."""
-    workers = [_ask_codex, _ask_claude, _ask_gemini, _ask_opencode]
+    workers = [_ask_codex, _ask_claude, _ask_gemini]
+    if _opencode_in_council():
+        workers.append(_ask_opencode)
     notes: list[CouncilNote] = []
     with ThreadPoolExecutor(max_workers=len(workers)) as pool:
         futures = [pool.submit(worker, task) for worker in workers]
