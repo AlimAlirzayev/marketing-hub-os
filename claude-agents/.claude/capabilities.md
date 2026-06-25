@@ -198,6 +198,20 @@ The $100 plan ≈ $2,500/mo in tokens *only if* we don't waste them:
   `.venv`, `tools/`, `node_modules`) so the agent never scans media.
 - **Prune context**: `/compact` near 90% full; `/rewind` to drop dead-end loops.
 - **Keep CLAUDE.md lean**; let it route to sub-agent `.md` files loaded on demand.
+- **Interactive delegation rule (in a live chat the premium model runs the turn —
+  there is no automatic offload, so decide deliberately):**
+  - *Reasoning, architecture, small edits, final review, the actual conversation*
+    → keep on the premium model (this CLI). Offload overhead would cost more than
+    it saves, and quality matters here.
+  - *Genuinely heavy + mechanical + repetitive batch work* (bulk refactor across
+    many files, scaffold N modules, boilerplate, format conversions) → **hand to
+    OpenCode + a free model** and supervise the result. This is the 20/80 split
+    made real at the harness level.
+  - *A huge single input to understand* (long transcript/doc/log) → **pre-digest
+    with a free model first** (`scripts/yt_digest.py` pattern); only the summary
+    enters premium context — never the raw blob.
+  - Default when unsure: do it directly (premium). Delegating a small task is a
+    net loss. Announce a delegation when you make one; never offload silently.
 
 ---
 

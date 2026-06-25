@@ -76,13 +76,23 @@ automatic fallback, and one usage ledger.
 - **Observability:** every call is appended to `data/logs/llm_usage.jsonl`
   (`python llm_router.py --usage` for the daily ledger).
 
-Already wired through the router (verified 2026-06-25): `gateway/llm.py`,
-`video-studio/clipper.py`, `scripts/yt_digest.py`, `ads-studio/analytics/ai.py`,
-`brain/capture.py` (reflect) — each tries the router first, then a direct-Gemini
-fallback. Still calling models directly (candidates for later, not yet routed):
-`atelier/llm.py`, `price-hunter/llm.py`, `influencer-hunter/llm.py`,
-`cx-command-center/triage.py`. (Image-gen and embedding callers stay direct by
-design — the router is text-completion only.)
+Already wired through the router — verified 2026-06-25, **every plain text
+completion in the system**: `gateway/llm.py`, `gateway/executor.py` (default +
+research paths), `video-studio/clipper.py`, `scripts/yt_digest.py`,
+`ads-studio/analytics/ai.py`, `brain/capture.py` (reflect), `atelier/llm.py`,
+`price-hunter/llm.py`, `influencer-hunter/llm.py`, `cx-command-center/triage.py`.
+Each tries the router first, then a direct-provider fallback (identical behavior,
+better instrumented).
+
+The only model calls that stay **direct do so by design, not as a gap** — the
+router is text-completion only and pushing these through it would lose capability:
+- **Native tool-calling / function-use:** `gateway/agent.py` (browser agent),
+  `gateway/executor.py` `tools` mode (Gemini function-calling loop).
+- **Grounded web-search:** `gateway/llm.py` keeps Gemini-direct (Google grounding
+  can't pass through LiteLLM cleanly).
+- **Non-text generation:** image (`atelier/imagegen.py`, `visual_studio.py`,
+  `social-studio/.../run_nano_banana.py`), audio/TTS (`audio-studio/...`,
+  `app.py`), embeddings (`brain/embeddings.py`, `gateway/rag.py`).
 
 ---
 
