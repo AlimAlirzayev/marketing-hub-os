@@ -11,8 +11,9 @@ langchain-google-genai>=2.0.0
 langchain-groq>=0.2.0
 langchain-ollama>=0.2.0
 
-# Graph-based routing
+# Graph-based routing + durable state (autonomous spine: orchestrator/graph.py)
 langgraph>=0.2.0
+langgraph-checkpoint-sqlite>=2.0.0
 
 # Vector DB client (Qdrant RAG)
 qdrant-client>=1.12.0

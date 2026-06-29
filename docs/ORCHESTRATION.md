@@ -165,7 +165,30 @@ Claude memory store. A session's insight must never die in chat.
 
 ---
 
-## 6. One-line summary
+## 6. Autonomous spine — LangGraph on top of llm_router (PoC)
+
+`orchestrator/graph.py` is the durable, interruptible agent spine. The 2026-honest
+choice: keep the lean **LiteLLM** gateway (`llm_router`) for model calls; use
+**LangGraph only** for the part it is genuinely best at — *stateful, resumable,
+human-gated* orchestration. (We do **not** rewrite the working router/council into
+LangChain LCEL — that abstraction churn is what teams are migrating off.)
+
+The graph: `intake → plan → [risk gate] → (risky) human checkpoint → execute → remember`
+
+- **Checkpointer (SqliteSaver):** every step persists; a run survives crash/restart
+  and resumes — the durability token-bound chat sessions lack.
+- **`interrupt()`:** before any risky action (post/send/pay/delete/call) the graph
+  pauses for human approval, then resumes with `Command(resume="approve")` — this is
+  AGENTS.md's "risky actions need checkpoints," enforced in the runtime.
+- **Free brain:** planning + execution think through `llm_router` (free models);
+  LangGraph only orchestrates.
+
+Verified end-to-end: a safe task runs straight through; a risky task pauses at the
+checkpoint and completes only after approval. This is the foundation the autonomous
+layer (multi-channel control center + shared memory) builds on. Deps:
+`langgraph`, `langgraph-checkpoint-sqlite` (in `orchestrator/requirements.txt`).
+
+## 7. One-line summary
 
 > **Control plane** = the coding agents you drive (Claude = 20% hard, OpenCode =
 > 80% free, Codex = discipline). **Runtime plane** = the gateway that runs queued
