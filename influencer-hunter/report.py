@@ -76,7 +76,7 @@ def to_markdown(res: HuntResult) -> str:
         lines.append("Next checks: " + "; ".join(cd["next_checks"]))
         lines.append(
             f"Audience {c.audience_fit:.1f} · Content {c.content_fit:.1f} · "
-            f"Engagement {c.engagement_quality:.1f} · Feedback {c.feedback_sentiment:.1f} · "
+            f"Engagement {c.engagement_quality:.1f} · Feedback {c.feedback_sentiment:.1f} {cd['sentiment_emoji']} · "
             f"Safety {c.brand_safety:.1f} · Authenticity {c.authenticity:.1f}"
         )
         if c.flags:

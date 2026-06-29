@@ -63,7 +63,7 @@ def render(res, limit: int) -> None:
         console.print("Next checks: " + "; ".join(cd["next_checks"]))
         console.print(
             f"audience {c.audience_fit:.1f} | content {c.content_fit:.1f} | "
-            f"engagement {c.engagement_quality:.1f} | feedback {c.feedback_sentiment:.1f} | "
+            f"engagement {c.engagement_quality:.1f} | feedback {c.feedback_sentiment:.1f} {cd['sentiment_emoji']} | "
             f"safety {c.brand_safety:.1f} | authenticity {c.authenticity:.1f}"
         )
         if c.flags:

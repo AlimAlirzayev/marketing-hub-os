@@ -71,6 +71,22 @@ class CrudAndDispatch(_IsolatedSchedDB):
         self.assertEqual(second, [])
         self.assertEqual(calls, [("Günaydın hesabatı", "schedule")])
 
+    def test_run_pending_skips_when_duplicate_already_queued(self):
+        sched = self.scheduler
+        sched.add_schedule("07:00", "Günaydın hesabatı")
+        calls = []
+        orig_submit, orig_has = sched.queue.submit, sched.queue.has_queued_task
+        sched.queue.submit = lambda task, source="cli", chat_id=None: (calls.append(task) or 1)
+        sched.queue.has_queued_task = lambda task, source=None: True  # one already waits
+        try:
+            out = sched.run_pending(dt.datetime(2026, 6, 24, 7, 30))
+        finally:
+            sched.queue.submit, sched.queue.has_queued_task = orig_submit, orig_has
+        self.assertEqual(out, [])     # nothing newly submitted
+        self.assertEqual(calls, [])   # submit must NOT be called
+        # still marked handled for today, so it doesn't retry on every tick
+        self.assertEqual(sched.list_schedules()[0]["last_run_date"], "2026-06-24")
+
 
 class SupervisorSmoke(unittest.TestCase):
     def test_supervisor_imports_and_supervise_respects_stop(self):

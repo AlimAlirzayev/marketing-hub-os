@@ -110,7 +110,14 @@ def run_pending(now: _dt.datetime | None = None) -> list[tuple[int, str]]:
     for s in rows:
         if not is_due(s["at_hhmm"], now, s["last_run_date"]):
             continue
-        job_id = queue.submit(s["task"], source=s.get("source") or "schedule", chat_id=s.get("chat_id"))
+        src = s.get("source") or "schedule"
+        # Don't stack duplicates: if a prior run's identical job is still waiting
+        # (worker has been down), mark today handled but skip re-enqueuing.
+        if queue.has_queued_task(s["task"], source=src):
+            with _db() as c:
+                c.execute("UPDATE schedules SET last_run_date=? WHERE id=?", (today, s["id"]))
+            continue
+        job_id = queue.submit(s["task"], source=src, chat_id=s.get("chat_id"))
         with _db() as c:
             c.execute("UPDATE schedules SET last_run_date=? WHERE id=?", (today, s["id"]))
         try:

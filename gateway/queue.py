@@ -92,6 +92,22 @@ def submit(task: str, source: str = "cli", chat_id: str | None = None) -> int:
         return int(cur.lastrowid)
 
 
+def has_queued_task(task: str, source: str | None = None) -> bool:
+    """True if an identical task is already waiting (status='queued').
+
+    Lets recurring producers (e.g. the scheduler) avoid stacking duplicate,
+    still-unprocessed jobs when no worker has drained the queue for a while —
+    one undelivered morning report is enough, not seven."""
+    init_db()
+    sql = "SELECT 1 FROM jobs WHERE status='queued' AND task=?"
+    params: list = [task]
+    if source is not None:
+        sql += " AND source=?"
+        params.append(source)
+    with _connect() as conn:
+        return conn.execute(sql + " LIMIT 1", params).fetchone() is not None
+
+
 def claim_next() -> Job | None:
     """Atomically grab the oldest queued job and mark it running.
 

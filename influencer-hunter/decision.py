@@ -19,6 +19,20 @@ def score_band(score: float) -> str:
     return "zəif"
 
 
+def sentiment_to_emoji(sentiment_score: float) -> str:
+    """Render a 0–10 follower-feedback sentiment as a glanceable emoji.
+
+    Matches the ``feedback_sentiment`` scale (``analyze`` writes 0–10 via
+    ``5 + 5*sentiment``) so a reviewer reads audience tone at a glance."""
+    if sentiment_score >= 7.5:
+        return "😊"  # Mostly Positive
+    if sentiment_score >= 6:
+        return "🙂"  # Leaning Positive
+    if sentiment_score >= 4:
+        return "😐"  # Neutral/Mixed
+    return "😞"  # Mostly Negative
+
+
 def candidate_role(index: int, c: InfluencerCandidate) -> str:
     if index == 0:
         return "İlk əlaqə"
@@ -76,6 +90,7 @@ def candidate_decision(c: InfluencerCandidate, index: int) -> dict:
     return {
         "role": candidate_role(index, c),
         "score_band": score_band(c.total_score),
+        "sentiment_emoji": sentiment_to_emoji(c.feedback_sentiment),
         "decision": (
             f"Bu kampaniya üçün {candidate_role(index, c).lower()}"
             if c.total_score >= 6.5

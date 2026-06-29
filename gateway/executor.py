@@ -71,6 +71,24 @@ def _credential_provider(task: str) -> str | None:
     return provider
 
 
+# A system self-report request (the daily "Günaydın hesabatı", an advisor digest,
+# a live-status ask). Answered deterministically from the nervous system
+# (sense.pulse) + the advisor's grounded findings — no council/essay generation —
+# so the scheduled morning job delivers the REAL proactive digest, not a generic
+# LLM write-up. Cues are specific enough that ordinary tasks aren't diverted.
+_BRIEFING_CUES = (
+    "günaydın hesabat", "gunaydin hesabat", "səhər hesabat", "seher hesabat",
+    "morning report", "morning briefing", "briefing", "advisor", "məsləhətçi",
+    "meslehetci", "sistem hesabat", "system status", "status report",
+    "self-report", "pulse", "nəbz", "nebz",
+)
+
+
+def _is_briefing(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return any(cue in low for cue in _BRIEFING_CUES)
+
+
 def _choose_mode(task: str) -> str:
     low = task.lower()
     if any(k in low for k in _TOOL_HINTS):
@@ -243,6 +261,19 @@ def execute(job: Job) -> dict:
             text = credentials.acquire(cred_provider)
             artifact = _save_artifact(job.id, text)
             return {"result": f"_[credentials:{cred_provider}]_\n\n{text}", "artifacts": [artifact]}
+
+        # System self-report rail: the proactive digest (live board + advisor's
+        # grounded next-steps). Deterministic facts; advisor's optional AI ranking
+        # is free-first and degrades to facts-only. This is what the scheduled
+        # "Günaydın hesabatı" job delivers to Telegram every morning.
+        if _is_briefing(job.task):
+            from . import advisor
+            board = sense.pulse()
+            advice = advisor.brief(use_llm=True)
+            text = f"{board}\n\n{advice}"
+            artifact = _save_artifact(job.id, text)
+            sense.emit("job", f"#{job.id} briefing", {"task": job.task[:80]})
+            return {"result": f"_[briefing]_\n\n{text}", "artifacts": [artifact]}
 
         if _council_should_run(job.task):
             from . import council

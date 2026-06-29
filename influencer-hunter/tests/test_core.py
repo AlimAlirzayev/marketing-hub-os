@@ -134,6 +134,16 @@ def test_candidate_decision_has_action_language():
     assert cd["role"] == "İlk əlaqə"
     assert cd["why"]
     assert cd["next_checks"]
+    # sentiment_to_emoji is wired into the decision payload (was an orphan helper)
+    assert cd["sentiment_emoji"] in {"😊", "🙂", "😐", "😞"}
+    assert cd["sentiment_emoji"] == decision.sentiment_to_emoji(c.feedback_sentiment)
+
+
+def test_sentiment_to_emoji_bands():
+    assert decision.sentiment_to_emoji(9.0) == "😊"
+    assert decision.sentiment_to_emoji(6.5) == "🙂"
+    assert decision.sentiment_to_emoji(5.0) == "😐"
+    assert decision.sentiment_to_emoji(2.0) == "😞"
 
 
 def test_min_followers_gate_excludes_small_accounts():

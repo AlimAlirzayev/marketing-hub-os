@@ -125,5 +125,30 @@ class AdvisorFindings(unittest.TestCase):
         self.assertIsInstance(a["findings"], list)
 
 
+class BriefingDispatch(unittest.TestCase):
+    """The executor's self-report rail: the scheduled morning job must route to the
+    advisor/pulse digest, while ordinary tasks must NOT be diverted."""
+
+    def _executor(self):
+        try:
+            from gateway import executor
+        except Exception as exc:  # noqa: BLE001
+            self.skipTest(f"executor deps unavailable: {exc}")
+        return executor
+
+    def test_detects_morning_report_intent(self):
+        ex = self._executor()
+        self.assertTrue(ex._is_briefing("Günaydın hesabatı"))
+        self.assertTrue(ex._is_briefing("system status"))
+        self.assertTrue(ex._is_briefing("advisor"))
+        self.assertTrue(ex._is_briefing("pulse"))
+
+    def test_ignores_ordinary_tasks(self):
+        ex = self._executor()
+        self.assertFalse(ex._is_briefing("write 3 instagram posts about insurance"))
+        self.assertFalse(ex._is_briefing("research competitor pricing"))
+        self.assertFalse(ex._is_briefing("@blogger üçün kampaniya kreativi yarat"))
+
+
 if __name__ == "__main__":
     unittest.main()
