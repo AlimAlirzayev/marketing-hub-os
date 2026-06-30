@@ -85,10 +85,20 @@ def _classify_risk(task: str) -> str:
 # --------------------------------------------------------------------------
 def plan_node(state: AgentState) -> dict:
     task = state["task"]
+    # Recall before acting: inject the shared, git-traveling context so the planner
+    # honors decisions/direction made on any machine or channel.
+    system = "You are the planner of an autonomous marketing OS. Be concise."
+    try:
+        import shared_memory
+        ctx = shared_memory.context()
+        if ctx:
+            system += "\n\nShared project context (honor it):\n" + ctx
+    except Exception:  # noqa: BLE001 — planning must work even if memory is absent
+        pass
     plan, model = _llm(
         f"Make a short, concrete execution plan (3-5 bullet steps) for this task. "
         f"No preamble.\n\nTASK: {task}",
-        system="You are the planner of an autonomous marketing OS. Be concise.",
+        system=system,
     )
     return {"plan": plan, "model": model, "risk": _classify_risk(task)}
 

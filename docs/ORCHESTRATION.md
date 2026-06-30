@@ -153,7 +153,8 @@ the free model inside it.
 | --- | --- | --- |
 | Finished job deliverables | `output/jobs/*.md` | persistent (git) |
 | Model usage / cost ledger | `data/logs/llm_usage.jsonl` | rolling |
-| Institutional memory (lessons) | `brain/` markdown | persistent, recalled before each job |
+| Institutional memory (lessons) | `brain/` markdown | persistent, recalled before each job (per-machine) |
+| **Shared memory (travels via git)** | `memory/` + `shared_memory.py` | the L4 blackboard read first by every session/channel/machine |
 | Pending lessons to review | brain reflect → review queue | until accepted |
 | Council runtime notes | temp runtime dir | ephemeral |
 | Live system snapshot | `python scripts/system_context.py` | regenerated on shape change |
