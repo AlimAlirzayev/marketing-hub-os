@@ -56,6 +56,10 @@ scripts/_digests/
 data/graph_runs.jsonl
 data/graph_checkpoints.sqlite*
 
+# PRIVATE context (business/customer/brand/strategy/conversation) — NEVER travels.
+# Only the shared engine (memory/ + code) crosses between systems via git.
+data/private_context/
+
 # Python
 venv/
 .venv/

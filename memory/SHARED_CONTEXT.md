@@ -10,11 +10,17 @@ A self-hosted, zero-budget **marketing OS**. One codebase serves two brands via 
 `BRAND` env var (`brand.py`): `xalq` = Xalq Sigorta (corporate), `global` = Marketing
 Hub (generic). Same code everywhere; only `BRAND` + `.env` differ per machine.
 
-## The cross-machine bridge
+## The cross-machine bridge + the engine/data boundary
 Private GitHub repo `git@github.com:AlimAlirzayev/marketing-hub-os.git`. Workflow:
-commit + push on one machine → `git pull` on another. `.env` and heavy media are
-git-ignored and never travel; recreate `.env` per machine. The two deployments are
-independent lines; share a specific improvement with `git cherry-pick`, not auto-sync.
+commit + push on one machine → `git pull` on another (or run `scripts/sync-engine.*`
+on startup — the auto-sync "button").
+
+**Hard boundary (see `docs/SYNC.md`):** only the ENGINE travels (code, tools,
+capabilities, engineering decisions in `memory/`). PRIVATE business data never
+crosses — `.env`, customer data, brand content, strategy/conversation context live
+in git-ignored `data/private_context/` (+ `.env`, `data/`). `shared_memory.remember()`
+is **private by default**; pass `scope="shared"` only for engine/capability facts.
+Move a single improvement without taking everything via `git cherry-pick`.
 
 ## Architecture (the spine)
 - **Model gateway:** `llm_router.py` (LiteLLM) — free-first cascade + fallback + usage
