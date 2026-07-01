@@ -71,8 +71,16 @@ State which provider actually ran, and why the ones above it were skipped.
 | # | Provider | Tier | Free quota | Quota check | How invoked | Notes |
 |---|----------|------|-----------|-------------|-------------|-------|
 | 1 | **HF Spaces** | free | ZeroGPU minutes | HF ZeroGPU budget | `gradio_client` → e.g. `alexnasa/ltx-2-TURBO`, `r3gm/wan2-2-*` | Free Seedance-class gen. Authenticated as `raminataxanl`. |
-| 2 | **Flora** | metered | per `model_matrix.flora.md` | Flora credits | Flora MCP/SDK | Already wired in `video-studio/generative_ads/`. |
+| 2 | **Flora** | metered | annual subscription / workspace credits | `python -m gateway.flora_ai doctor`, then FLORA run cost | `flora` MCP via `mcp-remote` / SDK | MCP registered in `scripts/setup-mcp.ps1`; OAuth first use. Draft-only, cost-check before batches. |
 | 3 | **Higgsfield** | free→paid | ~150 cr/mo | credit balance | Higgsfield MCP | Watermarked on free; premium quality. |
+
+> **Brief brain first — MediaForge (`python -m mediaforge "<cümlə>"`, port 8870).**
+> Before any provider above runs, MediaForge turns one sentence into a directed,
+> schema-valid brief: story framework + emotional arc + cinematic technique +
+> honest model resolution (`seedance 2.5` → closest real model with a note) +
+> compiled FLORA prompt + SVG storyboard board. It stops at the cost gate — never
+> spends credits or posts. Providers 1–3 are the *pixels*; MediaForge is the
+> *director*. It always ships (deterministic fallback if the LLM is down).
 
 ### audio-gen — generate music / sound effects / voice from a prompt  *(`/sound`, built + proven)*
 

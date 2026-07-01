@@ -40,6 +40,10 @@ video-studio/remotion/node_modules/
 # Publisher - generated publish packages
 output/publish/
 
+# MediaForge - generated promo packages (brief/prompt/board are regenerable via
+# `python -m mediaforge "<sentence>"`; keep the tracked kasko reference campaign)
+output/mediaforge/
+
 # Generated heavy media anywhere under output/ (regenerable renders; ~12MB each).
 # Keep text deliverables (.md/.json/.html) and lighter images tracked.
 output/**/*.mp4

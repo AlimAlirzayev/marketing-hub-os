@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Rejissoru — MediaForge</title>
+<style>
+  :root{
+    --red:#E31E24; --ink:#0a0a0c; --panel:#141417; --panel2:#1c1c22;
+    --line:#2b2b31; --text:#f4f4f5; --dim:#a9a9b2; --blue:#7fb2ff; --green:#149040;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 600px at 70% -10%, #1a1320 0%, var(--ink) 55%);
+    color:var(--text); font-family:"Segoe UI",system-ui,Arial,sans-serif; line-height:1.5;
+    min-height:100vh; padding:0 0 80px;
+  }
+  .bar{height:6px;background:linear-gradient(90deg,var(--red),#ff6a3d)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  header{padding:44px 0 18px}
+  .kicker{color:var(--red);font-weight:700;letter-spacing:2px;font-size:12px;text-transform:uppercase}
+  h1{font-size:40px;font-weight:800;margin:6px 0 8px;letter-spacing:-.5px}
+  .sub{color:var(--dim);font-size:17px;max-width:720px}
+  .badges{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .b{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--dim)}
+  .b b{color:var(--text)}
+
+  .composer{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px}
+  .composer textarea{
+    width:100%;background:var(--ink);border:1px solid var(--line);border-radius:12px;color:var(--text);
+    font-size:17px;padding:16px;resize:vertical;min-height:76px;font-family:inherit;
+  }
+  .composer textarea:focus{outline:none;border-color:var(--red)}
+  .row{display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  .go{
+    background:var(--red);color:#fff;border:none;border-radius:12px;padding:14px 26px;font-size:16px;
+    font-weight:700;cursor:pointer;transition:.15s;display:flex;gap:8px;align-items:center;
+  }
+  .go:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(227,30,36,.35)}
+  .go:disabled{opacity:.5;cursor:wait}
+  .toggle{color:var(--dim);font-size:13px;display:flex;gap:6px;align-items:center;cursor:pointer;margin-left:auto}
+  .chips{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{background:transparent;border:1px dashed var(--line);color:var(--dim);border-radius:20px;
+    padding:7px 13px;font-size:13px;cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--red);color:var(--text)}
+
+  .status{margin-top:22px;color:var(--dim);font-size:15px;display:none;align-items:center;gap:10px}
+  .spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--red);border-radius:50%;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  .result{display:none;margin-top:30px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .card h3{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);margin-bottom:12px;font-weight:700}
+  .concept-name{font-size:26px;font-weight:800;letter-spacing:-.3px;margin-bottom:8px}
+  .big-idea{font-size:16px;color:var(--text)}
+  .meta-line{color:var(--dim);font-size:14px;margin-top:10px}
+  .meta-line b{color:var(--text)}
+  .arc{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .arc span{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px}
+  .arc span:not(:last-child)::after{content:"→";color:var(--red);margin-left:8px}
+
+  .model-pill{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:10px;padding:8px 12px;font-size:14px;margin:4px 6px 4px 0}
+  .tier{font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:2px 7px;border-radius:6px;background:#2a2340;color:#c9b6ff}
+  .note{background:#2a1e12;border:1px solid #5a3d1a;color:#ffcf9e;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px}
+
+  .board{margin-top:18px;border:1px solid var(--line);border-radius:16px;overflow:auto;background:#0a0a0c}
+  .board img{display:block;width:100%;height:auto}
+
+  .beats{margin-top:6px}
+  .beat{display:grid;grid-template-columns:92px 1fr;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+  .beat:first-child{border-top:none}
+  .time{font-family:Consolas,monospace;color:var(--blue);font-size:13px}
+  .beat .bt{font-weight:700;margin-bottom:3px}
+  .beat .v{color:var(--text);font-size:14px}
+  .beat .m{color:var(--dim);font-size:13px;font-style:italic;margin-top:3px}
+  .beat .ov{margin-top:6px;font-size:13px;color:var(--red);font-weight:600}
+
+  .overlays{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .overlays span{background:#1a1410;border:1px solid #4a2f12;color:#ffd6a8;border-radius:8px;padding:6px 10px;font-size:13px}
+
+  .fire{background:linear-gradient(180deg,#161418,#111014);border:1px solid #3a2020;border-radius:16px;padding:20px;margin-top:18px}
+  .fire h3{color:#ff9d7a}
+  .cmd{background:#08080a;border:1px solid var(--line);border-radius:10px;padding:14px;font-family:Consolas,monospace;
+    font-size:13px;color:#d5e5ff;white-space:pre-wrap;word-break:break-word;position:relative}
+  .copy{position:absolute;top:10px;right:10px;background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+    border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer}
+  .copy:hover{color:#fff;border-color:var(--red)}
+  .gate{margin-top:12px;background:#12100a;border:1px solid #4a3a12;color:#e9d8a6;border-radius:10px;padding:12px;font-size:13px}
+  .arts{margin-top:14px;font-size:13px;color:var(--dim)}
+  .arts code{background:var(--panel2);padding:2px 7px;border-radius:6px;color:var(--text)}
+  .err{background:#2a1214;border:1px solid #5a1e22;color:#ffb4b8;border-radius:12px;padding:14px;margin-top:18px;display:none}
+  .foot{margin-top:40px;color:#5f5f66;font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div class="wrap">
+  <header>
+    <div class="kicker">🎬 Ramin-OS · Media Studiyası</div>
+    <h1>Media Rejissoru</h1>
+    <p class="sub">Bir cümlə yaz. Sistem rejissor kimi düşünür — çərçivə, duyğu, texnika, model seçimi, brend qaydaları — və işə salmağa hazır peşəkar promo paketi qaytarır. Piksel generasiyası FLORA-nın güclü modellərinə (Seedance, Kling, Runway, Sora, Veo) gedir.</p>
+    <div class="badges">
+      <div class="b">🧠 Kreativ beyin: <b>llm_router</b> (pulsuz-öncə)</div>
+      <div class="b">🎞️ Backend: <b>FLORA MCP</b></div>
+      <div class="b">🛡️ <b>draft-only</b> · kredit avtomatik xərclənmir</div>
+      <div class="b">🇦🇿 <b>Xalq Sığorta</b> brend DNA</div>
+    </div>
+  </header>
+
+  <div class="composer">
+    <textarea id="sentence" placeholder="məs: mənə seedance 2.5 modeli ilə 10 saniyəlik səyahət sığortası üçün promo video hazırla"></textarea>
+    <div class="row">
+      <button class="go" id="go"><span>İşə sal</span> →</button>
+      <label class="toggle"><input type="checkbox" id="useLlm" checked> LLM kreativ beyni</label>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="status" id="status"><div class="spin"></div><span id="statusText">Rejissor düşünür…</span></div>
+  <div class="err" id="err"></div>
+
+  <div class="result" id="result">
+    <div class="grid">
+      <div class="card">
+        <h3>Kreativ konsepsiya</h3>
+        <div class="concept-name" id="cName"></div>
+        <div class="big-idea" id="cIdea"></div>
+        <div class="meta-line">Framework: <b id="cFw"></b></div>
+        <h3 style="margin-top:16px">Emosional qövs</h3>
+        <div class="arc" id="cArc"></div>
+      </div>
+      <div class="card">
+        <h3>Model qərarı</h3>
+        <div id="mPills"></div>
+        <div class="meta-line">Müddət: <b id="mDur"></b> · Format: <b id="mFmt"></b> · Xərc bandı: <b id="mCost"></b></div>
+        <div class="meta-line">Brief mühərriki: <b id="mEngine"></b></div>
+        <div id="mNotes"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Storyboard (motion plate)</h3>
+      <div class="board"><img id="board" alt="storyboard board"></div>
+      <div class="beats" id="beats"></div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Deterministik overlay mətnləri (piksel yox, üstünə əlavə olunur)</h3>
+      <div class="overlays" id="overlays"></div>
+    </div>
+
+    <div class="fire">
+      <h3>🚀 İşə salmağa hazır — FLORA generasiya</h3>
+      <div class="cmd" id="mcp"><button class="copy" onclick="cp('mcp')">Kopyala</button><span id="mcpText"></span></div>
+      <div class="gate" id="gate"></div>
+      <div class="arts" id="arts"></div>
+    </div>
+  </div>
+
+  <div class="foot">MediaForge · motion plate direzhissura; dəqiq mətn / logo / qiymət / CTA deterministik overlay kimi Video Studio-da bağlanır · heç bir kanal səssiz düşmür</div>
+</div>
+
+<script>
+const EXAMPLES = [
+  "mənə seedance 2.5 modeli ilə 10 saniyəlik səyahət sığortası üçün promo video hazırla",
+  "kling ilə 8 saniyəlik KASKO promosu, reels üçün",
+  "runway ilə sağlamlıq sığortası üçün 10s emosional video",
+  "veo ilə ev sığortası üçün premium 10 saniyəlik promo",
+];
+const chips = document.getElementById('chips');
+EXAMPLES.forEach(e=>{const c=document.createElement('button');c.className='chip';c.textContent=e;
+  c.onclick=()=>{document.getElementById('sentence').value=e;};chips.appendChild(c);});
+
+function cp(id){const t=document.getElementById(id+'Text').innerText;navigator.clipboard.writeText(t);}
+
+async function run(){
+  const sentence=document.getElementById('sentence').value.trim();
+  if(!sentence){document.getElementById('sentence').focus();return;}
+  const go=document.getElementById('go'); go.disabled=true;
+  document.getElementById('result').style.display='none';
+  document.getElementById('err').style.display='none';
+  document.getElementById('status').style.display='flex';
+  try{
+    const res=await fetch('/api/create',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sentence,use_llm:document.getElementById('useLlm').checked})});
+    const data=await res.json();
+    if(!res.ok||data.error){throw new Error(data.error||'server error');}
+    render(data);
+  }catch(e){
+    document.getElementById('err').textContent='Xəta: '+e.message;
+    document.getElementById('err').style.display='block';
+  }finally{
+    go.disabled=false; document.getElementById('status').style.display='none';
+  }
+}
+document.getElementById('go').onclick=run;
+document.getElementById('sentence').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))run();});
+
+function render(d){
+  const c=d.concept, r=d.resolution, b=d.brief, g=d.generation, m=d.meta;
+  document.getElementById('cName').textContent=c.name||'—';
+  document.getElementById('cIdea').textContent=c.big_idea||'';
+  document.getElementById('cFw').textContent=c.framework||'';
+  const arc=document.getElementById('cArc'); arc.innerHTML='';
+  (c.emotional_arc||'').split('→').forEach(s=>{if(s.trim()){const el=document.createElement('span');el.textContent=s.trim();arc.appendChild(el);}});
+
+  const pills=document.getElementById('mPills'); pills.innerHTML='';
+  const p1=document.createElement('span');p1.className='model-pill';
+  p1.innerHTML=`<b>${r.label}</b> <span class="tier">${r.tier}</span>`; pills.appendChild(p1);
+  const p2=document.createElement('span');p2.className='model-pill';
+  p2.innerHTML=`2-ci variant: ${r.partner_label}`; pills.appendChild(p2);
+  document.getElementById('mDur').textContent=r.duration_s+'s';
+  document.getElementById('mFmt').textContent=b.format.aspect+' · '+b.platform.name;
+  document.getElementById('mCost').textContent=r.cost_band;
+  document.getElementById('mEngine').textContent=m.engine+(m.llm_model?(' ('+m.llm_model+')'):'');
+  const notes=document.getElementById('mNotes'); notes.innerHTML='';
+  (r.notes||[]).forEach(n=>{const el=document.createElement('div');el.className='note';el.textContent='⚠ '+n;notes.appendChild(el);});
+
+  document.getElementById('board').src='/api/board/'+d.slug+'?t='+Date.now();
+
+  const beats=document.getElementById('beats'); beats.innerHTML='';
+  b.storyboard.forEach(x=>{
+    const el=document.createElement('div');el.className='beat';
+    el.innerHTML=`<div class="time">${x.time}</div><div>
+      <div class="bt">${x.beat}</div><div class="v">${x.visual}</div>
+      <div class="m">↳ ${x.motion}</div>${x.overlay?`<div class="ov">overlay: ${x.overlay}</div>`:''}</div>`;
+    beats.appendChild(el);
+  });
+
+  const ov=document.getElementById('overlays'); ov.innerHTML='';
+  b.text_policy.overlay_text.forEach(t=>{const el=document.createElement('span');el.textContent=t;ov.appendChild(el);});
+
+  document.getElementById('mcpText').textContent=g.mcp_instruction;
+  document.getElementById('gate').innerHTML='🛡️ '+g.gate_reason+'<br>Manual addım: '+g.manual_step;
+  document.getElementById('arts').innerHTML='Paket: <code>'+d.artifacts.folder+'</code> · brief.json · compiled-flora-prompt.md · storyboard-board.svg';
+
+  document.getElementById('result').style.display='block';
+  document.getElementById('result').scrollIntoView({behavior:'smooth'});
+}
+</script>
+</body>
+</html>
