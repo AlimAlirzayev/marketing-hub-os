@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEO Studiyası · RAMIN OS</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b1220;color:#e6edf5;min-height:100vh}
+  .top{display:flex;align-items:center;gap:14px;padding:20px 28px;border-bottom:1px solid #1e2a3a;
+       background:linear-gradient(135deg,#111c30,#0d1626);position:sticky;top:0;z-index:5}
+  .logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#16c784,#4aa8ff);
+        display:flex;align-items:center;justify-content:center;font-size:20px}
+  .top h1{font-size:18px} .top .sub{color:#8aa0b8;font-size:12px}
+  .dot{margin-left:auto;font-size:12px;color:#8aa0b8;display:flex;align-items:center;gap:7px}
+  .dot i{width:9px;height:9px;border-radius:50%;background:#6b7280;display:inline-block}
+  .dot i.on{background:#16c784;box-shadow:0 0 8px #16c784}
+  .wrap{max-width:1080px;margin:0 auto;padding:26px}
+  .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+  .tab{padding:11px 20px;border-radius:11px;background:#0f1a2b;border:1px solid #1e2a3a;color:#a9bccf;
+       cursor:pointer;font-size:14px;font-weight:600;transition:.15s}
+  .tab.active{background:#16283e;color:#fff;border-color:#2f7fd0}
+  .tab small{display:block;color:#63758a;font-weight:400;font-size:11px;margin-top:2px}
+  .panel{display:none} .panel.active{display:block}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  input[type=text]{flex:1;min-width:240px;padding:14px 16px;border-radius:12px;background:#0f1a2b;
+    border:1px solid #24344a;color:#fff;font-size:15px}
+  input::placeholder{color:#5f7186}
+  button.go{padding:14px 26px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;
+    background:linear-gradient(135deg,#16c784,#12a56c);color:#04140c}
+  button.go:disabled{opacity:.5;cursor:wait}
+  .opts{display:flex;gap:16px;align-items:center;color:#8aa0b8;font-size:13px;margin-bottom:14px}
+  .opts label{cursor:pointer}
+  .result{background:#0f1a2b;border:1px solid #1e2a3a;border-radius:16px;overflow:hidden;min-height:120px}
+  iframe{width:100%;border:none;height:78vh;background:#0b1220;display:block}
+  .loading{padding:40px;text-align:center;color:#8aa0b8}
+  .spin{width:30px;height:30px;border:3px solid #1e2a3a;border-top-color:#16c784;border-radius:50%;
+    margin:0 auto 14px;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
+  .hint{color:#63758a;font-size:12.5px;margin-top:8px}
+  /* research cards */
+  .clusters{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:18px}
+  .cl{background:#0d1626;border:1px solid #1e2a3a;border-radius:14px;padding:16px}
+  .cl h3{font-size:15px;margin-bottom:4px}
+  .cl .intent{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block;margin-bottom:10px}
+  .i-informational{background:#4aa8ff22;color:#7fc0ff}.i-commercial{background:#f5c51822;color:#f5c518}
+  .i-transactional{background:#16c78422;color:#16c784}.i-navigational{background:#b47cff22;color:#c8a2ff}
+  .cl .star{color:#7ed957;font-size:13px;margin-bottom:8px}
+  .cl ul{list-style:none} .cl li{color:#a9bccf;font-size:13px;padding:3px 0;border-top:1px solid #16202f}
+  .meta-row{display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid #1e2a3a;color:#8aa0b8;font-size:13px}
+  .badge{background:#16283e;color:#8fc0f5;padding:4px 11px;border-radius:20px;font-weight:600}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="logo">🔍</div>
+    <div><h1>SEO Studiyası</h1><div class="sub">Audit · Açar söz kəşfiyyatı · Məzmun — axtarış görünürlüyü</div></div>
+    <div class="dot"><i id="hdot"></i><span id="hstat">yoxlanılır…</span></div>
+  </div>
+
+  <div class="wrap">
+    <div class="tabs">
+      <div class="tab active" data-p="audit">🩺 Audit<small>saytı 2026 checklist ilə yoxla</small></div>
+      <div class="tab" data-p="research">🧭 Açar söz<small>Google Suggest + AI klaster</small></div>
+      <div class="tab" data-p="gap">🎯 Rəqib<small>SERP content-gap təhlili</small></div>
+      <div class="tab" data-p="write">✍️ Məqalə<small>on-page mükəmməl məzmun</small></div>
+    </div>
+
+    <!-- AUDIT -->
+    <div class="panel active" id="p-audit">
+      <div class="bar">
+        <input type="text" id="a-url" placeholder="saytın ünvanı — məs: xalqsigorta.az">
+        <button class="go" id="a-go">Audit et</button>
+      </div>
+      <div class="opts">
+        <label><input type="checkbox" id="a-vitals" checked> Core Web Vitals (PageSpeed)</label>
+        <span class="hint">Real-vaxt tarama · ~10-40 san</span>
+      </div>
+      <div class="result" id="a-res"><div class="loading">Ünvan yaz və “Audit et”ə bas.</div></div>
+    </div>
+
+    <!-- RESEARCH -->
+    <div class="panel" id="p-research">
+      <div class="bar">
+        <input type="text" id="r-seed" placeholder="açar söz — məs: kasko sığorta">
+        <button class="go" id="r-go">Kəşf et</button>
+      </div>
+      <div class="hint" style="margin-bottom:14px">Pulsuz Google Autocomplete-dən uzun-quyruq + AI niyyət klasteri</div>
+      <div class="result" id="r-res"><div class="loading">Açar söz yaz və “Kəşf et”ə bas.</div></div>
+    </div>
+
+    <!-- GAP -->
+    <div class="panel" id="p-gap">
+      <div class="bar">
+        <input type="text" id="g-kw" placeholder="açar söz — məs: kasko sığorta">
+        <button class="go" id="g-go">Rəqibləri təhlil et</button>
+      </div>
+      <div class="hint" style="margin-bottom:14px">Canlı SERP → TOP rəqibləri tara → table-stakes + sıralanma boşluqları + real FAQ</div>
+      <div class="result" id="g-res"><div class="loading">Açar söz yaz və “Rəqibləri təhlil et”ə bas.</div></div>
+    </div>
+
+    <!-- WRITE -->
+    <div class="panel" id="p-write">
+      <div class="bar">
+        <input type="text" id="w-kw" placeholder="mövzu / açar söz — məs: kasko sığorta nədir">
+        <button class="go" id="w-go">Məqalə yaz</button>
+      </div>
+      <div class="hint" style="margin-bottom:14px">Brief → on-page mükəmməl AZ məqalə + JSON-LD · ~20-60 san</div>
+      <div class="result" id="w-res"><div class="loading">Mövzu yaz və “Məqalə yaz”a bas.</div></div>
+    </div>
+  </div>
+
+<script>
+const $=s=>document.querySelector(s);
+// tabs
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); $('#p-'+t.dataset.p).classList.add('active');
+});
+// health
+fetch('/api/health').then(r=>r.json()).then(h=>{
+  $('#hdot').classList.add('on');
+  $('#hstat').textContent = 'v'+h.version+' · '+(h.llm?'LLM aktiv':'LLM yox')+(h.core_web_vitals?' · CWV':'');
+}).catch(()=>$('#hstat').textContent='oflayn');
+
+function spin(el,msg){el.innerHTML='<div class="loading"><div class="spin"></div>'+msg+'</div>';}
+
+// audit -> iframe (reuses premium report)
+$('#a-go').onclick=()=>{
+  const u=$('#a-url').value.trim(); if(!u)return;
+  const v=$('#a-vitals').checked?1:0;
+  spin($('#a-res'),'Sayt taranır və 2026 checklist tətbiq olunur…');
+  const f=document.createElement('iframe');
+  f.onload=()=>{}; f.src='/audit/view?url='+encodeURIComponent(u)+'&vitals='+v;
+  $('#a-res').innerHTML=''; $('#a-res').appendChild(f);
+};
+$('#a-url').addEventListener('keydown',e=>{if(e.key==='Enter')$('#a-go').click();});
+
+// research -> cards
+$('#r-go').onclick=()=>{
+  const s=$('#r-seed').value.trim(); if(!s)return;
+  spin($('#r-res'),'Google Autocomplete + AI klaster…');
+  fetch('/api/research?seed='+encodeURIComponent(s)).then(r=>r.json()).then(d=>{
+    let h='<div class="meta-row"><span class="badge">'+d.total+' açar söz</span>'+
+          '<span class="badge">'+(d.intelligence==='llm'?'AI klaster':'düz siyahı')+'</span>'+
+          '<span class="badge">mənbə: CANLI</span></div>';
+    if(d.clusters.length){
+      h+='<div class="clusters">';
+      d.clusters.forEach(c=>{
+        h+='<div class="cl"><h3>'+esc(c.name)+'</h3>'+
+           '<span class="intent i-'+c.intent+'">'+esc(c.intent_az)+'</span>';
+        if(c.primary) h+='<div class="star">★ '+esc(c.primary)+'</div>';
+        h+='<ul>'+c.keywords.slice(0,10).map(k=>'<li>'+esc(k)+'</li>').join('')+'</ul></div>';
+      });
+      h+='</div>';
+    }else{
+      h+='<div class="clusters"><div class="cl"><ul>'+d.keywords.slice(0,40).map(k=>'<li>'+esc(k)+'</li>').join('')+'</ul></div></div>';
+    }
+    $('#r-res').innerHTML=h;
+  }).catch(()=>spin($('#r-res'),'Xəta baş verdi.'));
+};
+$('#r-seed').addEventListener('keydown',e=>{if(e.key==='Enter')$('#r-go').click();});
+
+// gap -> cards
+$('#g-go').onclick=()=>{
+  const k=$('#g-kw').value.trim(); if(!k)return;
+  spin($('#g-res'),'SERP taranır, rəqiblər oxunur, boşluqlar tapılır…');
+  fetch('/api/gap?keyword='+encodeURIComponent(k)).then(r=>r.json()).then(d=>{
+    let h='<div class="meta-row"><span class="badge">'+d.competitors.length+' rəqib</span>'+
+          '<span class="badge">'+d.analyzed+' başlıq oxundu</span>'+
+          '<span class="badge">mənbə: CANLI SERP</span></div><div class="clusters">';
+    if(d.competitors.length){
+      h+='<div class="cl"><h3>🏆 TOP rəqiblər</h3><ul>'+
+         d.competitors.map(c=>'<li>'+c.rank+'. <b>'+esc(c.domain)+'</b> — '+esc((c.title||'').slice(0,54))+'</li>').join('')+'</ul></div>';
+    }
+    if(d.content_gaps.length){
+      h+='<div class="cl" style="border-color:#16c78455"><h3 style="color:#16c784">★ Boşluqlar (fürsət)</h3><ul>'+
+         d.content_gaps.map(x=>'<li>→ '+esc(x)+'</li>').join('')+'</ul></div>';
+    }
+    if(d.common_subtopics.length){
+      h+='<div class="cl"><h3>Table-stakes (mütləq)</h3><ul>'+
+         d.common_subtopics.map(x=>'<li>· '+esc(x)+'</li>').join('')+'</ul></div>';
+    }
+    if(d.faq_questions.length){
+      h+='<div class="cl"><h3>FAQ sualları</h3><ul>'+
+         d.faq_questions.map(x=>'<li>? '+esc(x)+'</li>').join('')+'</ul></div>';
+    }
+    h+='</div>';
+    $('#g-res').innerHTML=h;
+  }).catch(()=>spin($('#g-res'),'Xəta baş verdi.'));
+};
+$('#g-kw').addEventListener('keydown',e=>{if(e.key==='Enter')$('#g-go').click();});
+
+// write -> iframe (reuses article deliverable)
+$('#w-go').onclick=()=>{
+  const k=$('#w-kw').value.trim(); if(!k)return;
+  spin($('#w-res'),'Brief hazırlanır, məqalə yazılır və öz-audit edilir…');
+  const f=document.createElement('iframe');
+  f.src='/article/view?keyword='+encodeURIComponent(k);
+  f.onload=()=>{$('#w-res').querySelector('.loading')?.remove();};
+  $('#w-res').appendChild(f);
+};
+$('#w-kw').addEventListener('keydown',e=>{if(e.key==='Enter')$('#w-go').click();});
+
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+</script>
+</body>
+</html>
