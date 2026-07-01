@@ -21,29 +21,35 @@ Memory enforces this in code: `shared_memory.remember()` writes **private by
 default**; you must pass `scope="shared"` to put something in the traveling layer,
 and only for engine/capability facts. See [`../shared_memory.py`](../shared_memory.py).
 
-## The "button" — auto-sync on startup
+## Auto-sync — you never have to ask
 
-Each machine pulls the latest engine from the common remote (the private GitHub
-repo) when it starts. It only fast-forwards code; it never touches private data.
+One brain does all syncing: [`scripts/sync_engine.py`](../scripts/sync_engine.py)
+(stdlib only, no venv). It **pulls** new engine commits (fast-forward only) and
+**pushes** your already-committed engine commits — never auto-committing a dirty
+tree, never force-pushing, never touching private (git-ignored) data. It has a
+short network timeout and never raises, so it can safely run from a hook.
 
-- Windows: [`sync-engine.ps1`](../scripts/sync-engine.ps1)
-- Linux / macOS / Hetzner: [`sync-engine.sh`](../scripts/sync-engine.sh)
+Every entry point calls that one brain, so both machines stay current **without
+you doing anything**:
 
-```powershell
-.\scripts\sync-engine.ps1     # work PC
-```
-```bash
-./scripts/sync-engine.sh      # server / mac
-```
+| Trigger | What fires | Effect |
+| --- | --- | --- |
+| **Open a chat / VSC session** | SessionStart hook → `sync_engine.py --pull-only` | You open, it pulls the newest engine in the background — the first thing that happens. |
+| **End a session** | SessionEnd hook → `sync_engine.py --push-only` | Your committed engine improvements ship to the other machine automatically. |
+| **Boot the system** | `START_MARKETING_OS.ps1` step 0 | "Open the system" = "pull latest, then run it." |
+| **One click** | double-click [`PULL.bat`](../PULL.bat) | Token-free, no chat — just syncs. |
+| **From your phone** | Telegram `/update` (owner only) | The VPS pulls the latest engine on command. |
+| **Manual** | `scripts/sync-engine.ps1` / `.sh` (thin wrappers) | Same brain, explicit run. |
 
-Wire it as the first step of the system launcher so "open the system" = "pull the
-latest engine, then boot." The script is safe: it fast-forwards only, warns on
-uncommitted changes, and reminds you to push local engine commits.
+So on the MacBook you don't say "pull first" — by the time you write your first
+message, the SessionStart hook has already synced. If it prints
+`pulled new engine updates`, that's the update finishing in the background.
 
 ## Flow in one line
 
-> Improve the engine on either system → `git push` → the other runs `sync-engine`
-> on startup → it fast-forwards the new code only. Private data stays home, always.
+> Improve + commit the engine on either system → SessionEnd (or `/update`, or
+> PULL.bat) pushes it → the other machine's SessionStart pulls it (fast-forward
+> only). Private data stays home, always.
 
 To move a *specific* improvement without taking everything, `git cherry-pick` that
 commit (the agent can do this for you).

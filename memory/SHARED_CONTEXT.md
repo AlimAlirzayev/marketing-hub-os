@@ -11,9 +11,11 @@ A self-hosted, zero-budget **marketing OS**. One codebase serves two brands via 
 Hub (generic). Same code everywhere; only `BRAND` + `.env` differ per machine.
 
 ## The cross-machine bridge + the engine/data boundary
-Private GitHub repo `git@github.com:AlimAlirzayev/marketing-hub-os.git`. Workflow:
-commit + push on one machine → `git pull` on another (or run `scripts/sync-engine.*`
-on startup — the auto-sync "button").
+Private GitHub repo `git@github.com:AlimAlirzayev/marketing-hub-os.git`. Sync is
+**automatic** via one brain, `scripts/sync_engine.py` (safe two-way: ff-pull +
+push-committed-only). It fires on its own: SessionStart pulls, SessionEnd pushes,
+the launcher pulls at boot, `PULL.bat` is a one-click, and Telegram `/update`
+pulls the VPS on command. You never have to say "pull first" — it's already done.
 
 **Hard boundary (see `docs/SYNC.md`):** only the ENGINE travels (code, tools,
 capabilities, engineering decisions in `memory/`). PRIVATE business data never

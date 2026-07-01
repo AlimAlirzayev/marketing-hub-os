@@ -1,10 +1,14 @@
 {
   "hooks": {
     "SessionEnd": [
-      { "hooks": [ { "type": "command", "command": "python scripts/session_capture.py" } ] }
+      { "hooks": [
+          { "type": "command", "command": "python scripts/session_capture.py" },
+          { "type": "command", "command": "python scripts/sync_engine.py --push-only --quiet" }
+      ] }
     ],
     "SessionStart": [
       { "hooks": [
+          { "type": "command", "command": "python scripts/sync_engine.py --pull-only" },
           { "type": "command", "command": "python scripts/capture_sweep.py" },
           { "type": "command", "command": "python scripts/session_pulse.py" }
       ] }

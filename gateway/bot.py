@@ -17,20 +17,59 @@ Long-polling = outbound HTTPS only, so no port/webhook/public IP is needed.
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import time
+from pathlib import Path
 
 from ._bootstrap import load_env
 from . import queue, telegram
 
 load_env()
 
+_ROOT = Path(__file__).resolve().parent.parent
+_SYNC = _ROOT / "scripts" / "sync_engine.py"
+
 _HELP = (
     "Xalq Insurance Digital OS background agent.\n"
     "Send me any task and I'll run it in the background, then send the result.\n\n"
     "Commands:\n"
-    "  /jobs  - list recent jobs\n"
-    "  /help  - this message"
+    "  /jobs    - list recent jobs\n"
+    "  /update  - pull the latest engine from GitHub (owner only)\n"
+    "  /help    - this message"
 )
+
+
+def _owner_id() -> str | None:
+    """The single chat allowed to run privileged ops commands (e.g. /update)."""
+    val = (os.getenv("TELEGRAM_OWNER_CHAT_ID") or "").strip()
+    return val or None
+
+
+def _is_owner(chat_id) -> bool:
+    """True if this chat may run ops commands. If no owner is configured we allow
+    it (single-user private bot) but the reply nudges you to lock it down."""
+    owner = _owner_id()
+    return owner is None or str(chat_id) == owner
+
+
+def _run_sync() -> str:
+    """Run the shared sync brain and return its one-line summary for the reply."""
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(_SYNC)],
+            cwd=str(_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        out = (proc.stdout or proc.stderr or "").strip()
+        return out or "sync finished (no changes)."
+    except subprocess.TimeoutExpired:
+        return "sync timed out reaching GitHub — try again shortly."
+    except Exception as exc:  # never crash the bot on an ops command
+        return f"sync could not run: {exc.__class__.__name__}"
 
 
 def _handle_message(msg: dict) -> None:
@@ -41,7 +80,17 @@ def _handle_message(msg: dict) -> None:
         return
 
     if text in ("/start", "/help"):
-        telegram.send_message(chat_id, _HELP)
+        telegram.send_message(chat_id, _HELP + f"\n\nYour chat id: {chat_id}")
+        return
+
+    if text.split()[0] in ("/update", "/pull", "/sync"):
+        if not _is_owner(chat_id):
+            telegram.send_message(chat_id, "Not authorized for ops commands.")
+            return
+        telegram.send_message(chat_id, "🔄 Pulling the latest engine from GitHub...")
+        summary = _run_sync()
+        note = "" if _owner_id() else "\n\n(Tip: set TELEGRAM_OWNER_CHAT_ID in .env to lock this to you.)"
+        telegram.send_message(chat_id, f"✅ {summary}{note}")
         return
 
     if text == "/jobs":

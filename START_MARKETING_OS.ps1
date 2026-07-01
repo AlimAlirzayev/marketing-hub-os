@@ -9,6 +9,13 @@
 # ============================================================
 $ErrorActionPreference = "SilentlyContinue"
 $root = $PSScriptRoot
+
+# Step 0: pull the latest shared engine BEFORE booting, so "open the system"
+# always means "run the newest code". Safe + best-effort (never blocks startup).
+Write-Host ""
+Write-Host "  Muherrik senkronlasdirilir (GitHub)..." -ForegroundColor DarkCyan
+python (Join-Path $root "scripts\sync_engine.py")
+
 $reg = Get-Content (Join-Path $root "services.json") -Raw -Encoding UTF8 | ConvertFrom-Json
 
 Write-Host ""
