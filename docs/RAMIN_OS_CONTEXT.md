@@ -1,6 +1,6 @@
 # RAMIN OS System Context
 
-Generated UTC: 2026-06-25T07:26:16Z
+Generated UTC: 2026-07-01T12:20:31Z
 
 ## Mission
 
@@ -33,6 +33,8 @@ a disconnected side project.
 | cx | Müştəri Münasibətləri | 8810 | Müştəri | uvicorn | app:app | /api/health |
 | atelier | Kreativ Studiya | 8820 | Kontent | uvicorn | atelier.app:app | /api/health |
 | price | Qiymət Kəşfiyyatı | 8830 | Kəşfiyyat | uvicorn | server:app | /api/health |
+| seo | SEO Studiyası | 8860 | Kontent | uvicorn | seo.server:app | /api/health |
+| mediaforge | Media Rejissoru | 8870 | Kontent | uvicorn | mediaforge.server:app | /api/health |
 | hq | Baş İqamətgah (klassik) | 8501 | Sistem | streamlit | app.py | / |
 
 ## Capability Map
@@ -45,11 +47,14 @@ a disconnected side project.
 | Service drift audit | `audit_services.py` | yes | Compares services.json with real listening ports and missing dirs. |
 | Security Guard | `gateway/security.py` | yes | Blocks secrets, destructive actions, payments, unsafe URLs, and unknown scripts. |
 | Autonomous gateway | `gateway` | yes | Queue, worker, executor, browser tools, AI Council, Telegram delivery path. |
-| Knowledge Core | `brain` | yes | Recall and reflect loop for institutional memory. |
+| Knowledge Core | `brain` | yes | Recall and reflect loop with optional private TEI/OpenAI-compatible embeddings. |
 | Daily briefing | `briefing_panel.py` | yes | Executive CX and ads briefing panel. |
 | Agent Radar | `gateway/agent_radar.py` | yes | Agent governance, sandbox scoring, and automatic Marketing OS scan. |
+| Agent Permission Manifest | `config/agent_permissions.json` | yes | Fail-closed capability boundaries for internal agents and MCP workflows. |
+| Context7 Docs Grounding | `docs/CONTEXT7_GROUNDING.md` | yes | Read-only current documentation layer for external library/API work. |
 | Hugging Face Opportunity Radar | `gateway/hf_radar.py` | yes | Governed HF model, MCP, Spaces, and private RAG opportunity scoring. |
-| CX Command Center | `cx-command-center` | yes | Customer complaint radar, AI triage, sentiment, SLA, and draft-only resolution planning. |
+| FLORA AI Creative MCP | `gateway/flora_ai.py` | yes | Governed draft-media MCP bridge for FLORA Techniques, assets, and creative generation. |
+| CX Command Center | `cx-command-center` | yes | Customer complaint radar, AI triage, optional private HF sentiment, SLA, and draft-only resolution planning. |
 | Ads Studio | `ads-studio` | yes | Meta ads performance reporting and campaign analytics. |
 | Conversions API | `meta-capi` | yes | CRM to Meta CAPI and pixel/CAPI gateway. |
 | GA4 Studio | `ga4-studio` | yes | Website analytics, sessions, conversion and funnel view. |
@@ -96,6 +101,8 @@ python scripts/system_context.py
 python audit_services.py
 python -m gateway.agent_radar autoscan-report
 python -m gateway.hf_radar report
+python -m gateway.permissions doctor
+.\scripts\setup-mcp.ps1
 python -m unittest discover -s tests
 .\START_MARKETING_OS.ps1
 .\STOP_MARKETING_OS.ps1

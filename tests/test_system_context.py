@@ -11,7 +11,10 @@ class SystemContextTests(unittest.TestCase):
         self.assertIn("Security is the highest law", text)
         self.assertIn("services.json", text)
         self.assertIn("Agent Radar", text)
+        self.assertIn("Agent Permission Manifest", text)
+        self.assertIn("Context7 Docs Grounding", text)
         self.assertIn("Hugging Face Opportunity Radar", text)
+        self.assertIn("FLORA AI Creative MCP", text)
         self.assertIn("AI Agents", text)
 
     def test_context_includes_service_registry_table(self):
@@ -24,6 +27,9 @@ class SystemContextTests(unittest.TestCase):
         text = system_context.render_context(datetime(2026, 6, 22, tzinfo=timezone.utc))
         self.assertIn("gateway/security.py", text)
         self.assertIn("gateway/hf_radar.py", text)
+        self.assertIn("gateway/flora_ai.py", text)
+        self.assertIn("config/agent_permissions.json", text)
+        self.assertIn("docs/CONTEXT7_GROUNDING.md", text)
         self.assertIn("brain", text)
         self.assertIn("influencer-hunter", text)
 

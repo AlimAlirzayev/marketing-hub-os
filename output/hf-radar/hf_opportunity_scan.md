@@ -1,14 +1,14 @@
 # Hugging Face Opportunity Radar
 
-Generated: 2026-06-25T07:00:02Z
+Generated: 2026-06-30T06:16:17Z
 Desktop research source: `C:\Users\a.alirzayev\Desktop\hugginface free oportunities.docx`
 
 ## Executive Verdict
 
 - Best variant: Private RAG first, HF discovery second, hosted inference last.
 - Overall rating: 91/100
-- Average fit: 60.0/100
-- Average risk: 54.9/100
+- Average fit: 62.8/100
+- Average risk: 50.0/100
 - Recommendation: Private RAG Embedding Layer (TEI + HF embedding models)
 - Decision: pilot_now_private_path
 - Operating principle: Hosted HF services are for public/synthetic PoCs; internal documents and customer data use local or self-hosted models only.
@@ -20,6 +20,10 @@ Desktop research source: `C:\Users\a.alirzayev\Desktop\hugginface free oportunit
 - ollama: False
 - huggingface_hub_python: True
 - gradio_client_python: True
+- brain_embedding_adapter: True
+- gateway_rag_uses_brain_adapter: True
+- cx_hf_sentiment_adapter: True
+- cx_triage_uses_hf_sentiment: True
 - note: Credential presence is intentionally not inspected by HF Radar.
 
 ## Ranked Opportunities
@@ -47,6 +51,30 @@ Required controls:
 Reasons:
 - Private/self-host path can handle sensitive RAMIN OS data.
 - High strategic fit for RAMIN OS.
+- Strong zero/low-budget leverage.
+
+### Private CX Sentiment Classifier
+- Category: private_sentiment
+- Fit: 82/100
+- Value: 83/100
+- Readiness: 74/100
+- Privacy: 96/100
+- Risk: 16/100
+- Verdict: approved_for_sandbox
+- Decision: sandbox_only_after_controls
+- Data boundary: private_or_internal_only
+- Integrations: cx-command-center/triage.py, cx-command-center/sentiment_hf.py, SECURITY.md
+
+Required controls:
+- No production use without a RAMIN OS sandbox/audit pass.
+- No secrets or credentials in reports, prompts, logs, or public Spaces.
+- Keep deterministic CX rules as the baseline.
+- Allow HF sentiment to raise risk, not lower rule-based complaint risk.
+- Use local/private endpoints for customer messages.
+- Benchmark labels against Azerbaijani complaint examples before operational use.
+
+Reasons:
+- Private/self-host path can handle sensitive RAMIN OS data.
 - Strong zero/low-budget leverage.
 
 ### Local Open-Weight LLM Serving (llama.cpp/vLLM/SGLang)

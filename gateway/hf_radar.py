@@ -164,6 +164,38 @@ HF_OPPORTUNITIES = [
         ],
     ),
     HFOpportunity(
+        name="Private CX Sentiment Classifier",
+        category="private_sentiment",
+        use_case="customer complaint sentiment reinforcement for CX triage",
+        description=(
+            "Use a local/private Hugging Face text-classification endpoint as an additional CX sentiment "
+            "signal. It can elevate negative risk, but deterministic rules remain the safety baseline."
+        ),
+        integration_points=["cx-command-center/triage.py", "cx-command-center/sentiment_hf.py", "SECURITY.md"],
+        data_boundary="private_or_internal_only",
+        business_impact=84,
+        cost_leverage=82,
+        implementation_readiness=82,
+        implementation_effort=2,
+        external_calls=False,
+        requires_token=False,
+        handles_sensitive_data=True,
+        sensitive_data_allowed=True,
+        risks=[
+            "off-the-shelf multilingual sentiment models can misread Azerbaijani complaint nuance",
+            "model drift or weak local endpoint availability must not weaken CX risk handling",
+        ],
+        controls=[
+            "Keep deterministic CX rules as the baseline.",
+            "Allow HF sentiment to raise risk, not lower rule-based complaint risk.",
+            "Use local/private endpoints for customer messages.",
+            "Benchmark labels against Azerbaijani complaint examples before operational use.",
+        ],
+        references=[
+            "https://huggingface.co/docs/inference-providers/tasks/text-classification",
+        ],
+    ),
+    HFOpportunity(
         name="HF MCP + hf CLI Discovery Workbench",
         category="discovery_tooling",
         use_case="model, dataset, Space, paper, and documentation discovery for agents",
@@ -430,12 +462,26 @@ def evaluate_opportunity(opportunity: HFOpportunity) -> HFEvaluation:
 
 def _local_readiness() -> dict:
     """Check local tooling without reading credentials or touching .env."""
+    rag_path = ROOT_DIR / "gateway" / "rag.py"
+    triage_path = ROOT_DIR / "cx-command-center" / "triage.py"
+    try:
+        rag_uses_brain_adapter = "from brain import embeddings" in rag_path.read_text(encoding="utf-8")
+    except Exception:
+        rag_uses_brain_adapter = False
+    try:
+        cx_uses_hf_sentiment = "import sentiment_hf" in triage_path.read_text(encoding="utf-8")
+    except Exception:
+        cx_uses_hf_sentiment = False
     return {
         "hf_cli": bool(shutil.which("hf")),
         "docker": bool(shutil.which("docker")),
         "ollama": bool(shutil.which("ollama")),
         "huggingface_hub_python": find_spec("huggingface_hub") is not None,
         "gradio_client_python": find_spec("gradio_client") is not None,
+        "brain_embedding_adapter": (ROOT_DIR / "brain" / "embeddings.py").exists(),
+        "gateway_rag_uses_brain_adapter": rag_uses_brain_adapter,
+        "cx_hf_sentiment_adapter": (ROOT_DIR / "cx-command-center" / "sentiment_hf.py").exists(),
+        "cx_triage_uses_hf_sentiment": cx_uses_hf_sentiment,
         "note": "Credential presence is intentionally not inspected by HF Radar.",
     }
 

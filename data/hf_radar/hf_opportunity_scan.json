@@ -1,7 +1,7 @@
 {
-  "id": "501b05001041",
-  "generated_at": 1782370802.4225001,
-  "generated_at_iso": "2026-06-25T07:00:02Z",
+  "id": "0c8a67c7aced",
+  "generated_at": 1782800177.5255659,
+  "generated_at_iso": "2026-06-30T06:16:17Z",
   "mission": "Govern Hugging Face adoption for RAMIN OS without exposing sensitive data.",
   "desktop_research_source": "C:\\Users\\a.alirzayev\\Desktop\\hugginface free oportunities.docx",
   "official_references": [
@@ -42,13 +42,17 @@
     "ollama": false,
     "huggingface_hub_python": true,
     "gradio_client_python": true,
+    "brain_embedding_adapter": true,
+    "gateway_rag_uses_brain_adapter": true,
+    "cx_hf_sentiment_adapter": true,
+    "cx_triage_uses_hf_sentiment": true,
     "note": "Credential presence is intentionally not inspected by HF Radar."
   },
   "operating_principle": "Hosted HF services are for public/synthetic PoCs; internal documents and customer data use local or self-hosted models only.",
   "system_fit_summary": {
     "overall_rating": 91,
-    "avg_fit_score": 60.0,
-    "avg_risk_score": 54.9,
+    "avg_fit_score": 62.8,
+    "avg_risk_score": 50.0,
     "best_variant": "Private RAG first, HF discovery second, hosted inference last.",
     "why_not_api_first": "Free hosted inference is limited and external. The professional move is to govern model selection and build private retrieval/serving before routing sensitive work anywhere."
   },
@@ -117,6 +121,62 @@
           "Keep the embedding server on localhost or a private host.",
           "Do not upload customer data to public Spaces or hosted providers.",
           "Run retrieval quality tests before replacing current Brain search."
+        ]
+      }
+    },
+    {
+      "opportunity": {
+        "name": "Private CX Sentiment Classifier",
+        "category": "private_sentiment",
+        "use_case": "customer complaint sentiment reinforcement for CX triage",
+        "description": "Use a local/private Hugging Face text-classification endpoint as an additional CX sentiment signal. It can elevate negative risk, but deterministic rules remain the safety baseline.",
+        "integration_points": [
+          "cx-command-center/triage.py",
+          "cx-command-center/sentiment_hf.py",
+          "SECURITY.md"
+        ],
+        "data_boundary": "private_or_internal_only",
+        "business_impact": 84,
+        "cost_leverage": 82,
+        "implementation_readiness": 82,
+        "implementation_effort": 2,
+        "external_calls": false,
+        "requires_token": false,
+        "handles_sensitive_data": true,
+        "sensitive_data_allowed": true,
+        "risks": [
+          "off-the-shelf multilingual sentiment models can misread Azerbaijani complaint nuance",
+          "model drift or weak local endpoint availability must not weaken CX risk handling"
+        ],
+        "controls": [
+          "Keep deterministic CX rules as the baseline.",
+          "Allow HF sentiment to raise risk, not lower rule-based complaint risk.",
+          "Use local/private endpoints for customer messages.",
+          "Benchmark labels against Azerbaijani complaint examples before operational use."
+        ],
+        "references": [
+          "https://huggingface.co/docs/inference-providers/tasks/text-classification"
+        ]
+      },
+      "evaluation": {
+        "value_score": 83,
+        "risk_score": 16,
+        "readiness_score": 74,
+        "privacy_score": 96,
+        "fit_score": 82,
+        "verdict": "approved_for_sandbox",
+        "decision": "sandbox_only_after_controls",
+        "reasons": [
+          "Private/self-host path can handle sensitive RAMIN OS data.",
+          "Strong zero/low-budget leverage."
+        ],
+        "required_controls": [
+          "No production use without a RAMIN OS sandbox/audit pass.",
+          "No secrets or credentials in reports, prompts, logs, or public Spaces.",
+          "Keep deterministic CX rules as the baseline.",
+          "Allow HF sentiment to raise risk, not lower rule-based complaint risk.",
+          "Use local/private endpoints for customer messages.",
+          "Benchmark labels against Azerbaijani complaint examples before operational use."
         ]
       }
     },
