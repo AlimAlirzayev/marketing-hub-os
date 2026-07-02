@@ -46,6 +46,21 @@ So on the MacBook you don't say "pull first" — by the time you write your firs
 message, the SessionStart hook has already synced. If it prints
 `pulled new engine updates`, that's the update finishing in the background.
 
+## Keys don't travel — the owner is the courier
+
+`.env` (API keys) is git-ignored on purpose, so the mail never carries secrets —
+and partly the two machines *should* differ (`BRAND`, work-specific accounts).
+When one friend gains a key the other should also have, the OWNER hands it over
+in one Telegram message to the other machine's bot:
+
+    /setkey RAPIDAPI_KEY abc123...     (owner-only)
+
+The bot writes it into that machine's `.env`, deletes the carrying message from
+the chat, and replies with a masked confirmation only (`len=…, …last4`). `/keys`
+shows the masked status of critical keys. The agent itself never reads a key
+out of an `.env` and never transmits one anywhere — only the receiving end is
+automated.
+
 ## Flow in one line
 
 > Improve + commit the engine on either system → SessionEnd (or `/update`, or

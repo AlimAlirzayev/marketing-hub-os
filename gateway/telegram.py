@@ -44,6 +44,11 @@ def send_message(chat_id: str | int, text: str) -> None:
         _call("sendMessage", chat_id=chat_id, text=text[i : i + 4000])
 
 
+def delete_message(chat_id: str | int, message_id: int) -> None:
+    """Delete a message from the chat (e.g. one that carried a secret)."""
+    _call("deleteMessage", chat_id=chat_id, message_id=message_id)
+
+
 def get_updates(offset: int | None = None) -> list[dict]:
     """Long-poll for new updates. Returns the raw 'result' list."""
     data = _call("getUpdates", offset=offset, timeout=_TIMEOUT)

@@ -18,18 +18,21 @@ Long-polling = outbound HTTPS only, so no port/webhook/public IP is needed.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 from ._bootstrap import load_env
-from . import queue, telegram
+from . import queue, sense, telegram
 
 load_env()
 
 _ROOT = Path(__file__).resolve().parent.parent
 _SYNC = _ROOT / "scripts" / "sync_engine.py"
+_ENV_PATH = _ROOT / ".env"
+_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,64}$")
 
 _HELP = (
     "Xalq Insurance Digital OS background agent.\n"
@@ -39,6 +42,8 @@ _HELP = (
     "  /approve N  - approve a parked risky job (owner only)\n"
     "  /reject N   - reject a parked risky job (owner only)\n"
     "  /update     - pull the latest engine from GitHub (owner only)\n"
+    "  /setkey K V - write an API key into THIS machine's .env (owner only)\n"
+    "  /keys       - masked status of critical keys (owner only)\n"
     "  /help       - this message"
 )
 
@@ -74,6 +79,32 @@ def _run_sync() -> str:
         return f"sync could not run: {exc.__class__.__name__}"
 
 
+def _set_env_key(key: str, value: str, env_path: Path | None = None) -> bool:
+    """Write/update one KEY=value line in this machine's .env and the live
+    process env. The value is handed to us BY the owner (we never read a key out
+    of an .env and never send one anywhere) — this is the receiving end of the
+    'keys never travel via git; the owner is the courier' rule (docs/SYNC.md).
+    Returns True if an existing line was updated, False if appended."""
+    path = Path(env_path or _ENV_PATH)
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    prefix = f"{key}="
+    replaced = False
+    for i, line in enumerate(lines):
+        if line.strip().startswith(prefix):
+            lines[i] = f"{key}={value}"
+            replaced = True
+            break
+    if not replaced:
+        lines.append(f"{key}={value}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.environ[key] = value  # take effect in this process immediately
+    return replaced
+
+
+def _mask(value: str) -> str:
+    return f"len={len(value)}, …{value[-4:]}" if len(value) >= 8 else f"len={len(value)}"
+
+
 def _handle_message(msg: dict) -> None:
     chat_id = msg["chat"]["id"]
     text = (msg.get("text") or "").strip()
@@ -103,6 +134,47 @@ def _handle_message(msg: dict) -> None:
             mark = {"awaiting_approval": "⏸", "done": "✅", "error": "⚠️", "rejected": "🚫"}
             lines = [f"{mark.get(j.status, '·')} #{j.id} [{j.status}] {j.task[:50]}" for j in jobs]
             telegram.send_message(chat_id, "\n".join(lines))
+        return
+
+    # Key courier receiving end: the OWNER hands this machine a new API key so
+    # both friend-systems stay equally capable. Keys never travel via git; this
+    # is the only sanctioned inbound path. The carrying message is deleted from
+    # the chat and only a masked confirmation is ever echoed.
+    if text.split()[0] == "/setkey":
+        if not _is_owner(chat_id):
+            telegram.send_message(chat_id, "Not authorized for ops commands.")
+            return
+        pieces = text.split(None, 2)
+        if len(pieces) < 3 or not _KEY_RE.match(pieces[1]):
+            telegram.send_message(
+                chat_id,
+                "İstifadə: /setkey AÇAR_ADI dəyər\nMəs.: /setkey RAPIDAPI_KEY abc123…\n"
+                "(Açar adı BÖYÜK_HƏRF_VƏ_ALT_XƏTT formatında olmalıdır.)",
+            )
+            return
+        key, value = pieces[1], pieces[2].strip()
+        replaced = _set_env_key(key, value)
+        try:  # scrub the secret out of the chat history, best-effort
+            telegram.delete_message(chat_id, msg["message_id"])
+        except Exception:
+            pass
+        sense.emit("credential", f"{key} set via /setkey (masked)")
+        verb = "yeniləndi" if replaced else "əlavə olundu"
+        telegram.send_message(
+            chat_id,
+            f"🔐 {key} bu maşının .env faylına {verb} ({_mask(value)}).\n"
+            "Açarı daşıyan mesajını çatdan sildim. İşləyən proseslər tam götürsün "
+            "deyə lazım olsa restart et.",
+        )
+        return
+
+    if text == "/keys":
+        if not _is_owner(chat_id):
+            telegram.send_message(chat_id, "Not authorized for ops commands.")
+            return
+        rows = sense.env_status()
+        lines = [("🟢" if v.startswith("SET") else "🔴") + f" {k}: {v}" for k, v in rows.items()]
+        telegram.send_message(chat_id, "Bu maşının açar vəziyyəti (maskalı):\n" + "\n".join(lines))
         return
 
     # The human checkpoint's other half: the operator decides a parked job's fate.
