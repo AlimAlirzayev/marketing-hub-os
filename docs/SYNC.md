@@ -39,6 +39,7 @@ you doing anything**:
 | **Boot the system** | `START_MARKETING_OS.ps1` step 0 | "Open the system" = "pull latest, then run it." |
 | **One click** | double-click [`PULL.bat`](../PULL.bat) | Token-free, no chat — just syncs. |
 | **From your phone** | Telegram `/update` (owner only) | The VPS pulls the latest engine on command. |
+| **Always-on host, by itself** | `gateway.supervisor` engine-sync thread | Pulls at start + every `ENGINE_SYNC_MIN` minutes (default 60; 0 = off) and Telegram-announces real updates to the owner — a 24/7 server stays current with no human. |
 | **Manual** | `scripts/sync-engine.ps1` / `.sh` (thin wrappers) | Same brain, explicit run. |
 
 So on the MacBook you don't say "pull first" — by the time you write your first
