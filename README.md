@@ -80,6 +80,34 @@ such as TEI, llama.cpp, vLLM, SGLang, Ollama, or another approved private
 endpoint. The Agent Radar dashboard shows the HF opportunity map next to the
 agent-governance scan.
 
+The first reinforcement is wired into `brain.embeddings`: Brain recall and the
+legacy `gateway.rag` path can use a local/private TEI or OpenAI-compatible
+embedding endpoint via `BRAIN_EMBED_PROVIDER` + `BRAIN_EMBED_ENDPOINT`, while
+keyword recall remains the default zero-risk fallback.
+
+The second reinforcement is wired into `cx-command-center/sentiment_hf.py`:
+Customer Relations Center can use a local/private Hugging Face
+text-classification sentiment endpoint as an extra signal. It can raise
+complaint risk, but it never weakens deterministic CX rules.
+
+## Context7 docs grounding and agent permissions
+
+Context7 is registered as a read-only MCP documentation layer for current
+library/API docs. Use it when changing third-party libraries such as FastAPI,
+Streamlit, Playwright, Pydantic, MCP servers, Meta/GA4 SDKs, Qdrant, or HF
+serving docs. It is not allowed to receive secrets, customer data, claims,
+internal policies, or private strategy.
+
+```powershell
+.\scripts\setup-mcp.ps1
+python -m gateway.permissions doctor
+python -m gateway.permissions report
+```
+
+Agent capabilities are governed by `config/agent_permissions.json`. Add or
+update a manifest entry before expanding any agent, MCP server, or workflow.
+See [docs/CONTEXT7_GROUNDING.md](docs/CONTEXT7_GROUNDING.md).
+
 ## Setup order
 
 ### Step 1: Install Docker Desktop

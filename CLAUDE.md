@@ -10,6 +10,8 @@ Read first:
 3. `SECURITY.md`
 4. `services.json`
 5. `claude-agents/CLAUDE.md` for Claude-specific subagent and MCP conventions
+6. `docs/CONTEXT7_GROUNDING.md` for read-only documentation grounding rules
+7. `config/agent_permissions.json` before adding or expanding agents/tools
 
 Important rule: do not treat `claude-agents/` as a separate product. It is the
 Claude Code control plane inside the larger Ramin-OS ecosystem.
@@ -19,4 +21,3 @@ When the system shape changes, refresh:
 ```powershell
 python scripts/system_context.py
 ```
-

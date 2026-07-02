@@ -41,6 +41,10 @@ Security is the highest law. The gateway has a central guard in
 - External agents and marketplace tools go through Agent Radar before any
   sandbox trial. Agent Radar records benefit, risk, trust, verdict, and required
   controls in `data/agent_radar/candidates.jsonl`.
+- Agent permissions are declared in `config/agent_permissions.json` and checked
+  with `python -m gateway.permissions doctor`.
+- Context7 is available only as a read-only docs grounding layer for external
+  library/API work; never send secrets or customer data to docs tools.
 - Safety tests live in `tests/test_security.py` and `tests/test_agent_radar.py`
   and can be run with:
 
@@ -87,6 +91,33 @@ The policy is strict: HF Router, public Spaces, and external MCP tools are only
 for public or synthetic prompts. Customer data, claims, policies, internal
 documents, and private strategy stay on local/self-hosted paths such as TEI,
 llama.cpp, vLLM, SGLang, Ollama, or another approved private endpoint.
+
+The private embedding reinforcement lives in `brain.embeddings`. Brain recall
+and `gateway.rag` share that adapter, so one safe provider policy covers both
+institutional memory and internal-document RAG.
+
+The CX sentiment reinforcement lives in `cx-command-center/sentiment_hf.py` and
+follows the same private-first rule: local/private Hugging Face text
+classification can add a risk signal, but public hosted endpoints stay out of
+customer-message workflows.
+
+## FLORA AI Creative MCP
+
+FLORA is the governed draft-media MCP bridge for premium creative canvas work:
+Technique discovery, approved asset upload, thumbnail grids, motion plates, and
+localized creative batches. It is registered in `scripts/setup-mcp.ps1` and
+checked by `gateway.flora_ai`.
+
+```powershell
+.\scripts\setup-mcp.ps1
+python -m gateway.flora_ai doctor
+python -m gateway.flora_ai report
+```
+
+FLORA is draft-only. Do not send secrets, customer data, claims, payment data,
+internal policies, or unredacted private strategy. Check generation cost before
+batches, and pass all final media through Video Studio QA plus Publisher dry-run
+before any post or schedule action.
 
 ## Use it today (CLI, no setup)
 

@@ -32,13 +32,19 @@ python scripts/system_context.py
   the user explicitly wants it changed.
 - Risky actions need checkpoints: posting, sending, spending, deleting,
   credentialed browsing, production writes, and private-network access.
+- Use Context7 as a read-only documentation grounding layer for external
+  library/API work. Never send secrets, customer data, claims, policies, or
+  private strategy to documentation tools.
+- Check `config/agent_permissions.json` before adding or expanding an agent,
+  MCP server, workflow, or automation capability.
 
 ## How To Work
 
 1. Build a current map of the system first.
 2. Choose the smallest useful improvement that strengthens the whole OS.
 3. Prefer existing patterns: gateway, brain, services registry, hub, audit,
-   Agent Radar, module READMEs, and tests.
+   Agent Radar, Context7 docs grounding, permission manifests, module READMEs,
+   and tests.
 4. Make scoped edits and run meaningful checks.
 5. Update docs/context when the system gains a new capability.
 6. Capture reusable lessons through the Brain workflow when the lesson should
@@ -57,4 +63,3 @@ python scripts/system_context.py
   results and memory land — is mapped in `docs/ORCHESTRATION.md`. Read it before
   adding or rewiring any agent so new work joins the council/router, not a new
   silo.
-

@@ -25,6 +25,8 @@ blocked action is a successful safety outcome, not a failure.
 - Browser URL guard: `gateway/tools/browser.py`
 - External agent intake: `gateway/agent_radar.py`
 - Hugging Face model/tool intake: `gateway/hf_radar.py`
+- Agent permission manifest: `config/agent_permissions.json`
+- Permission validator: `gateway/permissions.py`
 - Security audit log: `data/logs/security_audit.jsonl`
 - Tests: `tests/test_security.py`, `tests/test_agent_radar.py`
 
@@ -57,9 +59,54 @@ public or synthetic prompts. Customer data, claims, policies, internal
 documents, and private strategy must stay on local/self-hosted paths such as
 TEI, llama.cpp, vLLM, SGLang, Ollama, or other approved private endpoints.
 
+Brain semantic recall and `gateway.rag` use `brain.embeddings` as the shared
+embedding adapter. Local/private TEI or OpenAI-compatible endpoints are allowed;
+external embedding endpoints are ignored unless `BRAIN_EMBED_ALLOW_EXTERNAL=1`
+is explicitly set. Do not enable external embeddings for customer data, claims,
+internal documents, or private strategy.
+
+CX sentiment reinforcement uses `cx-command-center/sentiment_hf.py`. It is off
+by default, should point only to a local/private Hugging Face text-classification
+endpoint, and may raise complaint risk but must not downgrade deterministic
+rule-based CX risk. Do not send customer messages to public hosted sentiment
+endpoints.
+
 Every HF Space, MCP server, or agent framework must pass Agent Radar before a
 sandbox trial. Tokens must be fine-grained/read-only unless a human explicitly
 approves a write-capable workflow.
+
+## Context7 Documentation Grounding
+
+Context7 is allowed only as a read-only documentation grounding layer for
+third-party library and API work. It must not receive secrets, customer data,
+claims, internal policies, private strategy, or production credentials. Context7
+guidance does not override local source inspection, tests, Agent Radar, or this
+security policy.
+
+## FLORA Creative MCP
+
+FLORA is allowed only as a sandbox/draft creative MCP for marketing media work.
+It may use approved campaign briefs, public or licensed references, approved
+brand assets, synthetic prompts, and redacted localization sheets. It must not
+receive secrets, customer data, claims, payment data, internal policies,
+unredacted private strategy, or unlicensed assets.
+
+FLORA MCP uses OAuth for interactive agent work. Treat the MCP client token
+cache like an SSH key. API keys are for explicitly approved server-side
+automation only and must stay in local secrets, never tracked MCP settings.
+
+FLORA generations can consume workspace credits. Before any multi-run or
+high-cost batch, the agent must inspect and show the expected `run_cost x count`
+and wait for human approval. FLORA outputs remain drafts until Video Studio QA
+and Publisher dry-run pass; posting or scheduling still requires a human
+checkpoint.
+
+## Agent Permission Manifests
+
+Every internal agent, MCP tool category, or workflow that gains meaningful
+capability must have an entry in `config/agent_permissions.json`. The manifest
+must state allowed inputs, blocked inputs, allowed outputs, blocked actions, and
+required controls. Unknown agents fail closed.
 
 ## CX Resolution Agent Sandbox
 

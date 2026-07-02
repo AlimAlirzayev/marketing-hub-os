@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "principle": "Security first: every agent starts read-only, then earns narrow sandbox permissions.",
+  "permission_levels": {
+    "read_only": "May read approved local/project data only.",
+    "draft_only": "May generate drafts or plans but must not send, post, write production data, or change statuses.",
+    "sandbox": "May write only to approved sandbox/output paths.",
+    "approval_required": "Any customer-facing, public, paid, destructive, or credentialed action needs human approval.",
+    "blocked": "Not allowed for autonomous execution."
+  },
+  "agents": [
+    {
+      "id": "context7_docs_grounding",
+      "name": "Context7 Docs Grounding",
+      "owner": "Ramin-OS",
+      "status": "approved_read_only",
+      "permissions": ["read_only"],
+      "allowed_inputs": ["public library names", "framework questions", "API documentation queries"],
+      "blocked_inputs": ["secrets", "customer data", "claims", "internal policies", "private strategy"],
+      "allowed_outputs": ["documentation snippets", "implementation guidance", "source links"],
+      "blocked_actions": ["execute code", "send messages", "write production data", "post publicly", "handle payments"],
+      "required_controls": ["Use as guidance only; verify high-risk changes with tests and local source inspection."]
+    },
+    {
+      "id": "agent_radar",
+      "name": "Agent Radar",
+      "owner": "Ramin-OS",
+      "status": "approved_read_only",
+      "permissions": ["read_only", "sandbox"],
+      "allowed_inputs": ["agent names", "public docs", "public repo URLs", "requested permissions"],
+      "blocked_inputs": ["secrets", "private customer data", "payment credentials"],
+      "allowed_outputs": ["risk scores", "fit scores", "sandbox verdicts", "governance reports"],
+      "blocked_actions": ["grant production access", "install external agents automatically"],
+      "required_controls": ["Maximum positive verdict is approved_for_sandbox."]
+    },
+    {
+      "id": "flora_ai_mcp",
+      "name": "FLORA AI Creative MCP",
+      "owner": "Ramin-OS",
+      "status": "sandbox_draft_only",
+      "permissions": ["read_only", "draft_only", "sandbox", "approval_required"],
+      "allowed_inputs": [
+        "approved marketing briefs",
+        "public or licensed creative references",
+        "approved brand assets",
+        "synthetic test prompts",
+        "storyboards",
+        "prompt dialects",
+        "redacted campaign localization sheets"
+      ],
+      "blocked_inputs": [
+        "secrets",
+        "API keys",
+        "customer data",
+        "claims",
+        "payment data",
+        "internal policies",
+        "unredacted private strategy",
+        "unlicensed third-party assets"
+      ],
+      "allowed_outputs": [
+        "draft images",
+        "draft videos",
+        "storyboards",
+        "thumbnail grids",
+        "motion plates",
+        "Technique run summaries",
+        "model and cost estimates",
+        "asset URLs for approved drafts"
+      ],
+      "blocked_actions": [
+        "post publicly",
+        "send replies",
+        "handle payments",
+        "access payments",
+        "manage billing",
+        "manage workspace members",
+        "upload secrets",
+        "run unapproved paid batches",
+        "change production data"
+      ],
+      "required_controls": [
+        "Use OAuth MCP for interactive work; keep API keys only in local secrets when server-side automation is explicitly approved.",
+        "Confirm run_cost x count before any multi-run or high-cost generation batch.",
+        "Keep exact logos, legal copy, dates, prices, CTA text, and Azerbaijani text in deterministic local overlays.",
+        "Route customer-facing outputs through Video Studio QA and Publisher dry-run before any publish action.",
+        "Treat FLORA output URLs and client OAuth tokens as sensitive operational material."
+      ]
+    },
+    {
+      "id": "cx_resolution_agent",
+      "name": "CX Resolution Agent",
+      "owner": "Ramin-OS",
+      "status": "sandbox_draft_only",
+      "permissions": ["read_only", "draft_only", "approval_required"],
+      "allowed_inputs": ["already-triaged complaint records", "redacted customer evidence", "CX analytics"],
+      "blocked_inputs": ["payment data", "raw secrets", "unapproved private documents"],
+      "allowed_outputs": ["reply drafts", "root-cause clusters", "approval checklists", "next-best actions"],
+      "blocked_actions": ["send replies", "post publicly", "change statuses", "mark resolved", "access payments"],
+      "required_controls": ["Human approval required before any customer-facing response."]
+    },
+    {
+      "id": "hf_radar",
+      "name": "Hugging Face Opportunity Radar",
+      "owner": "Ramin-OS",
+      "status": "approved_read_only",
+      "permissions": ["read_only", "sandbox"],
+      "allowed_inputs": ["public HF model/tool metadata", "public docs", "synthetic test prompts"],
+      "blocked_inputs": ["customer data", "claims", "internal strategy", "private documents"],
+      "allowed_outputs": ["opportunity maps", "risk reports", "private-path recommendations"],
+      "blocked_actions": ["call public inference with private data", "install Spaces as trusted tools"],
+      "required_controls": ["Private data goes only to local/private endpoints."]
+    },
+    {
+      "id": "ai_council_executor",
+      "name": "AI Council Executor",
+      "owner": "Ramin-OS",
+      "status": "approval_gated",
+      "permissions": ["read_only", "sandbox", "approval_required"],
+      "allowed_inputs": ["user tasks", "workspace source", "approved docs", "approved tool outputs"],
+      "blocked_inputs": ["secrets", "credentials", "private keys"],
+      "allowed_outputs": ["plans", "code changes", "reports", "sandbox artifacts"],
+      "blocked_actions": ["destructive changes", "payments", "secret exposure", "unapproved production writes"],
+      "required_controls": ["Gateway Security Guard pre-flight must pass before execution."]
+    }
+  ]
+}

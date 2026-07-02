@@ -1,5 +1,22 @@
 ﻿{
     "mcpServers":  {
+                       "elevenlabs":  {
+                                          "args":  [
+                                                       "elevenlabs-mcp"
+                                                   ],
+                                          "env":  {
+                                                      "ELEVENLABS_MCP_BASE_PATH":  "C:\\Users\\a.alirzayev\\ramin-os\\audio-studio\\output"
+                                                  },
+                                          "command":  "uvx"
+                                      },
+                       "filesystem":  {
+                                          "args":  [
+                                                       "-y",
+                                                       "@modelcontextprotocol/server-filesystem",
+                                                       "C:\\Users\\a.alirzayev\\ramin-os"
+                                                   ],
+                                          "command":  "C:\\Users\\a.alirzayev\\ramin-os\\video-studio\\tools\\node-v24.15.0-win-x64\\npx.cmd"
+                                      },
                        "n8n-mcp":  {
                                        "args":  [
                                                     "-y",
@@ -9,33 +26,16 @@
                                                    "N8N_API_KEY":  "REPLACE_WITH_N8N_API_KEY",
                                                    "N8N_API_URL":  "http://localhost:5678/api/v1"
                                                },
-                                       "command":  "npx"
+                                       "command":  "C:\\Users\\a.alirzayev\\ramin-os\\video-studio\\tools\\node-v24.15.0-win-x64\\npx.cmd"
                                    },
-                       "filesystem":  {
-                                          "args":  [
-                                                       "-y",
-                                                       "@modelcontextprotocol/server-filesystem",
-                                                       "C:\\Users\\a.alirzayev\\ramin-os"
-                                                   ],
-                                          "command":  "npx"
-                                      },
-                       "elevenlabs":  {
-                                          "args":  [
-                                                       "elevenlabs-mcp"
-                                                   ],
-                                          "env":  {
-                                                      "ELEVENLABS_MCP_BASE_PATH":  "C:\\Users\\a.alirzayev\\ramin-os\\audio-studio\\output",
-                                                      "ELEVENLABS_API_KEY":  "sk_6db1a303dcba913b115e8e1a69fbe2219fa31380541cea14"
-                                                  },
-                                          "command":  "uvx"
-                                      },
-                       "memory":  {
-                                      "args":  [
-                                                   "-y",
-                                                   "@modelcontextprotocol/server-memory"
-                                               ],
-                                      "command":  "npx"
-                                  },
+                       "flora":  {
+                                     "args":  [
+                                                  "-y",
+                                                  "mcp-remote",
+                                                  "https://agents.flora.ai/mcp"
+                                              ],
+                                     "command":  "C:\\Users\\a.alirzayev\\ramin-os\\video-studio\\tools\\node-v24.15.0-win-x64\\npx.cmd"
+                                 },
                        "qdrant":  {
                                       "args":  [
                                                    "-y",
@@ -44,13 +44,27 @@
                                       "env":  {
                                                   "QDRANT_URL":  "http://localhost:6333"
                                               },
-                                      "command":  "npx"
+                                      "command":  "C:\\Users\\a.alirzayev\\ramin-os\\video-studio\\tools\\node-v24.15.0-win-x64\\npx.cmd"
                                   },
                        "browser-use":  {
                                            "args":  [
                                                         "browser-use-mcp"
                                                     ],
                                            "command":  "uvx"
-                                       }
+                                       },
+                       "memory":  {
+                                      "args":  [
+                                                   "-y",
+                                                   "@modelcontextprotocol/server-memory"
+                                               ],
+                                      "command":  "C:\\Users\\a.alirzayev\\ramin-os\\video-studio\\tools\\node-v24.15.0-win-x64\\npx.cmd"
+                                  },
+                       "context7":  {
+                                        "args":  [
+                                                     "-y",
+                                                     "@upstash/context7-mcp"
+                                                 ],
+                                        "command":  "C:\\Users\\a.alirzayev\\ramin-os\\video-studio\\tools\\node-v24.15.0-win-x64\\npx.cmd"
+                                    }
                    }
 }
