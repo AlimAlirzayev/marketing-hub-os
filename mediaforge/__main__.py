@@ -66,8 +66,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Board (SVG): {pkg['artifacts']['board_svg']}")
     print()
     print("İşə salmağa hazır (cost gate — kredit avtomatik xərclənmir):")
-    print(f"  → {g['mcp_instruction']}")
-    print(f"  qapı: {g['gate_reason']}")
+    print(f"  plan (xərcsiz): {g.get('plan_command','')}")
+    print(f"  real generasiya: {g.get('fire_command','')}   (~{g.get('credits','?')} kredit)")
     return 0
 
 

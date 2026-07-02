@@ -136,28 +136,33 @@ def _generation_plan(result: dict[str, Any], compiled_path: Path) -> dict[str, A
             f"--params '{{\"aspect_ratio\":\"{fmt['aspect']}\",\"duration\":\"{fmt['duration_s']}\"}}'"
         )
 
+    slug = brief["campaign"]["slug"]
+    fire_command = f"python -m mediaforge.generate {slug} --confirm"
     mcp_instruction = (
-        f"FLORA MCP-yə de: \"{res['label']} modeli ilə, {fmt['duration_s']} saniyəlik "
-        f"{fmt['aspect']} formatında bu prompt üzrə bir motion-plate yarat: "
-        "compiled-flora-prompt.md. Əvvəlcə run_cost göstər.\""
+        f"Bir əmr: `{fire_command}` — {res['label']} ilə, {fmt['duration_s']}s "
+        f"{fmt['aspect']}, ~{res.get('credits','?')} kredit. Əvvəlcə `python -m "
+        f"mediaforge.generate {slug}` (təsdiqsiz) planı və xərci göstərir."
     )
 
-    ready_md = _render_ready_command(result, cli_cmds, mcp_instruction, compiled_path)
+    ready_md = _render_ready_command(result, cli_cmds, mcp_instruction, compiled_path, fire_command)
 
     return {
         "status": "ready_for_generation",
         "can_autofire": False,
         "gate_reason": (
-            "FLORA generation OAuth (insan girişi) + kredit tələb edir. Governance: "
-            "flora_ai_mcp = draft_only, run_cost təsdiqi məcburidir. Sistem krediti "
-            "avtomatik xərcləmir — komanda hazırdır, sən 'işə sal' de."
+            "FLORA generasiya real kredit xərcləyir. Governance: flora_ai_mcp = "
+            "draft_only + harness ödənişli əməli bloklayır — sistem krediti avtomatik "
+            f"xərcləmir. Bir əmrlə sən işə sal: `{fire_command}`."
         ),
         "cost_band": res["cost_band"],
+        "credits": res.get("credits"),
         "primary_model": res["model_id"],
         "second_variant": res["partner_id"],
+        "fire_command": fire_command,
+        "plan_command": f"python -m mediaforge.generate {slug}",
         "mcp_instruction": mcp_instruction,
         "cli_commands": cli_cmds,
-        "manual_step": "MCP klientində FLORA OAuth ilə bir dəfə daxil ol (illik abunə hesabı).",
+        "manual_step": "FLORA OAuth artıq tamamlanıb (token cache-də) — birbaşa fire komandası işləyir.",
         "ready_markdown": ready_md,
     }
 
@@ -208,18 +213,23 @@ def _render_storyboard(brief: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _render_ready_command(result, cli_cmds, mcp_instruction, compiled_path) -> str:
+def _render_ready_command(result, cli_cmds, mcp_instruction, compiled_path, fire_command) -> str:
     r = result["resolution"]
     rel = _rel(compiled_path)
     cli_block = "\n".join(cli_cmds)
+    slug = result["brief"]["campaign"]["slug"]
     return f"""# İşə salmağa hazır — FLORA generasiya
 
-Model: **{r['label']}** (`{r['model_id']}`) · Müddət: {r['duration_s']}s · Xərc bandı: {r['cost_band']}
+Model: **{r['label']}** (`{r['model_id']}`) · Müddət: {r['duration_s']}s · Xərc: {r['cost_band']}
 
-## Ən sadə yol (MCP)
-{mcp_instruction}
+## Bir əmrlə işə sal (FLORA OAuth artıq bağlıdır)
+```powershell
+python -m mediaforge.generate {slug}            # plan + xərc (təsdiqsiz, xərcsiz)
+{fire_command}   # real generasiya
+```
+`--confirm` real kredit xərcləyir; video paket qovluğuna `.mp4` kimi enir.
 
-## CLI variantı (2 variant — reference + motion)
+## Alternativ: xam FLORA CLI (2 variant — reference + motion)
 ```powershell
 {cli_block}
 ```
@@ -227,9 +237,8 @@ Model: **{r['label']}** (`{r['model_id']}`) · Müddət: {r['duration_s']}s · X
 Prompt mənbəyi: `{rel}`
 
 ## Qapı (cost gate)
-- Sistem krediti avtomatik xərcləmir. Əvvəlcə `run_cost` göstərilir, sən təsdiqləyirsən.
-- Bir dəfəlik manual addım: MCP klientində FLORA OAuth girişi.
-- Yekun: generasiyadan sonra dəqiq mətn/logo/CTA deterministik overlay kimi Video Studio-da əlavə olunur.
+- Sistem krediti avtomatik xərcləmir; `--confirm` sənin açıq təsdiqindir.
+- Yekun: generasiyadan sonra dəqiq mətn/logo/CTA deterministik overlay kimi Video Studio-da bağlanır.
 """
 
 

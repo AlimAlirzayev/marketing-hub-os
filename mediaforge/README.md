@@ -73,6 +73,29 @@ Output lands in `output/mediaforge/campaigns/<slug>/` (gitignored, regenerable):
 `storyboard-board.svg`, `ready-command.md`, `package.json`. The compiled prompt
 plugs straight into `scripts/compile_generative_ad.py` and the FLORA MCP.
 
+## Real generation (the "işə sal" button)
+
+FLORA OAuth is completed once via `mcp-remote` (token cached in `~/.mcp-auth`).
+After that, `mediaforge/flora_client.py` talks to the live FLORA MCP (tools
+`execute` + `search_docs`) and `mediaforge/generate.py` fires a real generation:
+
+```powershell
+python -m mediaforge.generate <slug>            # PLAN only: model, cost, prompt — no spend
+python -m mediaforge.generate <slug> --confirm  # actually spend credits + generate + download
+```
+
+`--confirm` is the explicit spend authorization. Without it, the command prints
+the model, the real credit cost, the exact params, and the cinematic prompt,
+then stops at the cost gate. With it, it ensures a project, calls
+`generations.create`, polls `generations.retrieve`, and downloads the `.mp4`
+into the package folder. If the brief has no reference image, it picks the
+text-to-video sibling of the recommended model automatically.
+
+The model catalog in `models.py` is grounded against the live FLORA catalog
+(167 video models, real `estimated_credits`) — e.g. "seedance 2.5" resolves to
+**Seedance 2.0 Reference** (`i2v-seedance-2-0-reference-i2v-enhancor`, 1176 cr),
+which genuinely exists; there is no literal "2.5".
+
 ## The cost gate (why it stops before spending)
 
 MediaForge assembles **everything up to the single paid step** and then stops.

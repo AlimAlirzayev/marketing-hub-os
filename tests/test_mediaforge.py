@@ -54,6 +54,13 @@ class ModelResolverTests(unittest.TestCase):
         self.assertIn(res["partner_id"], models.CATALOG)
         self.assertNotEqual(res["partner_id"], res["model_id"])
 
+    def test_resolution_carries_real_credit_cost(self):
+        res = models.resolve("seedance 2.5")
+        # Seedance 2.0 Reference is 1176 credits in the live FLORA catalog.
+        self.assertEqual(res["credits"], 1176)
+        self.assertIn("kredit", res["cost_band"])
+        self.assertIn("1176", res["cost_band"])
+
 
 class DirectorTests(unittest.TestCase):
     def test_deterministic_brief_is_schema_valid(self):
@@ -125,6 +132,40 @@ class PipelineTests(unittest.TestCase):
             pipeline.CAMPAIGNS / pkg["slug"] / "prompts" / "compiled-flora-prompt.md"
         ).read_text(encoding="utf-8")
         self.assertIn("i2v-runway-gen-4.5", compiled)
+
+
+class GenerateTests(unittest.TestCase):
+    def _pkg(self):
+        out = director.direct("seedance 2.5 ilə 10s səyahət sığortası promo", use_llm=False)
+        return {"slug": "t", "concept": out["concept"], "brief": out["brief"],
+                "resolution": out["resolution"], "meta": out["meta"]}
+
+    def test_prompt_has_no_text_and_is_cinematic(self):
+        from mediaforge import generate
+        pkg = self._pkg()
+        prompt = generate.build_prompt(pkg["brief"])
+        self.assertIn("Cinematic", prompt)
+        self.assertIn("no logos", prompt.lower())
+        self.assertIn("no on-screen text", prompt.lower())
+
+    def test_no_reference_image_picks_text_to_video_model(self):
+        from mediaforge import generate
+        pkg = self._pkg()
+        model_id, reason = generate.choose_model(pkg["brief"], None)
+        # brief recommends an i2v reference model, but there is no reference
+        # image, so a text-to-video sibling must be chosen.
+        self.assertTrue(model_id.startswith("t2v-"))
+        self.assertIn(model_id, models.CATALOG)
+
+    def test_plan_only_never_spends(self):
+        # choose_model + plan must produce a cost estimate without any network.
+        from mediaforge import generate
+        pkg = self._pkg()
+        model_id, reason = generate.choose_model(pkg["brief"], None)
+        pl = generate.plan(pkg, model_id, reason, "prompt")
+        self.assertIn("credits", pl)
+        self.assertEqual(pl["params"]["aspect_ratio"], "9:16")
+        self.assertEqual(pl["params"]["resolution"], "1080p")
 
 
 class KnowledgeTests(unittest.TestCase):

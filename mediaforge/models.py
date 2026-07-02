@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-CATALOG_REFRESHED = "2026-05-22"
+# Grounded against the live FLORA catalog on 2026-07-02 via the MCP
+# (client.models.list({type:"video"}) → 167 models). credits = estimated_credits.
+CATALOG_REFRESHED = "2026-07-02"
 
 
 @dataclass(frozen=True)
@@ -27,57 +29,94 @@ class VideoModel:
     max_resolution: str
     strength: str
     limitation: str
+    credits: int = 0     # FLORA estimated_credits (live-grounded)
 
+
+# All durations 4–15 and resolutions 480p/720p/1080p/4k are the real Seedance/
+# Kling option sets confirmed from the live model params.
+_SEEDANCE_DUR = (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
 CATALOG: dict[str, VideoModel] = {
+    # --- text-to-video (no reference image needed) ---
+    "t2v-seedance-1.5-pro": VideoModel(
+        "t2v-seedance-1.5-pro", "t2v", "discovery", "Seedance 1.5 Pro",
+        _SEEDANCE_DUR, "1080p",
+        "Cheapest Seedance; fast first motion exploration from a text prompt",
+        "Less brand fidelity than the reference models", 347,
+    ),
+    "t2v-seedance-2.0-enhancor": VideoModel(
+        "t2v-seedance-2.0-enhancor", "t2v", "production", "Seedance 2.0",
+        _SEEDANCE_DUR, "4k",
+        "Flagship Seedance 2.0 text-to-video; premium cinematic motion",
+        "No image reference — brand assets arrive as deterministic overlay", 1176,
+    ),
+    "t2v-kling-2.6": VideoModel(
+        "t2v-kling-2.6", "t2v", "discovery", "Kling 2.6 Pro",
+        (5, 10), "1080p",
+        "Cheap, polished short commercial motion from text",
+        "Fewer controls", 327,
+    ),
+    "t2v-kling-v3-pro": VideoModel(
+        "t2v-kling-v3-pro", "t2v", "premium", "Kling 3.0 Pro",
+        _SEEDANCE_DUR, "4k",
+        "Strong 1080p/4k cinematic text-to-video",
+        "No image reference; weaker brand consistency", 784,
+    ),
+    "t2v-runway-gen-4.5": VideoModel(
+        "t2v-runway-gen-4.5", "t2v", "production", "Runway Gen-4.5",
+        (5, 8, 10), "1080p",
+        "Strong high-end motion from a text prompt",
+        "No image reference", 800,
+    ),
+    "t2v-sora2-pro": VideoModel(
+        "t2v-sora2-pro", "t2v", "premium", "Sora 2 Pro",
+        (4, 8, 12), "1080p",
+        "Strong temporal storytelling and smooth motion",
+        "Slow; 10s not available — pick 8s or 12s", 1600,
+    ),
+    # --- image-to-video (reference-led; best brand consistency) ---
     "i2v-seedance-1.5-pro": VideoModel(
         "i2v-seedance-1.5-pro", "i2v", "discovery", "Seedance 1.5 Pro",
-        (4, 6, 8, 10, 12), "720p",
-        "Fast, cheap, great first motion exploration",
-        "720p max in current catalog; can mutate text/UI",
+        _SEEDANCE_DUR, "1080p",
+        "Fast, cheap, great first motion exploration from a still",
+        "Less refined than 2.0", 347,
     ),
     "i2v-kling-2.6": VideoModel(
-        "i2v-kling-2.6", "i2v", "discovery", "Kling 2.6",
+        "i2v-kling-2.6", "i2v", "discovery", "Kling 2.6 Pro",
         (5, 10), "1080p",
         "Good short motion and commercial polish",
-        "Few controls in CLI schema",
+        "Few controls", 327,
     ),
     "i2v-seedance-2-0-reference-i2v-enhancor": VideoModel(
         "i2v-seedance-2-0-reference-i2v-enhancor", "i2v", "production",
-        "Seedance 2.0 Reference (Enhancor)",
-        (4, 6, 8, 10, 12, 15), "1080p",
-        "Best fit for reference-led brand consistency",
-        "Higher cost than discovery tier",
+        "Seedance 2.0 Reference",
+        _SEEDANCE_DUR, "4k",
+        "Best fit for reference-led brand consistency (Seedance 2.0 family)",
+        "Needs a reference image; higher cost", 1176,
     ),
     "i2v-runway-gen-4.5": VideoModel(
         "i2v-runway-gen-4.5", "i2v", "production", "Runway Gen-4.5",
         (5, 8, 10), "1080p",
         "Strong high-end motion from reference stills",
-        "No explicit resolution param in current CLI schema",
+        "—", 800,
     ),
     "i2v-sora2-pro": VideoModel(
         "i2v-sora2-pro", "i2v", "production", "Sora 2 Pro",
         (4, 8, 12), "1080p",
         "Strong temporal storytelling and smooth motion",
-        "Slow; 10s not available — pick 8s or 12s",
+        "Slow; 10s not available — pick 8s or 12s", 1600,
     ),
     "i2v-veo-3-1-lite-i2v": VideoModel(
         "i2v-veo-3-1-lite-i2v", "i2v", "production", "Veo 3.1 Lite",
-        (4, 6, 8), "1080p",
-        "High-quality short clips",
-        "Max 8s in current catalog",
+        _SEEDANCE_DUR, "1080p",
+        "High-quality short clips at a moderate cost",
+        "Lite tier of Veo 3.1", 534,
     ),
     "i2v-veo3": VideoModel(
         "i2v-veo3", "i2v", "premium", "Veo 3",
-        (4, 6, 8), "1080p",
-        "Premium cinematic motion",
-        "Very high cost; sparse CLI params",
-    ),
-    "t2v-kling-v3-pro": VideoModel(
-        "t2v-kling-v3-pro", "t2v", "premium", "Kling v3 Pro",
-        (3, 5, 8, 10, 12, 15), "4k",
-        "Strong 1080p/4k cinematic text-to-video",
-        "No image reference; weaker brand consistency",
+        _SEEDANCE_DUR, "1080p",
+        "Premium cinematic motion, top-tier quality",
+        "Very high cost (4266 cr)", 4266,
     ),
 }
 
@@ -162,6 +201,7 @@ def resolve(alias: str | None, *, want_duration: int = 10) -> dict[str, Any]:
     model = CATALOG[resolved_id]
     duration = _nearest_duration(model, want_duration, notes)
     partner_id = _PARTNER.get(resolved_id, "i2v-runway-gen-4.5")
+    partner = CATALOG[partner_id]
 
     return {
         "requested": raw or None,
@@ -169,11 +209,13 @@ def resolve(alias: str | None, *, want_duration: int = 10) -> dict[str, Any]:
         "model_id": model.id,
         "label": model.label,
         "tier": model.tier,
-        "cost_band": _TIER_COST[model.tier],
+        "credits": model.credits,
+        "cost_band": f"{_TIER_COST[model.tier]} · ~{model.credits} kredit",
         "duration_s": duration,
         "requested_duration_s": want_duration,
         "partner_id": partner_id,
-        "partner_label": CATALOG[partner_id].label,
+        "partner_label": partner.label,
+        "partner_credits": partner.credits,
         "fallbacks": ["i2v-kling-2.6", "i2v-seedance-1.5-pro", "deterministic-remotion"],
         "notes": notes,
         "catalog_refreshed": CATALOG_REFRESHED,
