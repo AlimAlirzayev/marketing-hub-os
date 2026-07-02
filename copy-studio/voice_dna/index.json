@@ -1,0 +1,71 @@
+{
+  "_comment": "Machine-readable registry of copywriting voices. Single source of truth for any product (/post, future tools) to query the voice library by category, status, and fit. Mirrors the services.json philosophy. Voices are grounded (real public material in dna.md + refs/) or planned (categorized roadmap from the 40-source list). The principles layer that sits UNDER every voice lives in copy_kit/frameworks.md.",
+  "updated": "2026-07-02",
+  "brand_agnostic": true,
+  "principles_layer": "copy_kit/frameworks.md",
+  "categories": {
+    "conversion": "Landing/sales pages, sign-up flows, anything with a measurable conversion goal.",
+    "email": "Lifecycle + retention email flows and broadcast campaigns.",
+    "brand-story": "Hero lines, manifestos, prestige and heritage moments; copy meant to be felt.",
+    "direct-response": "Deadline-driven, urgency-led, hard-offer copy.",
+    "craft-hooks": "Short-form hooks, micro-essays, captions, ad copy built to be finished.",
+    "personal-brand": "Thought-leadership / founder / executive content for the feed; builds authority, not a direct sale.",
+    "niche": "Specialized verticals (financial services, bilingual, etc.).",
+    "house": "Brand-default voices authored in-house for Xalq Sigorta + global builds."
+  },
+  "voices": [
+    { "slug": "ogilvy-product", "category": "house", "status": "grounded", "source": "David Ogilvy (in-house)", "fit": "Product-led campaigns; headline = USP. Default for product comms.", "pairs_with": "editorial-documentary" },
+    { "slug": "halbert-direct-response", "category": "direct-response", "status": "grounded", "source": "Gary Halbert / Caples / Schwartz (in-house)", "fit": "Deadline-driven, conversion-heavy, time-limited offers.", "pairs_with": "emerging-ai-luxury" },
+    { "slug": "apple-jobsian", "category": "brand-story", "status": "grounded", "source": "Apple / Jobs era (in-house)", "fit": "Brand-prestige moments; headline <=4 words, restraint as luxury.", "pairs_with": "financial-restraint" },
+    { "slug": "hermes-quiet-luxury", "category": "brand-story", "status": "grounded", "source": "Hermes catalog tradition (in-house)", "fit": "Heritage / premium positioning; sensory catalog poetry.", "pairs_with": "soft-maximalist" },
+    { "slug": "financial-restraint-az", "category": "house", "status": "grounded", "source": "Xalq Sigorta house voice (in-house)", "fit": "AZ default. Sakit professional Azerbaijani, no hype, 'siz' form.", "pairs_with": "editorial-documentary" },
+
+    { "slug": "joanna-wiebe", "category": "conversion", "status": "grounded", "source": "Joanna Wiebe / Copyhackers", "list_ref": 24, "fit": "Conversion jobs; voice-of-customer led, clarity-first.", "pairs_with": "editorial-documentary", "refs": "joanna-wiebe/refs/" },
+    { "slug": "chase-dimond", "category": "email", "status": "grounded", "source": "Chase Dimond", "list_ref": 2, "fit": "Retention email flows; framework-built, single-goal, mobile-first.", "pairs_with": "editorial-documentary", "refs": "chase-dimond/refs/" },
+    { "slug": "cole-schafer", "category": "brand-story", "status": "grounded", "source": "Cole Schafer / Honey Copy", "list_ref": 31, "fit": "Brand copy that reads like poetry and sells like Ogilvy.", "pairs_with": "hermes-quiet-luxury", "refs": "cole-schafer/refs/" },
+    { "slug": "eddie-shleyner", "category": "craft-hooks", "status": "grounded", "source": "Eddie Shleyner / VeryGoodCopy", "list_ref": 3, "fit": "Hooks, micro-essays, captions; one idea per sentence, bucket brigades.", "pairs_with": "editorial-documentary", "refs": "eddie-shleyner/refs/" },
+    { "slug": "justin-welsh", "category": "personal-brand", "status": "grounded", "source": "Justin Welsh", "list_ref": 15, "fit": "Thought-leadership / founder content for the feed; hook-led, one lesson per post.", "pairs_with": "financial-restraint", "refs": "justin-welsh/refs/" },
+
+    { "slug": "nicolas-cole", "category": "craft-hooks", "status": "grounded", "source": "Nicolas Cole / Art & Business of Online Writing", "list_ref": 22, "fit": "Structured long-form digital writing; 1-3-1 rhythm, 5-line intro, data-driven.", "pairs_with": "editorial-documentary", "refs": "nicolas-cole/refs/" },
+    { "slug": "dickie-bush", "category": "craft-hooks", "status": "grounded", "source": "Dickie Bush / Ship 30 for 30", "list_ref": 26, "fit": "Atomic essays: one idea, ~250 words, complete; ship over polish.", "pairs_with": "editorial-documentary", "refs": "dickie-bush/refs/" },
+    { "slug": "laura-belgray", "category": "email", "status": "grounded", "source": "Laura Belgray / Talking Shrimp", "list_ref": 30, "fit": "Personality-driven list email; story-first, funny in the details.", "pairs_with": "soft-maximalist", "refs": "laura-belgray/refs/" },
+    { "slug": "chris-orzechowski", "category": "email", "status": "grounded", "source": "Chris Orzechowski / Make It Rain", "list_ref": 29, "fit": "Back-end retention email; big promise + objections, no-discount recovery, RPS.", "pairs_with": "editorial-documentary", "refs": "chris-orzechowski/refs/" },
+    { "slug": "chris-do", "category": "brand-story", "status": "grounded", "source": "Chris Do / The Futur", "list_ref": 19, "fit": "Consultative brand narrative; sell without selling, customer as hero.", "pairs_with": "financial-restraint", "refs": "chris-do/refs/" },
+    { "slug": "sahil-bloom", "category": "brand-story", "status": "grounded", "source": "Sahil Bloom / Curiosity Chronicle", "list_ref": 12, "fit": "Framework storytelling; story opens, named framework carries.", "pairs_with": "editorial-documentary", "refs": "sahil-bloom/refs/" },
+    { "slug": "vikki-ross", "category": "brand-story", "status": "grounded", "source": "Vikki Ross (Sky TOV, Nando's)", "list_ref": 37, "fit": "Brand voice systems; talk to someone not about them; also the meta-voice for writing TOV guidelines.", "pairs_with": "editorial-documentary", "refs": "vikki-ross/refs/" },
+    { "slug": "jasmin-alic", "category": "personal-brand", "status": "grounded", "source": "Jasmin Alic / Hey Jay", "list_ref": 1, "fit": "Community-first LinkedIn; last-line-first hooks, comments as the stage.", "pairs_with": "editorial-documentary", "refs": "jasmin-alic/refs/" },
+    { "slug": "ana-paula-picasso", "category": "niche", "status": "grounded", "source": "Ana Paula Picasso / The Fintech Writer", "list_ref": 5, "fit": "Fintech/finance explainers; complex made accessible, data-anchored. Directly relevant to insurance/banking.", "pairs_with": "financial-restraint", "refs": "ana-paula-picasso/refs/", "note": "Conservative DNA — public method material is thinner; sharpen from real post excerpts in refs/." },
+
+    { "slug": "charles-miller", "category": "conversion", "status": "planned", "source": "Charles Miller", "list_ref": 9 },
+    { "slug": "sam-browne", "category": "conversion", "status": "planned", "source": "Sam Browne", "list_ref": 40 },
+    { "slug": "audrey-chia", "category": "conversion", "status": "planned", "source": "Audrey Chia", "list_ref": 17 },
+
+    { "slug": "nikhil-narayanan", "category": "brand-story", "status": "planned", "source": "Nikhil Narayanan", "list_ref": 4 },
+    { "slug": "bruno-lacerda", "category": "brand-story", "status": "planned", "source": "Bruno Lacerda", "list_ref": 7 },
+    { "slug": "shahzad-khan", "category": "brand-story", "status": "planned", "source": "Shahzad Khan", "list_ref": 16 },
+
+    { "slug": "lara-acosta", "category": "personal-brand", "status": "planned", "source": "Lara Acosta", "list_ref": 8, "note": "Public writing-method material thin (course-sales pages dominate search); needs her actual posts as refs before grounding — do not fabricate." },
+    { "slug": "dakota-robertson", "category": "personal-brand", "status": "planned", "source": "Dakota Robertson", "list_ref": 23 },
+    { "slug": "luke-matthews", "category": "personal-brand", "status": "planned", "source": "Luke Matthews", "list_ref": 21 },
+    { "slug": "matt-barker", "category": "personal-brand", "status": "planned", "source": "Matt Barker", "list_ref": 10 },
+    { "slug": "anisha-jain", "category": "personal-brand", "status": "planned", "source": "Anisha Jain", "list_ref": 14 },
+    { "slug": "alexis-rivera-scott", "category": "personal-brand", "status": "planned", "source": "Alexis Rivera Scott", "list_ref": 33 },
+    { "slug": "adam-knorr", "category": "personal-brand", "status": "planned", "source": "Adam Knorr", "list_ref": 34 },
+    { "slug": "holly-crawshaw", "category": "personal-brand", "status": "planned", "source": "Holly Crawshaw Joyner", "list_ref": 20 },
+    { "slug": "niharikaa-kaur-sodhi", "category": "personal-brand", "status": "planned", "source": "Niharikaa Kaur Sodhi", "list_ref": 11 },
+    { "slug": "saheli-chatterjee", "category": "personal-brand", "status": "planned", "source": "Saheli Chatterjee", "list_ref": 6 },
+    { "slug": "richard-van-der-blom", "category": "personal-brand", "status": "planned", "source": "Richard van der Blom (B2B LinkedIn)", "list_ref": 13 },
+    { "slug": "summer-applegate", "category": "personal-brand", "status": "planned", "source": "Summer Applegate", "list_ref": 35 },
+    { "slug": "khaulah-a", "category": "personal-brand", "status": "planned", "source": "Khaulah A.", "list_ref": 36 },
+    { "slug": "mantasha-anwar", "category": "personal-brand", "status": "planned", "source": "Mantasha Anwar", "list_ref": 38 },
+    { "slug": "kulsoom-shafa", "category": "personal-brand", "status": "planned", "source": "Kulsoom Shafa", "list_ref": 39 },
+    { "slug": "dharma-ramasamy", "category": "personal-brand", "status": "planned", "source": "Dharma Ramasamy", "list_ref": 28 },
+
+    { "slug": "alinnette-casiano", "category": "niche", "status": "planned", "source": "Alinnette Casiano (bilingual)", "list_ref": 18 },
+    { "slug": "jessi-risley", "category": "niche", "status": "planned", "source": "Jessi Risley (spiritual storytelling)", "list_ref": 32 }
+  ],
+  "principles_sources": [
+    { "name": "Rory Sutherland", "list_ref": 27, "role": "Psycho-logic / behavioral reframing", "applied_in": "copy_kit/frameworks.md#3-psycho-logic", "note": "A strategic lens, not a voice. Especially powerful for insurance/finance (peace-of-mind, loss-aversion framing)." },
+    { "name": "Ann Handley", "list_ref": 25, "role": "Editorial quality standard", "applied_in": "copy_kit/frameworks.md#6-editorial-standard", "note": "A quality bar applied in the critique pass, not a voice." }
+  ]
+}

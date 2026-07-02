@@ -11,13 +11,42 @@ file the generator can pull in.
 `--voice`, the system picks one based on the campaign type + product
 category.
 
-| Voice | When it fits |
-|---|---|
-| [`ogilvy-product`](ogilvy-product/dna.md) | Product-led campaigns. The brand's flagship "headline = USP" voice. Default for Xalq Sigorta product comms. |
-| [`halbert-direct-response`](halbert-direct-response/dna.md) | Deadline-driven, conversion-heavy, time-limited offers. Specific numbers, hard CTAs. |
-| [`apple-jobsian`](apple-jobsian/dna.md) | Brand-prestige moments. Headline ≤4 words, period as punctuation, restraint as luxury. |
-| [`hermes-quiet-luxury`](hermes-quiet-luxury/dna.md) | Heritage / premium positioning. Sensory, observational, catalog poetry. |
-| [`financial-restraint-az`](financial-restraint-az/dna.md) | The Xalq Sigorta default for AZ copy. Sakit professional Azerbaijani, no hype, "siz" form. |
+| Voice | Category | When it fits |
+|---|---|---|
+| [`ogilvy-product`](ogilvy-product/dna.md) | house | Product-led campaigns. The brand's flagship "headline = USP" voice. Default for Xalq Sigorta product comms. |
+| [`halbert-direct-response`](halbert-direct-response/dna.md) | direct-response | Deadline-driven, conversion-heavy, time-limited offers. Specific numbers, hard CTAs. |
+| [`apple-jobsian`](apple-jobsian/dna.md) | brand-story | Brand-prestige moments. Headline ≤4 words, period as punctuation, restraint as luxury. |
+| [`hermes-quiet-luxury`](hermes-quiet-luxury/dna.md) | brand-story | Heritage / premium positioning. Sensory, observational, catalog poetry. |
+| [`financial-restraint-az`](financial-restraint-az/dna.md) | house | The Xalq Sigorta default for AZ copy. Sakit professional Azerbaijani, no hype, "siz" form. |
+| [`joanna-wiebe`](joanna-wiebe/dna.md) | conversion | Landing/sales pages, sign-up flows. Voice-of-customer led, clarity-first. |
+| [`chase-dimond`](chase-dimond/dna.md) | email | Retention email flows + campaigns. Framework-built, single-goal, mobile-first. |
+| [`cole-schafer`](cole-schafer/dna.md) | brand-story | Hero lines, manifestos. Reads like poetry, sells like Ogilvy. |
+| [`eddie-shleyner`](eddie-shleyner/dna.md) | craft-hooks | Hooks, micro-essays, captions. One idea per sentence, bucket brigades. |
+| [`justin-welsh`](justin-welsh/dna.md) | personal-brand | Thought-leadership / founder content for the feed. Hook-led, one lesson per post. |
+| [`nicolas-cole`](nicolas-cole/dna.md) | craft-hooks | Structured long-form digital writing. 1-3-1 rhythm, 5-line intro, data-driven. |
+| [`dickie-bush`](dickie-bush/dna.md) | craft-hooks | Atomic essays — one idea, ~250 words, complete. Ship over polish. |
+| [`laura-belgray`](laura-belgray/dna.md) | email | Personality-driven list email. Story-first, funny in the details. |
+| [`chris-orzechowski`](chris-orzechowski/dna.md) | email | Back-end retention email. Big promise + objections, no-discount recovery. |
+| [`chris-do`](chris-do/dna.md) | brand-story | Consultative brand narrative. Sell without selling, customer as hero. |
+| [`sahil-bloom`](sahil-bloom/dna.md) | brand-story | Framework storytelling. Story opens, named framework carries. |
+| [`vikki-ross`](vikki-ross/dna.md) | brand-story | Brand voice systems. Talk *to* someone; also the meta-voice for TOV guidelines. |
+| [`jasmin-alic`](jasmin-alic/dna.md) | personal-brand | Community-first LinkedIn. Last-line-first hooks; comments as the stage. |
+| [`ana-paula-picasso`](ana-paula-picasso/dna.md) | niche | Fintech/finance explainers. Complex made accessible, data-anchored. |
+
+> **Universal library, two layers + a registry.** Voices describe *how a
+> copywriter sounds*. The principles that hold *regardless of voice*
+> (awareness stages, voice-of-customer, Sutherland's psycho-logic, hook
+> discipline, copy structures, the editorial bar) live one level down in
+> [`copy_kit/frameworks.md`](../copy_kit/frameworks.md) — loaded alongside
+> whichever voice is active. The full catalog (grounded + planned) is the
+> machine-readable [`index.json`](index.json), the single source of truth
+> any product can query by `category` and `status`.
+>
+> The library is seeded from the "Top 40 LinkedIn copywriters" source: the
+> grounded voices above are built from each author's real public work; the
+> rest are categorized as `status: "planned"` in `index.json` — a
+> documented roadmap, not invented files. **Rule: never fabricate a voice
+> — ground every one in the real author's published material.**
 
 ## Folder per voice
 
@@ -56,6 +85,20 @@ Each copywriter voice has a natural visual partner from
 | `apple-jobsian` | `financial-restraint` (restraint × restraint) |
 | `hermes-quiet-luxury` | `soft-maximalist` |
 | `financial-restraint-az` | `editorial-documentary` or `financial-restraint` |
+| `joanna-wiebe` | `editorial-documentary` or `financial-restraint` |
+| `chase-dimond` | `editorial-documentary` or `soft-maximalist` |
+| `cole-schafer` | `hermes-quiet-luxury` or `soft-maximalist` |
+| `eddie-shleyner` | `editorial-documentary` or `financial-restraint` |
+| `justin-welsh` | `editorial-documentary` or `financial-restraint` |
+| `nicolas-cole` | `editorial-documentary` |
+| `dickie-bush` | `editorial-documentary` or `financial-restraint` |
+| `laura-belgray` | `soft-maximalist` |
+| `chris-orzechowski` | `editorial-documentary` |
+| `chris-do` | `financial-restraint` or `editorial-documentary` |
+| `sahil-bloom` | `editorial-documentary` |
+| `vikki-ross` | brand-dependent (consistency within the brand first) |
+| `jasmin-alic` | `editorial-documentary` or `financial-restraint` |
+| `ana-paula-picasso` | `financial-restraint` or `editorial-documentary` |
 
 `/post` will respect these pairings unless overridden with both
 `--voice` and `--style` flags.
