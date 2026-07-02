@@ -60,6 +60,21 @@ task in  ──▶  gateway.queue  ──▶  gateway.supervisor (always-on work
 **The two planes meet in one place:** both ultimately call models through
 `llm_router.py`. That is the single chokepoint for cost, fallback, and logging.
 
+**The human checkpoint (approval rail).** Before executing, every job passes
+`security.evaluate_task` (hard blocks: secret exfil, destruction, payments) and
+then `security.evaluate_checkpoint` (outward actions: publish/send/call/deploy,
+AZ paylaş/göndər/yayımla/zəng). An unapproved outward job **parks** as
+`awaiting_approval` and the operator decides — Telegram `/approve N` · `/reject N`
+(owner-only) or one click in the control panel. Approval re-queues it with
+`approved=1`, which passes the checkpoint. Drafting ("3 post ideyası yaz") never
+parks; only acting does.
+
+**The operator's screen** is `gateway/panel.py` — **İdarəetmə Mərkəzi** (port
+8890, registered in `services.json`, embedded in the hub): live pulse, advisor
+findings, job queue + result previews, pending approvals with Approve/Reject,
+task submission into the queue, one-click engine sync. Renders with zero LLM
+tokens — it only reads the gateway's own state.
+
 ---
 
 ## 2. The model gateway — one door for every model call

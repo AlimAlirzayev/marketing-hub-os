@@ -40,6 +40,14 @@ def run_once() -> bool:
     print(f"[worker] running job {job.id} ({job.source}): {job.task[:80]!r}")
     try:
         out = execute(job)
+        # Outward-facing action -> the job parks at the human checkpoint instead
+        # of completing. The operator decides via /approve or /reject (Telegram
+        # or the control panel); approval re-queues it with approved=1.
+        if out.get("needs_approval"):
+            queue.park_for_approval(job.id, "outward_action checkpoint")
+            print(f"[worker] job {job.id} parked for operator approval")
+            _notify(job, out["result"])
+            return True
         queue.complete(job.id, out["result"], out.get("artifacts"))
         print(f"[worker] job {job.id} done -> {out.get('artifacts')}")
         sense.emit("job", f"#{job.id} done ({job.source})", {"task": job.task[:80]})

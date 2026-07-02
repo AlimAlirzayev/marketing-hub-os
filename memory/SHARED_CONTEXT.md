@@ -41,9 +41,13 @@ The system must stand on its own: **Claude Code = BUILDER** (premium, occasional
 The business must not stop when a Claude Code session's tokens run out.
 
 ## Roadmap
-1. **Shared traveling memory** ← this layer (foundation).
-2. **Admin control-center dashboard** driving the free brain.
-3. **Upgrade Telegram** to a first-class agent — all wired to the same gateway + memory.
+1. ✅ **Shared traveling memory** (foundation) + hands-free two-way engine sync.
+2. ✅ **Admin control-center** — `gateway/panel.py` (İdarəetmə Mərkəzi, port 8890):
+   pulse + advisor + queue + approvals + submit + sync, zero LLM tokens to render.
+3. ✅ **Telegram first-class agent** — supervisor (worker+scheduler+bot in one
+   process), security preflight + **human checkpoint** (outward actions park;
+   `/approve N` · `/reject N`, owner-authed), council escalation for complex work.
+Next: richer panel actions (schedules CRUD), brand_kit per-system privacy.
 
 ## Non-negotiables
 Security is the highest law: never commit `.env`/keys/PII. Risky actions

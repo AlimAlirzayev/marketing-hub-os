@@ -57,6 +57,11 @@
      "launch": "uvicorn", "target": "mediaforge.server:app", "health": "/api/health",
      "icon": "🎬", "cat": "Kontent", "hub_show": true},
 
+    {"key": "panel", "name": "İdarəetmə Mərkəzi", "desc": "Canlı nəbz + məsləhətçi + iş növbəsi + riskli-əməl təsdiqi (pulsuz beyin)",
+     "port": 8890, "dir": "gateway", "venv": ".venv", "cwd": ".",
+     "launch": "uvicorn", "target": "gateway.panel:app", "health": "/api/health",
+     "icon": "🎛️", "cat": "Sistem", "hub_show": true},
+
     {"key": "hq", "name": "Baş İqamətgah (klassik)", "desc": "Agent terminalı + korporativ bilik bazası",
      "port": 8501, "dir": ".", "venv": ".venv", "cwd": ".",
      "launch": "streamlit", "target": "app.py", "health": "/", "path": "/?embed=true",

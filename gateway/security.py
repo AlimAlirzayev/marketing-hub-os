@@ -186,10 +186,10 @@ def block(category: str, reason: str, matched_terms: list[str] | None = None) ->
     return SecurityDecision(False, category, "high", reason, matched_terms or [])
 
 
-def checkpoint(category: str, reason: str) -> SecurityDecision:
+def checkpoint(category: str, reason: str, matched_terms: list[str] | None = None) -> SecurityDecision:
     """Not allowed yet, but not a hard block either: needs explicit human approval.
     Severity 'checkpoint' tells callers to surface an approval prompt, not a refusal."""
-    return SecurityDecision(False, category, "checkpoint", reason)
+    return SecurityDecision(False, category, "checkpoint", reason, matched_terms or [])
 
 
 # Acquiring a provider API key is sensitive (it writes a secret to .env), so it is
@@ -215,6 +215,48 @@ def evaluate_credential_acquisition(provider: str) -> SecurityDecision:
             "and a one-time interactive browser login. It is never run silently in the background.",
         )
     return allow("credential_acquisition", "Provider allowlisted and operator approval present.")
+
+
+# --- the human checkpoint: outward-facing actions pause for approval --------
+#
+# The charter: "Risky actions need checkpoints: posting, sending, spending,
+# deleting, credentialed browsing, production writes." evaluate_task() above
+# hard-blocks the worst (secret exfil, destruction, payments); this classifier
+# catches the legitimate-but-outward rest (publish/send/call/deploy) so they
+# PARK for operator approval instead of running silently. Tuned so that
+# *drafting* ("3 post ideyası yaz") stays free while *acting* ("İnstagramda
+# paylaş") pauses. False positives cost one /approve tap; false negatives cost
+# an unwanted public action — so ambiguity leans toward the checkpoint.
+
+_CHECKPOINT_TERMS = (
+    # strong outward verbs, EN
+    "publish", "deploy", "send email", "send a dm", "send dm", "send sms",
+    "send message to", "tweet", "broadcast",
+    # strong outward verbs, AZ (paylaş = post/share IS the publishing action)
+    "paylaş", "paylas", "göndər", "gonder", "yayımla", "yayimla",
+    "dərc et", "derc et", "zəng et", "zeng et", "zəng elə", "zeng ele",
+)
+
+# "post" alone is ambiguous in EN ("3 post ideas" = drafting) — only these
+# phrasings mean actually pushing content out.
+_CHECKPOINT_PHRASES = (
+    "post to", "post on", "post it", "post this", "post the", "post now",
+    "call the customer", "call customer", "call client", "email to", "email the",
+)
+
+
+def evaluate_checkpoint(task: str) -> SecurityDecision:
+    """Classify a task that already passed evaluate_task(): does it perform an
+    outward-facing action that must wait for operator approval?"""
+    hits = _matches(task, _CHECKPOINT_TERMS) + _matches(task, _CHECKPOINT_PHRASES)
+    if hits:
+        return checkpoint(
+            "outward_action",
+            "Task performs an outward-facing action (publish/send/call/deploy). "
+            "It is parked until the operator approves it.",
+            hits,
+        )
+    return allow("task", "No outward-facing action detected.")
 
 
 def evaluate_task(task: str) -> SecurityDecision:

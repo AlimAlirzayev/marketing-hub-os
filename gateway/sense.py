@@ -164,7 +164,7 @@ def _queue_state() -> dict:
     try:
         from . import queue
         counts: dict[str, int] = {}
-        for st in ("queued", "running", "done", "error"):
+        for st in ("queued", "running", "done", "error", "awaiting_approval", "rejected"):
             counts[st] = len(queue.list_jobs(status=st, limit=10_000))
         return counts
     except Exception as exc:  # noqa: BLE001

@@ -60,6 +60,9 @@ scripts/_digests/
 data/graph_runs.jsonl
 data/graph_checkpoints.sqlite*
 
+# Job queue runtime DB (gateway/queue.py) incl. SQLite WAL/SHM siblings
+data/jobs.sqlite*
+
 # PRIVATE context (business/customer/brand/strategy/conversation) — NEVER travels.
 # Only the shared engine (memory/ + code) crosses between systems via git.
 data/private_context/

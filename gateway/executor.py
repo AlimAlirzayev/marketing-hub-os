@@ -275,6 +275,25 @@ def execute(job: Job) -> dict:
             sense.emit("job", f"#{job.id} briefing", {"task": job.task[:80]})
             return {"result": f"_[briefing]_\n\n{text}", "artifacts": [artifact]}
 
+        # The human checkpoint (charter: outward actions never run silently).
+        # A publish/send/call/deploy task parks for operator approval; once the
+        # operator /approve-s it, the job returns approved=1 and passes through.
+        if not job.approved:
+            cp = security.evaluate_checkpoint(job.task)
+            if not cp.allowed:
+                security.audit_event(
+                    "job_checkpoint", cp, {"job_id": job.id, "task": job.task}
+                )
+                sense.emit("job", f"#{job.id} awaiting approval", {"task": job.task[:80]})
+                text = (
+                    "⏸ **Bu tapşırıq bayıra yönəlik əməl edir** (paylaşım/göndəriş/"
+                    "zəng/deploy) və təsdiqini gözləyir.\n\n"
+                    f"Tapşırıq: {job.task}\n\n"
+                    f"Təsdiq üçün:  /approve {job.id}\n"
+                    f"İmtina üçün:  /reject {job.id}"
+                )
+                return {"result": text, "artifacts": [], "needs_approval": True}
+
         if _council_should_run(job.task):
             from . import council
             label, text = council.run(job.task, _execute_after_council)

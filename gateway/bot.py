@@ -35,9 +35,11 @@ _HELP = (
     "Xalq Insurance Digital OS background agent.\n"
     "Send me any task and I'll run it in the background, then send the result.\n\n"
     "Commands:\n"
-    "  /jobs    - list recent jobs\n"
-    "  /update  - pull the latest engine from GitHub (owner only)\n"
-    "  /help    - this message"
+    "  /jobs       - list recent jobs\n"
+    "  /approve N  - approve a parked risky job (owner only)\n"
+    "  /reject N   - reject a parked risky job (owner only)\n"
+    "  /update     - pull the latest engine from GitHub (owner only)\n"
+    "  /help       - this message"
 )
 
 
@@ -98,8 +100,32 @@ def _handle_message(msg: dict) -> None:
         if not jobs:
             telegram.send_message(chat_id, "No jobs yet.")
         else:
-            lines = [f"#{j.id} [{j.status}] {j.task[:50]}" for j in jobs]
+            mark = {"awaiting_approval": "⏸", "done": "✅", "error": "⚠️", "rejected": "🚫"}
+            lines = [f"{mark.get(j.status, '·')} #{j.id} [{j.status}] {j.task[:50]}" for j in jobs]
             telegram.send_message(chat_id, "\n".join(lines))
+        return
+
+    # The human checkpoint's other half: the operator decides a parked job's fate.
+    parts = text.split()
+    if parts[0] in ("/approve", "/reject") and len(parts) >= 2 and parts[1].isdigit():
+        if not _is_owner(chat_id):
+            telegram.send_message(chat_id, "Not authorized for ops commands.")
+            return
+        job_id = int(parts[1])
+        if parts[0] == "/approve":
+            ok = queue.approve(job_id)
+            telegram.send_message(
+                chat_id,
+                f"✅ Job #{job_id} təsdiqləndi — icraya qayıtdı." if ok
+                else f"Job #{job_id} təsdiq gözləmir (artıq həll olunub və ya yoxdur).",
+            )
+        else:
+            ok = queue.reject(job_id)
+            telegram.send_message(
+                chat_id,
+                f"🚫 Job #{job_id} imtina edildi — icra olunmayacaq." if ok
+                else f"Job #{job_id} təsdiq gözləmir (artıq həll olunub və ya yoxdur).",
+            )
         return
 
     job_id = queue.submit(text, source="telegram", chat_id=str(chat_id))

@@ -5,6 +5,7 @@ restart, and is safe for one writer (the worker) plus many readers (the
 front-ends). WAL mode keeps reads non-blocking while the worker writes.
 
 A job moves through:  queued -> running -> done | error | needs_input
+                                        -> awaiting_approval -> queued (approved) | rejected
 """
 
 from __future__ import annotations
@@ -28,12 +29,17 @@ CREATE TABLE IF NOT EXISTS jobs (
     result      TEXT,
     error       TEXT,
     artifacts   TEXT    NOT NULL DEFAULT '[]',  -- JSON list of file paths
+    approved    INTEGER NOT NULL DEFAULT 0,     -- operator approved a risky action
     created_at  REAL    NOT NULL,
     started_at  REAL,
     finished_at REAL
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 """
+
+# Pre-approval databases lack the column; add it in place (SQLite has no
+# IF NOT EXISTS for columns, so probe-and-alter).
+_MIGRATIONS = ("ALTER TABLE jobs ADD COLUMN approved INTEGER NOT NULL DEFAULT 0",)
 
 
 @dataclass
@@ -49,6 +55,7 @@ class Job:
     created_at: float
     started_at: float | None
     finished_at: float | None
+    approved: bool = False
 
     @classmethod
     def _from_row(cls, row: sqlite3.Row) -> "Job":
@@ -64,6 +71,7 @@ class Job:
             created_at=row["created_at"],
             started_at=row["started_at"],
             finished_at=row["finished_at"],
+            approved=bool(row["approved"] if "approved" in row.keys() else 0),
         )
 
 
@@ -79,6 +87,11 @@ def _connect() -> sqlite3.Connection:
 def init_db() -> None:
     with _connect() as conn:
         conn.executescript(_SCHEMA)
+        for stmt in _MIGRATIONS:
+            try:
+                conn.execute(stmt)
+            except sqlite3.OperationalError:
+                pass  # column already exists
 
 
 def submit(task: str, source: str = "cli", chat_id: str | None = None) -> int:
@@ -145,6 +158,41 @@ def fail(job_id: int, error: str) -> None:
             "UPDATE jobs SET status='error', error=?, finished_at=? WHERE id=?",
             (error, time.time(), job_id),
         )
+
+
+# --- the human checkpoint (risky actions pause here, never auto-run) -------
+
+def park_for_approval(job_id: int, reason: str = "") -> None:
+    """Move a running job to 'awaiting_approval'. The operator decides its fate
+    (approve/reject); until then no executor will touch it."""
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE jobs SET status='awaiting_approval', error=? WHERE id=?",
+            (reason or None, job_id),
+        )
+
+
+def approve(job_id: int) -> bool:
+    """Operator approved a parked risky job: mark approved and re-queue it.
+    Returns False if the job wasn't awaiting approval (already decided/gone)."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE jobs SET status='queued', approved=1, error=NULL, started_at=NULL "
+            "WHERE id=? AND status='awaiting_approval'",
+            (job_id,),
+        )
+        return cur.rowcount > 0
+
+
+def reject(job_id: int) -> bool:
+    """Operator rejected a parked risky job: close it without executing."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE jobs SET status='rejected', finished_at=? "
+            "WHERE id=? AND status='awaiting_approval'",
+            (time.time(), job_id),
+        )
+        return cur.rowcount > 0
 
 
 def get(job_id: int) -> Job | None:
