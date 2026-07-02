@@ -43,6 +43,45 @@ def _cmd_gap(args) -> int:
     return 0 if g.competitors else 1
 
 
+def _cmd_pipeline(args) -> int:
+    from .graph import resume, run
+
+    if not args.resume and not args.keyword:
+        print("  Xəta: açar söz ver və ya --resume THREAD_ID istifadə et.")
+        return 1
+
+    if args.resume:
+        print(f"  ◆ Thread bərpa olunur: {args.resume} · qərar: {args.decision}")
+        out = resume(args.resume, args.decision)
+    else:
+        mode = []
+        if args.serp:
+            mode.append("SERP gap")
+        if not args.no_refine:
+            mode.append("self-reflection")
+        if args.publish:
+            mode.append("nəşr qapısı")
+        print(f"  ◆ Pipeline başlayır — “{args.keyword}” ({', '.join(mode) or 'sadə'})...")
+        out = run(args.keyword, use_serp=args.serp, refine=not args.no_refine,
+                  publish=args.publish)
+
+    if "__interrupt__" in out:
+        info = out["__interrupt__"]
+        print("  ⏸ DAYANDI — insan təsdiqi tələb olunur:")
+        print(f"     {info.get('question', '')}")
+        print(f"     məqalə: {info.get('article', '')} · on-page: {info.get('onpage', '')}")
+        print(f"  Davam üçün: python -m seo pipeline --resume {out['thread_id']} --decision approve")
+        return 2
+
+    print(f"  ✓ Bitdi · on-page: {out.get('onpage', '?')} · ~{out.get('words', '?')} söz"
+          f" · {'təkmilləşdirildi' if out.get('improved') else 'ilk versiya'}")
+    if out.get("article_path"):
+        print(f"  📄 {out['article_path']}")
+    if out.get("result"):
+        print(f"  ℹ {out['result']}")
+    return 0
+
+
 def _cmd_write(args) -> int:
     from .content.brief import build_brief
     from .content.writer import onpage_selfcheck, write_article
@@ -113,6 +152,15 @@ def main(argv: list[str] | None = None) -> int:
     pg.add_argument("keyword")
     pg.add_argument("--top", type=int, default=5, help="Neçə rəqib təhlil edilsin")
     pg.set_defaults(func=_cmd_gap)
+
+    pp = sub.add_parser("pipeline", help="Davamlı (checkpointed) tam axın: research→gap→brief→write→[nəşr qapısı]")
+    pp.add_argument("keyword", nargs="?", default="")
+    pp.add_argument("--serp", action="store_true", help="SERP gap addımını daxil et")
+    pp.add_argument("--no-refine", action="store_true", help="Self-reflection döngüsünü at")
+    pp.add_argument("--publish", action="store_true", help="Sonda nəşr qapısı (insan təsdiqi ilə dayanır)")
+    pp.add_argument("--resume", metavar="THREAD_ID", help="Dayanmış thread-i bərpa et")
+    pp.add_argument("--decision", default="approve", help="Bərpa qərarı: approve|reject")
+    pp.set_defaults(func=_cmd_pipeline)
 
     pw = sub.add_parser("write", help="Açar sözdən on-page mükəmməl SEO məqalə yaz")
     pw.add_argument("keyword")

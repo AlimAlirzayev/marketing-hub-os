@@ -22,8 +22,15 @@ anything it can't measure is labelled `ƏLÇATMAZ`.
 python -m seo audit example.com --html        # full audit + premium HTML report (--pdf for PDF)
 python -m seo research "kasko sığorta"        # keyword harvest + AI intent clusters
 python -m seo gap "kasko sığorta"             # SERP competitors → table-stakes + ranking gaps + FAQ
-python -m seo write "kasko sığorta nədir" --serp  # SERP-grounded SEO article + JSON-LD + self-audit
+python -m seo write "kasko sığorta nədir" --serp --refine  # SERP-grounded article + self-reflection loop
+python -m seo pipeline "kasko sığorta" --serp --publish    # durable LangGraph flow; pauses for human
+python -m seo pipeline --resume <thread_id> --decision approve  # resume from any process
 ```
+
+The **pipeline** is the durable form of the whole flow (research→gap→brief→
+write+refine→publish gate): every node is checkpointed to SQLite, so a crashed
+batch resumes where it died, and publishing always pauses for human approval
+(the interrupt survives process death). Deferred work + triggers: `seo/ROADMAP.md`.
 
 ### Web panel + skill
 - **Panel** (port 8860, `SEO Studiyası`, embedded in the Marketing OS Hub):
