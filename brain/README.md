@@ -14,11 +14,12 @@ gateway, the council, a future session) can stand on.
 1. **Markdown is the source of truth.** Every entry is one human-readable file in
    `data/memory/<id>.md` with a small frontmatter header. Nothing is ever locked
    in a binary blob; everything is greppable, git-trackable, and hand-editable.
-2. **Embeddings are only an accelerator.** Semantic search (Gemini
-   `text-embedding-004`) is an *optional* rerank layer that must degrade to
-   keyword search when the free tier is unavailable. Off by default
-   (`BRAIN_EMBEDDINGS=1` to enable). The Gemini free tier is too flaky to depend
-   on — recall works offline, instantly, with zero API calls.
+2. **Embeddings are only an accelerator.** Semantic search is an *optional*
+   rerank layer that must degrade to keyword search when a provider is
+   unavailable. Off by default (`BRAIN_EMBEDDINGS=1` to enable). The preferred
+   private path is local TEI or another private OpenAI-compatible embedding
+   endpoint; Gemini remains a fallback for non-sensitive use. Recall works
+   offline, instantly, with zero API calls.
 3. **The brain never fabricates itself full.** Auto-distilled lessons land in a
    **pending review queue** (`data/memory/_pending/`), never straight into the
    trusted store. A human (or `brain review approve`) promotes the good ones.
@@ -93,6 +94,9 @@ python -m brain review reject 2
 # distill a finished gateway job into lessons
 python -m brain reflect --job 12
 
+# embedding provider status (no network call, no secrets)
+python -m brain embeddings
+
 # (re)seed the durable, hard-won learnings
 python -m brain.seed
 ```
@@ -126,11 +130,28 @@ brain.stats()
 | `BRAIN_RECALL` | `1` (on) | Inject institutional knowledge into execution prompts |
 | `BRAIN_REFLECT` | `1` (on) | Auto-distill finished jobs into pending lessons (1 Gemini call/job) |
 | `BRAIN_EMBEDDINGS` | `0` (off) | Add semantic rerank on top of keyword recall |
-| `BRAIN_EMBED_MODEL` | `text-embedding-004` | Embedding model |
+| `BRAIN_EMBED_PROVIDER` | `auto` | `auto`, `tei`, `openai`, or `gemini` |
+| `BRAIN_EMBED_ENDPOINT` | empty | Local/private TEI or `/v1/embeddings` endpoint |
+| `BRAIN_EMBED_MODEL` | provider default | Embedding model (`text-embedding-004` for Gemini) |
+| `BRAIN_EMBED_ALLOW_EXTERNAL` | `0` | Keep hosted/external embedding endpoints blocked by default |
+| `BRAIN_EMBED_TIMEOUT_SECONDS` | `8` | Embedding endpoint timeout |
 | `BRAIN_REFLECT_MODEL` | `gemini-2.5-flash` | Model used to distill lessons |
 
 Set any to `0` to disable. With everything off, the gateway behaves exactly as
 it did before the brain existed.
+
+For private Hugging Face TEI:
+
+```powershell
+BRAIN_EMBEDDINGS=1
+BRAIN_EMBED_PROVIDER=tei
+BRAIN_EMBED_ENDPOINT=http://127.0.0.1:8080/embed
+BRAIN_EMBED_MODEL=Qwen/Qwen3-Embedding-0.6B
+```
+
+External embedding endpoints are ignored unless `BRAIN_EMBED_ALLOW_EXTERNAL=1`
+is explicitly set. Do not use external endpoints for customer data, claims,
+internal documents, or private strategy.
 
 ## Tests
 

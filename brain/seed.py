@@ -195,10 +195,12 @@ SEED: list[Entry] = [
             "The Knowledge Core stores every learning as a human-readable markdown "
             "file (data/memory/) so nothing is ever locked in a blob and everything is "
             "git-trackable and editable. Embeddings are an optional rerank layer "
-            "(BRAIN_EMBEDDINGS=1) that must degrade to keyword search when the free "
-            "tier is unavailable. Auto-reflected lessons go to a pending review queue, "
+            "(BRAIN_EMBEDDINGS=1) that must degrade to keyword search when the "
+            "provider is unavailable. Prefer local/private TEI or OpenAI-compatible "
+            "embedding endpoints for internal data; Gemini is only a fallback for "
+            "non-sensitive use. Auto-reflected lessons go to a pending review queue, "
             "never straight into the trusted store. Why: durability and trust beat "
-            "cleverness; the free tier is too flaky to depend on."
+            "cleverness; hosted model tiers are too flaky and sensitive for core memory."
         ),
     ),
 ]

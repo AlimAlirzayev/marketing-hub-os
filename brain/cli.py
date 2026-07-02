@@ -18,7 +18,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import capture, retrieval, store
+from . import capture, embeddings, retrieval, store
 
 
 def _read_body(args) -> str:
@@ -191,6 +191,15 @@ def _cmd_reindex(args) -> int:
     return 0
 
 
+def _cmd_embeddings(args) -> int:
+    info = embeddings.provider_info()
+    print("Brain embeddings:")
+    for key in ("enabled", "provider", "model", "endpoint", "endpoint_private", "external_allowed", "cache_file"):
+        print(f"  {key}: {info.get(key)}")
+    print("No network call was made.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="brain", description="RAMIN OS Knowledge Core")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -235,6 +244,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("stats", help="store statistics").set_defaults(func=_cmd_stats)
     sub.add_parser("reindex", help="rebuild INDEX.md").set_defaults(func=_cmd_reindex)
+    sub.add_parser("embeddings", help="show embedding provider status without network calls").set_defaults(func=_cmd_embeddings)
     return p
 
 
