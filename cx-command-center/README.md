@@ -36,7 +36,8 @@ docker compose up -d cx-command-center
 
 - Stores every customer signal in local SQLite.
 - Normalizes manual, Chatplace and Google review webhook payloads.
-- Runs deterministic complaint triage with optional Gemini refinement.
+- Runs deterministic complaint triage with optional local/private Hugging Face
+  sentiment reinforcement and Gemini refinement.
 - Assigns category, risk severity, urgency score, team and SLA deadline.
 - Generates an Azerbaijani public/private reply draft.
 - Builds a draft-only CX Resolution Agent plan: priority recovery queue,
@@ -153,6 +154,14 @@ CX_GEMINI_MODEL=gemini-3.5-flash
 CX_AI_TIMEOUT_SECONDS=5
 CX_SYNC_INTERVAL_SECONDS=0
 
+CX_HF_SENTIMENT_ENABLED=0
+CX_HF_SENTIMENT_ENDPOINT=
+CX_HF_SENTIMENT_MODEL=
+CX_HF_SENTIMENT_ALLOW_EXTERNAL=0
+CX_HF_SENTIMENT_TIMEOUT_SECONDS=4
+CX_HF_SENTIMENT_MIN_CONFIDENCE=0.70
+CX_HF_SENTIMENT_MAX_CHARS=1200
+
 CHATPLACE_PULL_URL=
 CHATPLACE_API_TOKEN=
 
@@ -172,6 +181,11 @@ META_SYNC_COMMENT_LIMIT=50
 
 The app reuses `GEMINI_API_KEY` or `GOOGLE_API_KEY`. Without a
 key, rule-based triage still works.
+
+The optional Hugging Face sentiment path is deliberately private-first. It
+expects a local/private text-classification endpoint that returns HF-style
+`label` + `score` rows. It can raise complaint risk when the model sees a strong
+negative signal, but it cannot downgrade deterministic rule-based risk.
 
 ## Channel connection plan
 

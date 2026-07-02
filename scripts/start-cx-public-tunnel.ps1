@@ -1,7 +1,8 @@
 param(
     [string]$LocalUrl = "http://127.0.0.1:8810",
     [string]$EnvPath = ".env",
-    [switch]$NoEnvUpdate
+    [switch]$NoEnvUpdate,
+    [int]$Attempts = 3
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,42 +35,76 @@ if (Test-Path $pidFile) {
                     ForEach-Object { $_.Matches.Value } |
                     Select-Object -Last 1
                 if ($existing) {
-                    Write-Host "Public URL: $existing"
-                    exit 0
+                    try {
+                        $health = Invoke-RestMethod -Uri "$existing/api/health" -TimeoutSec 15
+                        if ($health.ok) {
+                            Write-Host "Public URL: $existing"
+                            exit 0
+                        }
+                    } catch {
+                        Write-Host "Movcud tunnel cavab vermir, yenisi yaradilir..."
+                        Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
+                        Remove-Item -Force $pidFile -ErrorAction SilentlyContinue
+                    }
                 }
             }
         }
     }
 }
 
-Remove-Item -Force $log, $errLog -ErrorAction SilentlyContinue
-
-$args = @("tunnel", "--url", $LocalUrl, "--no-autoupdate", "--protocol", "http2")
-$proc = Start-Process -FilePath $cloudflared -ArgumentList $args -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errLog -PassThru
-$proc.Id | Set-Content -Path $pidFile
-
-Write-Host "Tunnel basladildi: PID $($proc.Id)"
-
-$deadline = (Get-Date).AddSeconds(45)
 $publicUrl = $null
-while ((Get-Date) -lt $deadline) {
-    Start-Sleep -Seconds 2
-    $logPaths = @($log, $errLog) | Where-Object { Test-Path $_ }
-    if ($logPaths) {
-        $publicUrl = Select-String -Path $logPaths -Pattern "https://[-a-zA-Z0-9.]+\.trycloudflare\.com" -AllMatches |
-            ForEach-Object { $_.Matches.Value } |
-            Select-Object -Last 1
-        if ($publicUrl) {
+for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+    Remove-Item -Force $log, $errLog -ErrorAction SilentlyContinue
+
+    $args = @("tunnel", "--url", $LocalUrl, "--no-autoupdate", "--protocol", "http2")
+    $proc = Start-Process -FilePath $cloudflared -ArgumentList $args -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errLog -PassThru
+    $proc.Id | Set-Content -Path $pidFile
+
+    Write-Host "Tunnel basladildi: PID $($proc.Id) (cehd $attempt/$Attempts)"
+
+    $deadline = (Get-Date).AddSeconds(45)
+    while ((Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds 2
+        $logPaths = @($log, $errLog) | Where-Object { Test-Path $_ }
+        if ($logPaths) {
+            $publicUrl = Select-String -Path $logPaths -Pattern "https://[-a-zA-Z0-9.]+\.trycloudflare\.com" -AllMatches |
+                ForEach-Object { $_.Matches.Value } |
+                Select-Object -Last 1
+            if ($publicUrl) {
+                break
+            }
+        }
+        if ($proc.HasExited) {
             break
         }
     }
-    if ($proc.HasExited) {
-        break
+
+    if ($publicUrl) {
+        $healthOk = $false
+        for ($i = 0; $i -lt 8; $i++) {
+            try {
+                $health = Invoke-RestMethod -Uri "$publicUrl/api/health" -TimeoutSec 15
+                if ($health.ok) {
+                    $healthOk = $true
+                    break
+                }
+            } catch {
+                Start-Sleep -Seconds 3
+            }
+        }
+        if ($healthOk) {
+            break
+        }
+        Write-Host "Tunnel URL health cavab vermedi: $publicUrl"
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        $publicUrl = $null
+    } else {
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
     }
 }
 
 if (-not $publicUrl) {
-    Write-Error "Public URL tapilmadi. Log: $log"
+    Write-Error "Public URL tapilmadi ve ya health cavab vermedi. Log: $log"
     if (Test-Path $log) {
         Get-Content $log -Tail 40
     }

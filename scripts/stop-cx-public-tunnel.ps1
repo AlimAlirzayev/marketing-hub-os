@@ -7,12 +7,12 @@ if (-not (Test-Path $pidFile)) {
     exit 0
 }
 
-$pid = Get-Content $pidFile -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($pid) {
-    $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+$tunnelPid = Get-Content $pidFile -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($tunnelPid) {
+    $proc = Get-Process -Id $tunnelPid -ErrorAction SilentlyContinue
     if ($proc) {
-        Stop-Process -Id $pid -Force
-        Write-Host "Tunnel dayandirildi: PID $pid"
+        Stop-Process -Id $tunnelPid -Force
+        Write-Host "Tunnel dayandirildi: PID $tunnelPid"
     } else {
         Write-Host "Tunnel prosesi artiq islemir."
     }

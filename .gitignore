@@ -79,6 +79,9 @@ node_modules/
 # OpenCode local session/cache data (keep opencode.json, ignore runtime state)
 .opencode/
 
+# Service runtime logs (stdout/stderr from launched services)
+logs/
+
 # Editor / OS
 .DS_Store
 Thumbs.db

@@ -23,6 +23,7 @@ import analytics
 import collector
 import config
 import resolution_agent
+import sentiment_hf
 import store
 import triage
 from connectors.chatplace import normalize_payload as normalize_chatplace_payload
@@ -62,6 +63,7 @@ def meta() -> dict:
         "categories": config.CATEGORIES,
         "statuses": config.STATUSES,
         "ai_enabled": bool(config.AI_ENABLED and config.GEMINI_API_KEY),
+        "hf_sentiment": sentiment_hf.status(),
         "meta_webhook_configured": bool(config.META_VERIFY_TOKEN),
         "meta_graph_pull_configured": collector.integration_status()["channels"]["meta_graph_pull"]["configured"],
         "chatplace_pull_configured": collector.integration_status()["channels"]["chatplace_pull"]["configured"],

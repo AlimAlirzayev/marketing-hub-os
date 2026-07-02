@@ -31,6 +31,15 @@ GEMINI_MODEL = os.getenv("CX_GEMINI_MODEL") or os.getenv("MODEL_FREE_BULK", "gem
 AI_ENABLED = os.getenv("CX_AI_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 AI_TIMEOUT_SECONDS = float(os.getenv("CX_AI_TIMEOUT_SECONDS", "5"))
 
+HF_SENTIMENT_ENABLED = os.getenv("CX_HF_SENTIMENT_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+HF_SENTIMENT_ENDPOINT = os.getenv("CX_HF_SENTIMENT_ENDPOINT", "").strip()
+HF_SENTIMENT_MODEL = os.getenv("CX_HF_SENTIMENT_MODEL", "").strip()
+HF_SENTIMENT_ALLOW_EXTERNAL = os.getenv("CX_HF_SENTIMENT_ALLOW_EXTERNAL", "0").lower() in {"1", "true", "yes", "on"}
+HF_SENTIMENT_TIMEOUT_SECONDS = float(os.getenv("CX_HF_SENTIMENT_TIMEOUT_SECONDS", "4"))
+HF_SENTIMENT_MIN_CONFIDENCE = float(os.getenv("CX_HF_SENTIMENT_MIN_CONFIDENCE", "0.70"))
+HF_SENTIMENT_MAX_CHARS = int(os.getenv("CX_HF_SENTIMENT_MAX_CHARS", "1200"))
+HF_SENTIMENT_WAIT_FOR_MODEL = os.getenv("CX_HF_SENTIMENT_WAIT_FOR_MODEL", "1").lower() in {"1", "true", "yes", "on"}
+
 WEBHOOK_SECRET = os.getenv("CX_WEBHOOK_SECRET", "")
 META_VERIFY_TOKEN = os.getenv("CX_META_VERIFY_TOKEN", os.getenv("META_WEBHOOK_VERIFY_TOKEN", ""))
 META_APP_SECRET = os.getenv("CX_META_APP_SECRET", os.getenv("META_APP_SECRET", ""))

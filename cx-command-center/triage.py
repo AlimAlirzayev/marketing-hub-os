@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import config
+import sentiment_hf
 
 _AI_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 
@@ -118,6 +119,31 @@ def _sentiment_and_score(text: str, rating: float | None) -> tuple[str, int]:
     if rating and rating >= 4:
         return "positive", 8
     return "neutral", min(score, 100)
+
+
+def _with_hf_sentiment(text: str, rating: float | None, sentiment: str, urgency_score: int) -> tuple[str, int, dict[str, Any]]:
+    """Blend optional HF sentiment without weakening deterministic safety rules."""
+    signal = sentiment_hf.classify(text)
+    if signal is None:
+        return sentiment, urgency_score, {"sentiment_source": "rules"}
+
+    meta = {
+        "sentiment_source": "rules+hf_local",
+        "hf_sentiment": signal.sentiment,
+        "hf_sentiment_confidence": round(signal.confidence, 3),
+        "hf_sentiment_label": signal.label,
+        "hf_sentiment_model": signal.model,
+    }
+    if signal.sentiment == "negative":
+        urgency_score = max(urgency_score, 60 if signal.confidence >= 0.9 else 35)
+        if sentiment != "very_negative":
+            sentiment = "very_negative" if signal.confidence >= 0.9 or urgency_score >= 55 else "negative"
+    elif signal.sentiment == "positive":
+        rating_is_bad = rating is not None and rating <= 3
+        if not rating_is_bad and sentiment == "neutral" and urgency_score < 25:
+            sentiment = "positive"
+            urgency_score = max(urgency_score, 8)
+    return sentiment, min(urgency_score, 100), meta
 
 
 def _severity(channel: str, sentiment: str, urgency_score: int, category: str, rating: float | None) -> str:
@@ -321,6 +347,7 @@ def triage_message(message: dict) -> dict:
     channel = message.get("channel") or "manual"
     language = message.get("language") or _detect_language(text)
     sentiment, urgency_score = _sentiment_and_score(text, rating)
+    sentiment, urgency_score, sentiment_meta = _with_hf_sentiment(text, rating, sentiment, urgency_score)
     category = _category(text)
     severity = _severity(channel, sentiment, urgency_score, category, rating)
     baseline = {
@@ -336,5 +363,6 @@ def triage_message(message: dict) -> dict:
         "recommended_reply": _reply(text, channel, category, severity),
         "tags": [category, severity, channel],
         "ai_source": "rules",
+        **sentiment_meta,
     }
     return _gemini_refine(message, baseline)
