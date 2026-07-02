@@ -62,15 +62,28 @@ def _cmd_write(args) -> int:
     if args.brief_only:
         return 0
 
-    print("  ◆ Məqalə yazılır...")
-    art = write_article(brief)
-    words = len(art.markdown.split())
-    print(f"    yazıldı: ~{words} söz · {len(art.faq)} FAQ · JSON-LD: "
-          f"{', '.join(o.get('@type','') for o in art.jsonld) or 'yox'} · mənbə: {art.source}")
+    if args.refine:
+        from .content.refine import refine_article
+        print("  ◆ Məqalə yazılır + self-reflection döngüsü...")
+        rr = refine_article(brief, max_iters=args.max_iters)
+        art = rr.article
+        for it in rr.iterations:
+            extra = f" · {len(it.issues)} problem" if it.issues else ""
+            print(f"    iterasiya {it.n}: on-page {it.onpage_passed}/{it.onpage_total} "
+                  f"· hökm: {it.verdict}{extra}")
+        print(f"    nəticə: {'təkmilləşdirildi ✓' if rr.improved else 'ilk versiya publish-grade idi'}")
+        words = len(art.markdown.split())
+        print(f"    yekun: ~{words} söz · {len(art.faq)} FAQ · mənbə: {art.source}")
+    else:
+        print("  ◆ Məqalə yazılır...")
+        art = write_article(brief)
+        words = len(art.markdown.split())
+        print(f"    yazıldı: ~{words} söz · {len(art.faq)} FAQ · JSON-LD: "
+              f"{', '.join(o.get('@type','') for o in art.jsonld) or 'yox'} · mənbə: {art.source}")
 
-    check = onpage_selfcheck(article_html(art))
-    print(f"  ◆ Öz-audit (dogfood): on-page {check['passed']}/{check['total']} keçdi — "
-          + " ".join(f"{i}:{s}" for i, s, _ in check["findings"]))
+        check = onpage_selfcheck(article_html(art))
+        print(f"  ◆ Öz-audit (dogfood): on-page {check['passed']}/{check['total']} keçdi — "
+              + " ".join(f"{i}:{s}" for i, s, _ in check["findings"]))
 
     out = save_article_html(art, to_pdf=args.pdf)
     print(f"\n  📄 Məqalə: {out}")
@@ -104,6 +117,8 @@ def main(argv: list[str] | None = None) -> int:
     pw = sub.add_parser("write", help="Açar sözdən on-page mükəmməl SEO məqalə yaz")
     pw.add_argument("keyword")
     pw.add_argument("--serp", action="store_true", help="CANLI SERP rəqib təhlili ilə gücləndir")
+    pw.add_argument("--refine", action="store_true", help="Self-reflection: yaz→tənqid→təkmilləşdir→təkrar yoxla")
+    pw.add_argument("--max-iters", type=int, default=2, help="Reflection iterasiya limiti")
     pw.add_argument("--brief-only", action="store_true", help="Yalnız SEO brief (məqalə yazma)")
     pw.add_argument("--pdf", action="store_true", help="Məqaləni PDF-ə çevir (headless Edge)")
     pw.set_defaults(func=_cmd_write)
