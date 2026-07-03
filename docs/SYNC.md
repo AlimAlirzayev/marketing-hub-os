@@ -46,20 +46,33 @@ So on the MacBook you don't say "pull first" — by the time you write your firs
 message, the SessionStart hook has already synced. If it prints
 `pulled new engine updates`, that's the update finishing in the background.
 
-## Keys don't travel — the owner is the courier
+## Keys travel too — but only ENCRYPTED (the vault)
 
-`.env` (API keys) is git-ignored on purpose, so the mail never carries secrets —
-and partly the two machines *should* differ (`BRAND`, work-specific accounts).
-When one friend gains a key the other should also have, the OWNER hands it over
-in one Telegram message to the other machine's bot:
+Plaintext keys never touch git (`.env` stays ignored). But keys still flow
+between the friends automatically, the way SOPS/git-crypt do it: as ciphertext.
 
-    /setkey RAPIDAPI_KEY abc123...     (owner-only)
+* `secrets/keys.vault` — git-TRACKED encrypted blob (Fernet: AES + HMAC, scrypt
+  key derivation). Anyone reading the repo sees noise — no values, no key names.
+* `KEY_VAULT_SECRET` — the master passphrase, set ONCE per machine in `.env`
+  (same value on both). It never travels and is never committed.
 
-The bot writes it into that machine's `.env`, deletes the carrying message from
-the chat, and replies with a masked confirmation only (`len=…, …last4`). `/keys`
-shows the masked status of critical keys. The agent itself never reads a key
-out of an `.env` and never transmits one anywhere — only the receiving end is
-automated.
+One-time bootstrap on EACH machine (owner-only, message auto-deleted):
+
+    /setkey KEY_VAULT_SECRET <your-passphrase>
+
+From then on the flow is fully automatic:
+
+    /setkey RAPIDAPI_KEY abc123...  →  written to THIS .env
+                                    →  encrypted into the vault
+                                    →  committed + pushed (mail sent)
+    …other friend's next sync       →  sync brain decrypts + merges into ITS .env
+
+`sync_engine.py` applies newly-arrived vault keys after every pull, so every
+trigger (session open, boot, PULL.bat, `/update`, the supervisor's hourly tick)
+also delivers keys. Machine-identity keys (`KEY_VAULT_SECRET` itself,
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_CHAT_ID`) are hard-excluded from syncing.
+`/keys` shows masked local status + which keys ride the vault. Replies are
+always masked; the carrying Telegram message is deleted.
 
 ## Flow in one line
 

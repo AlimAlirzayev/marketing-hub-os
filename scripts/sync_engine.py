@@ -56,6 +56,29 @@ def _rev(ref: str) -> str | None:
     return out if code == 0 else None
 
 
+def _apply_vault_keys() -> None:
+    """After a pull, decrypt any newly-arrived API keys from the encrypted vault
+    (secrets/keys.vault) into this machine's .env — the other half of the
+    'keys travel encrypted' rule (docs/SYNC.md). Best-effort: needs the repo
+    venv's `cryptography` and a KEY_VAULT_SECRET in .env; silently skips
+    otherwise so this stdlib-only script never gains a hard dependency."""
+    if not (ROOT / "secrets" / "keys.vault").exists():
+        return
+    py = ROOT / ".venv" / "Scripts" / "python.exe"          # Windows venv
+    if not py.exists():
+        py = ROOT / ".venv" / "bin" / "python"              # Linux/mac venv
+    try:
+        proc = subprocess.run(
+            [str(py) if py.exists() else sys.executable, "-m", "gateway.keyvault", "apply"],
+            cwd=str(ROOT), capture_output=True, text=True, timeout=30,
+        )
+        line = (proc.stdout or "").strip()
+        if line and "applied 0" not in line:
+            print(line)
+    except Exception:
+        pass
+
+
 def sync(*, pull: bool = True, push: bool = True, quiet: bool = False) -> str:
     """Safely reconcile local engine with origin. Returns a one-line summary."""
 
@@ -87,6 +110,7 @@ def sync(*, pull: bool = True, push: bool = True, quiet: bool = False) -> str:
     if pull and local == base and remote != base:
         code, out = _git("pull", "--ff-only", timeout=NET_TIMEOUT)
         if code == 0:
+            _apply_vault_keys()  # newly-arrived encrypted keys -> this .env
             return say(f"pulled new engine updates -> {(_rev('@') or '')[:7]}")
         return say(f"update available but ff-pull blocked (likely local edits): {out.splitlines()[-1] if out else ''}")
 

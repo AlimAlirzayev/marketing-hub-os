@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from ._bootstrap import load_env
-from . import queue, sense, telegram
+from . import keyvault, queue, sense, telegram
 
 load_env()
 
@@ -160,9 +160,30 @@ def _handle_message(msg: dict) -> None:
             pass
         sense.emit("credential", f"{key} set via /setkey (masked)")
         verb = "yeniləndi" if replaced else "əlavə olundu"
+
+        # Auto-travel: encrypt the key into the vault and mail it, so the other
+        # friend applies it on its next sync — no human courier needed anymore.
+        if key == "KEY_VAULT_SECRET":
+            travel = ("🔓 Seyf AÇILDI. Bundan sonra hər /setkey açarı şifrəli seyfə "
+                      "yazılıb avtomatik o biri sistemə də gedəcək.\n"
+                      "Eyni parolu o biri sistemin botunda da bir dəfə /setkey et.")
+        elif not keyvault.syncable(key):
+            travel = "ℹ️ Bu açar maşına-özəldir — səyahət etmir (bilərəkdən)."
+        elif not keyvault.enabled():
+            travel = ("⚠️ Seyf bağlıdır — açar YALNIZ bu maşına yazıldı.\n"
+                      "Avtomatik səyahət üçün bir dəfə: /setkey KEY_VAULT_SECRET <parol>")
+        elif keyvault.put(key, value):
+            travel = ("📮 Şifrəli seyfə yazıldı və poçta göndərildi — o biri dost "
+                      "növbəti sync-də özü götürəcək."
+                      if keyvault.commit_and_push()
+                      else "📦 Şifrəli seyfə yazıldı; push alınmadı — növbəti sync-də gedəcək.")
+        else:
+            travel = "⚠️ Seyfə yazıla bilmədi — açar yalnız bu maşındadır."
+
         telegram.send_message(
             chat_id,
             f"🔐 {key} bu maşının .env faylına {verb} ({_mask(value)}).\n"
+            f"{travel}\n"
             "Açarı daşıyan mesajını çatdan sildim. İşləyən proseslər tam götürsün "
             "deyə lazım olsa restart et.",
         )
@@ -174,6 +195,11 @@ def _handle_message(msg: dict) -> None:
             return
         rows = sense.env_status()
         lines = [("🟢" if v.startswith("SET") else "🔴") + f" {k}: {v}" for k, v in rows.items()]
+        if keyvault.enabled():
+            synced = keyvault.names()
+            lines.append(f"🧰 Seyf: açıq — səyahət edən açarlar: {', '.join(synced) or 'hələ yoxdur'}")
+        else:
+            lines.append("🧰 Seyf: bağlı (/setkey KEY_VAULT_SECRET <parol> ilə aç)")
         telegram.send_message(chat_id, "Bu maşının açar vəziyyəti (maskalı):\n" + "\n".join(lines))
         return
 

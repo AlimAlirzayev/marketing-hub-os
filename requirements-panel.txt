@@ -10,3 +10,5 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 rich>=13.7
 groq>=0.9
+cryptography>=42.0
+
