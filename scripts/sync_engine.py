@@ -99,7 +99,9 @@ def sync(*, pull: bool = True, push: bool = True, quiet: bool = False) -> str:
 
     local = _rev("@")
     remote = _rev("@{u}")
-    base = _rev("--fork-point @{u} @") or (_git("merge-base", "@", "@{u}")[1] or None)
+    # merge-base, NOT --fork-point: fork-point reads reflog heuristics and
+    # mislabels a local merge commit as "diverged", stalling the auto-push.
+    base = _git("merge-base", "@", "@{u}")[1] or None
     dirty = bool(_git("status", "--porcelain")[1])
 
     if local == remote:
