@@ -88,3 +88,12 @@ logs/
 # Editor / OS
 .DS_Store
 Thumbs.db
+
+# lab: kod səyahət edir, data yerdə qalır (əkiz qaydası)
+lab/knowledge/
+lab/logs/
+lab/state.json
+lab/ledger.json
+lab/config.json
+lab/KILL
+lab/.env
