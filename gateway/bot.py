@@ -38,6 +38,7 @@ _HELP = (
     "Xalq Insurance Digital OS background agent.\n"
     "Send me any task and I'll run it in the background, then send the result.\n\n"
     "Commands:\n"
+    "  /status     - did everything ship? git + queue + costs (owner only)\n"
     "  /jobs       - list recent jobs\n"
     "  /approve N  - approve a parked risky job (owner only)\n"
     "  /reject N   - reject a parked risky job (owner only)\n"
@@ -189,6 +190,39 @@ def _handle_message(msg: dict) -> None:
         )
         return
 
+    # The "getdim, amma arxayınam" command: one message from the phone answers
+    # "did my work actually ship, and is anything stuck?"
+    if text == "/status":
+        if not _is_owner(chat_id):
+            telegram.send_message(chat_id, "Not authorized for ops commands.")
+            return
+        s = sense.snapshot()
+        g, q, llm = s.get("git", {}), s.get("queue", {}), s.get("llm", {})
+        ahead, behind = g.get("ahead"), g.get("behind")
+        ship = []
+        ship.append("⚠️ commit edilməmiş dəyişiklik VAR (yarımçıq iş bu maşındadır)"
+                    if g.get("dirty") else "✅ hər şey commit olunub")
+        if ahead:
+            ship.append(f"📮 push gözləyən {ahead} commit (növbəti sync göndərəcək)")
+        elif ahead == 0:
+            ship.append("✅ hamısı poçtdadır (push olunub)")
+        if behind:
+            ship.append(f"⬇️ qarşı tərəfdən {behind} yenilik çəkilməyi gözləyir")
+        lines = [
+            "📊 Status:",
+            f"git {g.get('head', '?')} — " + " · ".join(ship),
+            f"növbə: {q.get('queued', 0)} gözləyir · {q.get('running', 0)} işləyir · "
+            f"{q.get('awaiting_approval', 0)} təsdiq gözləyir · {q.get('error', 0)} xəta",
+            f"LLM bu gün: {llm.get('calls_today', 0)} çağırış, ${llm.get('cost_usd_today', 0)}",
+            "seyf: " + (f"açıq ({len(keyvault.names())} açar səyahətdə)"
+                        if keyvault.enabled() else "bağlı"),
+        ]
+        parked = queue.list_jobs(status="awaiting_approval", limit=5)
+        for j in parked:
+            lines.append(f"⏸ #{j.id} təsdiq gözləyir: {j.task[:60]} → /approve {j.id}")
+        telegram.send_message(chat_id, "\n".join(lines))
+        return
+
     if text == "/keys":
         if not _is_owner(chat_id):
             telegram.send_message(chat_id, "Not authorized for ops commands.")
@@ -230,6 +264,25 @@ def _handle_message(msg: dict) -> None:
     telegram.send_message(chat_id, f"📥 Queued as job #{job_id}. Working on it...")
 
 
+def _announce_online() -> None:
+    """Tell the owner WHICH machine's bot just came alive — removes the 'is
+    anything even listening?' mystery when two friend-systems exist."""
+    owner = _owner_id()
+    if not owner:
+        return
+    import platform
+    name = platform.node() or "?"
+    try:
+        from brand import BRAND
+        name = f"{BRAND.name} / {name}"
+    except Exception:
+        pass
+    try:
+        telegram.send_message(owner, f"🤖 Bot onlayn — {name}. Komandalar: /help")
+    except Exception as exc:
+        print(f"[bot] online announce failed: {exc}")
+
+
 def main() -> None:
     if not telegram.is_configured():
         raise SystemExit(
@@ -237,10 +290,13 @@ def main() -> None:
         )
     queue.init_db()
     print("[bot] started. Long-polling for messages... (Ctrl+C to stop)")
+    _announce_online()
     offset = None
+    conflicts = 0
     while True:
         try:
             updates = telegram.get_updates(offset=offset)
+            conflicts = 0
             for upd in updates:
                 offset = upd["update_id"] + 1
                 msg = upd.get("message") or upd.get("edited_message")
@@ -249,6 +305,26 @@ def main() -> None:
         except KeyboardInterrupt:
             print("\n[bot] stopped.")
             break
+        except telegram.ConflictError:
+            # Two machines are polling ONE bot token. Hammering makes it worse:
+            # back off long, warn loudly once — the fix is one bot per machine.
+            conflicts += 1
+            print("[bot] 409 CONFLICT: another machine is polling this bot token. "
+                  "Each system needs its OWN @BotFather bot. Backing off 30s...")
+            if conflicts == 3:
+                owner = _owner_id()
+                if owner:
+                    try:
+                        telegram.send_message(
+                            owner,
+                            "⚠️ Bu bot tokenini EYNİ anda iki sistem dinləyir (409 Conflict) "
+                            "— ona görə bot 'ölü' görünür. Həll: hər sistemin ÖZ botu "
+                            "olmalıdır (@BotFather-dən ikinci bot yarat, o biri maşının "
+                            ".env-inə öz TELEGRAM_BOT_TOKEN-ini yaz).",
+                        )
+                    except Exception:
+                        pass
+            time.sleep(30)
         except Exception as exc:  # transient network errors -> back off, retry
             print(f"[bot] error: {exc}")
             time.sleep(3)

@@ -41,6 +41,14 @@ foreach ($s in $reg.services) {
     Write-Host ("  + {0,-11} http://localhost:{1}" -f $s.key, $s.port) -ForegroundColor Green
 }
 
+# Always-on brain: worker + scheduler + Telegram bot in ONE process. Safe to
+# start blindly - a singleton lock makes a second copy exit immediately.
+$gwpy = Join-Path $root ".venv\Scripts\python.exe"
+if (Test-Path $gwpy) {
+    Start-Process -FilePath $gwpy -ArgumentList @("-m","gateway.supervisor") -WorkingDirectory $root -WindowStyle Hidden
+    Write-Host "  + supervisor  (Telegram agent + isci + planlayici)" -ForegroundColor Green
+}
+
 $door = ($reg.services | Where-Object { $_.front_door } | Select-Object -First 1)
 $port = if ($door) { $door.port } else { 8000 }
 Start-Sleep -Seconds 6

@@ -230,7 +230,17 @@ def _git_state() -> dict:
     try:
         head = _run(["git", "rev-parse", "--short", "HEAD"]).stdout.strip()
         dirty = bool(_run(["git", "status", "--porcelain"]).stdout.strip())
-        return {"head": head or "unknown", "dirty": dirty}
+        state = {"head": head or "unknown", "dirty": dirty}
+        # ahead = local commits not yet mailed; behind = arrived but not pulled.
+        # (No fetch here — pure local read; the sync brain does the fetching.)
+        try:
+            counts = _run(["git", "rev-list", "--left-right", "--count",
+                           "@{u}...HEAD"]).stdout.split()
+            if len(counts) == 2:
+                state["behind"], state["ahead"] = int(counts[0]), int(counts[1])
+        except Exception:
+            pass
+        return state
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)[:80]}
 

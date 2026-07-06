@@ -79,6 +79,9 @@ def run_once() -> bool:
 
 def main() -> None:
     queue.init_db()
+    orphans = queue.recover_stale_running()
+    if orphans:
+        print(f"[worker] recovered {len(orphans)} orphaned running job(s) {orphans} -> re-queued")
     tg = "on" if telegram.is_configured() else "off (CLI only)"
     print(f"[worker] started. Telegram delivery: {tg}. Polling queue...")
     while True:

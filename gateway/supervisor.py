@@ -17,6 +17,7 @@ No new dependencies: stdlib threads + the existing modules.
 from __future__ import annotations
 
 import os
+import socket
 import subprocess
 import sys
 import threading
@@ -117,9 +118,31 @@ def _start(name: str, target) -> threading.Thread:
     return t
 
 
+def _singleton_lock() -> socket.socket | None:
+    """One supervisor per machine: hold a localhost port as a process-wide lock.
+    Lets the launcher blindly 'start supervisor' on every boot — a second copy
+    (double Telegram polling, double workers) simply refuses to start."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("127.0.0.1", int(os.getenv("SUPERVISOR_LOCK_PORT", "8899"))))
+        s.listen(1)
+        return s
+    except OSError:
+        s.close()
+        return None
+
+
 def main() -> None:
+    lock = _singleton_lock()
+    if lock is None:
+        print("[supervisor] another supervisor is already running on this machine — exiting.")
+        return
+
     queue.init_db()
     scheduler.init_db()
+    orphans = queue.recover_stale_running()
+    if orphans:
+        print(f"[supervisor] recovered {len(orphans)} orphaned running job(s) {orphans} -> re-queued")
     try:
         from brain import blackboard
         blackboard.init()

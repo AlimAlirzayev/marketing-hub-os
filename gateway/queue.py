@@ -121,6 +121,24 @@ def has_queued_task(task: str, source: str | None = None) -> bool:
         return conn.execute(sql + " LIMIT 1", params).fetchone() is not None
 
 
+def recover_stale_running() -> list[int]:
+    """Re-queue jobs left 'running' by a crashed/killed worker.
+
+    Called at worker/supervisor STARTUP only: at that moment no job can
+    legitimately be running (single-worker design), so anything still marked
+    'running' is an orphan of a previous process death — without this it would
+    hang in that state forever and its requester would never get an answer."""
+    init_db()
+    with _connect() as conn:
+        rows = conn.execute("SELECT id FROM jobs WHERE status='running'").fetchall()
+        ids = [int(r["id"]) for r in rows]
+        if ids:
+            conn.execute(
+                "UPDATE jobs SET status='queued', started_at=NULL WHERE status='running'"
+            )
+        return ids
+
+
 def claim_next() -> Job | None:
     """Atomically grab the oldest queued job and mark it running.
 
