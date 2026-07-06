@@ -20,6 +20,7 @@ from pathlib import Path
 from ._bootstrap import load_env
 from . import agent, knowledge, llm, security, sense
 from .queue import Job
+from .studio_api import call_studio_api, list_studios, generate_media
 from orchestrator.router import classify, route
 
 load_env()
@@ -169,7 +170,7 @@ def _execute_direct(task: str) -> tuple[str, str]:
             config=types.GenerateContentConfig(
                 system_instruction=knowledge.augment_system(_SYSTEM, task),
                 temperature=0.2,
-                tools=[run_studio_automation],
+                tools=[run_studio_automation, call_studio_api, list_studios, generate_media],
             )
         )
         resp = chat.send_message(task)
@@ -313,7 +314,7 @@ def execute(job: Job) -> dict:
                 config=types.GenerateContentConfig(
                     system_instruction=knowledge.augment_system(_SYSTEM, job.task, job.chat_id),
                     temperature=0.2,
-                    tools=[run_studio_automation],
+                    tools=[run_studio_automation, call_studio_api, list_studios, generate_media],
                 )
             )
             resp = chat.send_message(job.task)
@@ -373,3 +374,7 @@ if __name__ == "__main__":
     out = execute(fake)
     print(out["result"])
     print("\n--- artifact:", out["artifacts"])
+
+# Fix PEP563: from __future__ import annotations made these strings -> real types so
+# google-genai automatic function-calling can introspect the studio tool.
+run_studio_automation.__annotations__ = {"studio_name": str, "script_name": str, "return": str}

@@ -1,0 +1,45 @@
+# Ramin-OS data layer — 127.0.0.1-only (fixes the 0.0.0.0 exposure in the repo compose).
+# Brings up ONLY postgres/redis/qdrant (n8n skipped: stack-n8n already owns 5678).
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ramin-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - ramin_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks: [ramin-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: ramin-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ramin_redis_data:/data
+    networks: [ramin-net]
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ramin-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - ./data/vector_db:/qdrant/storage
+    networks: [ramin-net]
+
+volumes:
+  ramin_postgres_data:
+  ramin_redis_data:
+
+networks:
+  ramin-net:
+    driver: bridge

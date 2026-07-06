@@ -1,16 +1,15 @@
-"""Telegram front-end: receive tasks from chat, enqueue them, reply instantly.
+"""Telegram front-end: receive tasks (text OR voice) from the OWNER only,
+enqueue them, reply instantly. The worker executes jobs and pushes results
+back to the chat.
 
-Separation of concerns: this process ONLY handles intake. The worker executes
-jobs and pushes results back to the chat. So you message a task from your
-phone, get an immediate "queued" ack, and the finished result arrives later --
-exactly the Manus/Hermes experience, self-hosted.
+SECURITY (inbound hard shell):
+  * Only the owner chat may issue commands. Fail-closed: if no owner id is
+    configured (TELEGRAM_OWNER_CHAT_ID, or legacy GATEWAY_OWNER_ID), every
+    message is rejected — the reply tells the owner how to lock the bot to
+    themselves, but nothing is ever executed for an unknown chat.
 
-Setup (one time):
-  1. Open Telegram, talk to @BotFather, send /newbot, follow prompts.
-  2. Put the token it gives you into .env as TELEGRAM_BOT_TOKEN=...
-  3. Run this:   python -m gateway.bot
-  4. In another terminal run the worker:   python -m gateway.worker
-  5. Message your bot any task.
+Voice: a voice note is transcribed by Gemini (best for Azerbaijani), with the
+local whisper-stt server (WHISPER_URL) as a fallback, before being queued.
 
 Long-polling = outbound HTTPS only, so no port/webhook/public IP is needed.
 """
@@ -24,6 +23,8 @@ import sys
 import time
 from pathlib import Path
 
+import requests
+
 from ._bootstrap import load_env
 from . import keyvault, queue, sense, telegram
 
@@ -34,9 +35,20 @@ _SYNC = _ROOT / "scripts" / "sync_engine.py"
 _ENV_PATH = _ROOT / ".env"
 _KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,64}$")
 
+_WHISPER_URL = os.getenv(
+    "WHISPER_URL", "http://127.0.0.1:8787/v1/audio/transcriptions"
+)
+_STT_GEMINI_MODEL = os.getenv("STT_GEMINI_MODEL", "gemini-2.5-flash")
+_STT_PROMPT = (
+    "Transcribe this voice message verbatim. It is most likely in Azerbaijani "
+    "(may also contain Russian, Turkish or English words). Return ONLY the exact "
+    "transcript text — no quotes, no translation, no commentary."
+)
+
 _HELP = (
-    "Xalq Insurance Digital OS background agent.\n"
-    "Send me any task and I'll run it in the background, then send the result.\n\n"
+    "Ramin-OS background agent.\n"
+    "Send me any task (text or voice) and I'll run it in the background, "
+    "then send the result.\n\n"
     "Commands:\n"
     "  /status     - did everything ship? git + queue + costs (owner only)\n"
     "  /jobs       - list recent jobs\n"
@@ -50,16 +62,21 @@ _HELP = (
 
 
 def _owner_id() -> str | None:
-    """The single chat allowed to run privileged ops commands (e.g. /update)."""
-    val = (os.getenv("TELEGRAM_OWNER_CHAT_ID") or "").strip()
+    """The single chat allowed to talk to this bot. TELEGRAM_OWNER_CHAT_ID is
+    the shared name across both friend-systems; GATEWAY_OWNER_ID is honored as
+    the legacy fleet name so an already-locked box never silently unlocks."""
+    val = (
+        os.getenv("TELEGRAM_OWNER_CHAT_ID") or os.getenv("GATEWAY_OWNER_ID") or ""
+    ).strip()
     return val or None
 
 
 def _is_owner(chat_id) -> bool:
-    """True if this chat may run ops commands. If no owner is configured we allow
-    it (single-user private bot) but the reply nudges you to lock it down."""
+    """Fail-closed owner check: no configured owner => reject everyone."""
     owner = _owner_id()
-    return owner is None or str(chat_id) == owner
+    if not owner:
+        return False
+    return str(chat_id) == owner
 
 
 def _run_sync() -> str:
@@ -106,12 +123,106 @@ def _mask(value: str) -> str:
     return f"len={len(value)}, …{value[-4:]}" if len(value) >= 8 else f"len={len(value)}"
 
 
+# --- voice -> text (Gemini first, local whisper fallback) -------------------
+
+def _transcribe_gemini(audio: bytes) -> str | None:
+    """Transcribe via Gemini — far better than local whisper for Azerbaijani."""
+    key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not key:
+        return None
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=key)
+    resp = client.models.generate_content(
+        model=_STT_GEMINI_MODEL,
+        contents=[
+            _STT_PROMPT,
+            types.Part.from_bytes(data=audio, mime_type="audio/ogg"),
+        ],
+    )
+    return (resp.text or "").strip() or None
+
+
+def _transcribe_whisper(audio: bytes) -> str | None:
+    """Fallback: local whisper-stt server."""
+    resp = requests.post(
+        _WHISPER_URL,
+        files={"file": ("voice.ogg", audio, "audio/ogg")},
+        timeout=120,
+    )
+    resp.raise_for_status()
+    return (resp.json().get("text") or "").strip() or None
+
+
+def _transcribe(file_id: str) -> str | None:
+    """Download a Telegram voice file and transcribe it (Gemini -> whisper)."""
+    try:
+        audio = telegram.download_file_by_id(file_id)
+    except Exception as exc:
+        sense.emit("stt", f"voice download failed: {exc}")
+        return None
+    if not audio:
+        return None
+    try:
+        text = _transcribe_gemini(audio)
+        if text:
+            return text
+    except Exception as exc:
+        sense.emit("stt", f"gemini stt failed, falling back to whisper: {exc}")
+    try:
+        return _transcribe_whisper(audio)
+    except Exception as exc:
+        sense.emit("stt", f"whisper stt failed: {exc}")
+        return None
+
+
+def _extract_task(msg: dict) -> tuple[str | None, bool]:
+    """Return (task_text, was_voice). Text wins; else transcribe voice/audio."""
+    text = (msg.get("text") or "").strip()
+    if text:
+        return text, False
+    media = msg.get("voice") or msg.get("audio") or msg.get("video_note")
+    if media and media.get("file_id"):
+        return _transcribe(media["file_id"]), True
+    return None, False
+
+
 def _handle_message(msg: dict) -> None:
     chat_id = msg["chat"]["id"]
-    text = (msg.get("text") or "").strip()
-    if not text:
-        telegram.send_message(chat_id, "Send me a text task (voice support coming next).")
+
+    # ---- inbound hard shell: owner-only, fail-closed --------------------
+    if not _is_owner(chat_id):
+        sense.emit("security", f"rejected non-owner chat_id={chat_id}")
+        if _owner_id():
+            reply = "⛔ Unauthorized."
+        else:
+            # Locked because NO owner is configured yet. Tell the (probable)
+            # owner how to claim the bot — but execute nothing until then.
+            reply = (
+                f"⛔ Bot kilidlidir — sahib təyin olunmayıb.\n"
+                f"Sahibsinizsə: .env faylına TELEGRAM_OWNER_CHAT_ID={chat_id} "
+                "yazıb prosesi restart edin."
+            )
+        try:
+            telegram.send_message(chat_id, reply)
+        except Exception:
+            pass
         return
+
+    task, was_voice = _extract_task(msg)
+
+    if was_voice:
+        if not task:
+            telegram.send_message(chat_id, "\U0001f3a4 Səsi tanıya bilmədim, bir də cəhd et.")
+            return
+        telegram.send_message(chat_id, f"\U0001f3a4 Eşitdim: “{task[:300]}”")
+
+    if not task:
+        telegram.send_message(chat_id, "Mətn və ya səs tapşırığı göndər.")
+        return
+
+    text = task  # commands below operate on the (possibly transcribed) text
 
     if text in ("/start", "/help"):
         telegram.send_message(chat_id, _HELP + f"\n\nYour chat id: {chat_id}")
@@ -123,8 +234,7 @@ def _handle_message(msg: dict) -> None:
             return
         telegram.send_message(chat_id, "🔄 Pulling the latest engine from GitHub...")
         summary = _run_sync()
-        note = "" if _owner_id() else "\n\n(Tip: set TELEGRAM_OWNER_CHAT_ID in .env to lock this to you.)"
-        telegram.send_message(chat_id, f"✅ {summary}{note}")
+        telegram.send_message(chat_id, f"✅ {summary}")
         return
 
     if text == "/jobs":
@@ -288,6 +398,9 @@ def main() -> None:
         raise SystemExit(
             "TELEGRAM_BOT_TOKEN not set in .env. Create a bot via @BotFather first."
         )
+    if not _owner_id():
+        print("[bot] WARNING: no owner configured (TELEGRAM_OWNER_CHAT_ID) -> "
+              "rejecting ALL messages (fail-closed).")
     queue.init_db()
     print("[bot] started. Long-polling for messages... (Ctrl+C to stop)")
     _announce_online()
