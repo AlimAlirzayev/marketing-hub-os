@@ -245,6 +245,127 @@ BRAND_DNA: dict[str, Any] = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# 6. STYLE BIBLES — the cinematography DNA that keeps every keyframe and every
+#    beat in ONE visual world. This is what separates directed film from
+#    "AI slop": lens, light, grade, texture and composition are decided once
+#    and injected into every single generation.
+# --------------------------------------------------------------------------- #
+STYLE_BIBLES: dict[str, dict[str, str]] = {
+    "golden_hour_premium": {
+        "name": "Golden Hour Premium",
+        "look": (
+            "shot on a cinema camera with a 35mm prime lens, shallow depth of field, "
+            "warm golden-hour sunlight with soft practical highlights, gentle film-emulation "
+            "color grade with lifted blacks, natural skin tones, subtle grain"
+        ),
+        "palette": "warm amber and honey light, soft teal-neutral shadows, one deliberate deep-red accent allowed",
+        "composition": (
+            "clean negative space in the upper third and lower quarter of the frame for later "
+            "text overlays, subject anchored on a rule-of-thirds line, uncluttered background"
+        ),
+        "texture": "real-world tactile detail — fabric weave, paper edges, window reflections",
+        "best_for": "travel, relief, family warmth",
+    },
+    "guarded_luxe": {
+        "name": "Guarded Luxe",
+        "look": (
+            "shot on a cinema camera with a 50mm prime lens, controlled studio-meets-street lighting, "
+            "rich contrast with deep clean shadows, polished automotive reflections, crisp specular highlights"
+        ),
+        "palette": "graphite, silver and charcoal with one deliberate deep-red accent",
+        "composition": "low hero angles, symmetric framing, clean negative space in the upper third for overlays",
+        "texture": "paint gloss, brushed metal, wet asphalt reflections",
+        "best_for": "auto / KASKO, property protection",
+    },
+    "soft_daylight_docu": {
+        "name": "Soft Daylight Documentary",
+        "look": (
+            "handheld documentary intimacy on a 28mm lens, soft overcast daylight through windows, "
+            "airy high-key grade with gentle contrast, honest natural color"
+        ),
+        "palette": "soft whites, warm wood, sage green accents",
+        "composition": "eye-level human framing, breathing room around subjects, negative space kept for overlays",
+        "texture": "home textiles, morning light dust, skin detail",
+        "best_for": "health, family, trust-building",
+    },
+}
+
+# Category -> default style bible.
+_CATEGORY_STYLE = {
+    "travel": "golden_hour_premium",
+    "auto": "guarded_luxe",
+    "health": "soft_daylight_docu",
+    "property": "soft_daylight_docu",
+    "generic": "golden_hour_premium",
+}
+
+# The universal negative constraints for every generated pixel (keyframe or video).
+NO_TEXT_RULES = (
+    "No readable text anywhere in the frame, no lettering on documents or signs, "
+    "no captions, no subtitles, no logos, no brand marks, no watermark, no UI elements."
+)
+
+
+def style_bible_for(category: str) -> dict[str, str]:
+    return STYLE_BIBLES[_CATEGORY_STYLE.get(category, "golden_hour_premium")]
+
+
+def character_block(category: str) -> str:
+    """A fixed protagonist description reused across every keyframe/beat so the
+    hero stays the same person through the whole film."""
+    blocks = {
+        "travel": (
+            "The protagonist: a woman in her early 30s with shoulder-length dark hair, "
+            "wearing a cream linen shirt and a light camel coat, calm confident presence"
+        ),
+        "auto": (
+            "The protagonist: a man in his late 30s with short dark hair and a navy "
+            "wool coat, composed and self-assured"
+        ),
+        "health": (
+            "The protagonists: a young mother with tied-back dark hair in a soft beige "
+            "sweater and her 6-year-old daughter in a mustard cardigan"
+        ),
+        "property": (
+            "The protagonists: a couple in their 30s in warm knitwear, at ease in a "
+            "modern warm-toned apartment"
+        ),
+    }
+    return blocks.get(category, blocks["travel"])
+
+
+def compose_keyframe_prompt(category: str, beat_visual: str, *, wide_or_close: str = "") -> str:
+    """One beat's storyboard visual -> a fully directed still-photography prompt."""
+    sb = style_bible_for(category)
+    shot = f" {wide_or_close}." if wide_or_close else ""
+    return (
+        f"Cinematic film still, vertical 9:16.{shot} {beat_visual}. "
+        f"{character_block(category)}. "
+        f"Look: {sb['look']}. Palette: {sb['palette']}. "
+        f"Composition: {sb['composition']}. Texture: {sb['texture']}. "
+        f"{NO_TEXT_RULES} Photorealistic, premium advertising photography, emotionally resonant."
+    )
+
+
+def compose_beat_video_prompt(category: str, beat: dict, *, beat_index: int,
+                              total_beats: int, prev_visual: str = "") -> str:
+    """One storyboard beat -> a directed text-to-video prompt with continuity locks."""
+    sb = style_bible_for(category)
+    continuity = (
+        f"Shot {beat_index + 1} of a continuous {total_beats}-shot commercial sequence — "
+        f"same world, same light, same color grade, same protagonist throughout."
+    )
+    prev = f" Continuing directly from the previous shot: {prev_visual}." if prev_visual else ""
+    return (
+        f"Cinematic vertical 9:16 commercial shot. {continuity}{prev} "
+        f"{beat['visual']}. Camera: {beat['motion']}. "
+        f"{character_block(category)}. "
+        f"Look: {sb['look']}. Palette: {sb['palette']}. Composition: {sb['composition']}. "
+        f"{NO_TEXT_RULES} Smooth stabilized premium motion, emotionally resonant."
+    )
+
+
 def category_for(text: str) -> str:
     """Resolve a free-text product hint to a known category key."""
     low = (text or "").casefold()

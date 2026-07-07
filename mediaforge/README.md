@@ -73,6 +73,35 @@ Output lands in `output/mediaforge/campaigns/<slug>/` (gitignored, regenerable):
 `storyboard-board.svg`, `ready-command.md`, `package.json`. The compiled prompt
 plugs straight into `scripts/compile_generative_ad.py` and the FLORA MCP.
 
+## The professional pipeline (keyframes-first, v2)
+
+This is how high-end AI film work is actually done — script → boards →
+**stills** → animatic → shoot → edit — and MediaForge now runs it end to end:
+
+```powershell
+python -m mediaforge.generate <slug>                     # PLAN: every stage + its cost
+python -m mediaforge.generate <slug> --frames --confirm  # 1) keyframes, Seedream v3, ~cents
+#    open frames/contact-sheet.html and pick the best still per beat →
+python -m mediaforge.generate <slug> --pick 1=2,3=1      # 2) selection (free)
+python -m mediaforge.generate <slug> --animatic          # 3) FREE Ken Burns animatic (local ffmpeg)
+python -m mediaforge.generate <slug> --beats --confirm   # 4) per-beat videos + trim/stitch master
+python -m mediaforge.generate <slug> --pro --confirm     # or all of it hands-free
+```
+
+Why it wins: the LOOK is approved at the still stage (cents), TIMING at the
+animatic stage (free), and only then does video money get spent — with
+beat-level redo instead of regenerate-everything. A **style bible** (lens,
+light, grade, palette, composition with overlay negative space) plus a fixed
+protagonist block is injected into every keyframe and every beat prompt, so all
+shots live in one visual world. Storyboard beat timings are parsed and enforced
+at stitch ("shoot long, trim short").
+
+Engineering note: FLORA's raw `/generate` is prompt-only — image inputs exist
+only in Techniques — so beat animation uses style-locked text-to-video with
+continuity locks ("Shot N of a continuous sequence…", previous-shot linkage).
+When a Technique with an `imageUrl` input exists, true image-to-video can slot
+in without changing the flow.
+
 ## Real generation (the "işə sal" button)
 
 FLORA OAuth is completed once via `mcp-remote` (token cached in `~/.mcp-auth`).

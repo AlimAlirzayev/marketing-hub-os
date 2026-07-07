@@ -158,18 +158,25 @@ class FloraMCP:
   }}"""
         return self.run_json(body, intent="ensure project")
 
-    def generate_video(self, *, workspace_id: str, project_id: str, model: str,
-                       prompt: str, params: dict[str, Any]) -> dict[str, Any]:
-        """Fire a paid video generation. Returns run_id + charged_cost."""
+    def generate_media(self, *, media_type: str, workspace_id: str, project_id: str,
+                       model: str, prompt: str, params: dict[str, Any]) -> dict[str, Any]:
+        """Fire a paid generation of any media type. Returns run_id + charged_cost."""
         body = f"""
   const gen = await client.generations.create({{
     workspace_id: {json.dumps(workspace_id)}, project_id: {json.dumps(project_id)},
-    type: "video", model: {json.dumps(model)}, prompt: {json.dumps(prompt)},
+    type: {json.dumps(media_type)}, model: {json.dumps(model)}, prompt: {json.dumps(prompt)},
     params: {json.dumps(params)}
   }});
   return {{ run_id: gen.run_id, charged_cost: gen.charged_cost,
            estimated_seconds: gen.estimated_seconds, status: gen.status }};"""
-        return self.run_json(body, intent="generate promo video", timeout=180)
+        return self.run_json(body, intent=f"generate {media_type}", timeout=180)
+
+    def generate_video(self, *, workspace_id: str, project_id: str, model: str,
+                       prompt: str, params: dict[str, Any]) -> dict[str, Any]:
+        """Fire a paid video generation. Returns run_id + charged_cost."""
+        return self.generate_media(media_type="video", workspace_id=workspace_id,
+                                   project_id=project_id, model=model, prompt=prompt,
+                                   params=params)
 
     def get_run(self, run_id: str) -> dict[str, Any]:
         """Poll a run's status + outputs (read-only).

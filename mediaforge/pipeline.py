@@ -137,11 +137,12 @@ def _generation_plan(result: dict[str, Any], compiled_path: Path) -> dict[str, A
         )
 
     slug = brief["campaign"]["slug"]
-    fire_command = f"python -m mediaforge.generate {slug} --confirm"
+    fire_command = f"python -m mediaforge.generate {slug} --pro --confirm"
     mcp_instruction = (
-        f"Bir əmr: `{fire_command}` — {res['label']} ilə, {fmt['duration_s']}s "
-        f"{fmt['aspect']}, ~{res.get('credits','?')} kredit. Əvvəlcə `python -m "
-        f"mediaforge.generate {slug}` (təsdiqsiz) planı və xərci göstərir."
+        f"Peşəkar yol: `python -m mediaforge.generate {slug}` planı göstərir; "
+        f"`--frames --confirm` (keyframe-lər, ~qəpiklər) → contact-sheet-də seç → "
+        f"`--animatic` (pulsuz) → `--beats --confirm` (beat videolar + stitch). "
+        f"Hamısı bir yerdə: `{fire_command}`."
     )
 
     ready_md = _render_ready_command(result, cli_cmds, mcp_instruction, compiled_path, fire_command)
@@ -222,12 +223,18 @@ def _render_ready_command(result, cli_cmds, mcp_instruction, compiled_path, fire
 
 Model: **{r['label']}** (`{r['model_id']}`) · Müddət: {r['duration_s']}s · Xərc: {r['cost_band']}
 
-## Bir əmrlə işə sal (FLORA OAuth artıq bağlıdır)
+## Peşəkar pipeline (keyframes-first)
 ```powershell
-python -m mediaforge.generate {slug}            # plan + xərc (təsdiqsiz, xərcsiz)
-{fire_command}   # real generasiya
+python -m mediaforge.generate {slug}                     # plan + bütün mərhələ xərcləri
+python -m mediaforge.generate {slug} --frames --confirm  # 1) keyframe-lər (~qəpiklər)
+# frames/contact-sheet.html-də kadrları seç →
+python -m mediaforge.generate {slug} --pick 1=2,3=1      # 2) seçim (pulsuz)
+python -m mediaforge.generate {slug} --animatic          # 3) PULSUZ animatic (vaxtlama təsdiqi)
+python -m mediaforge.generate {slug} --beats --confirm   # 4) beat videolar + stitch (ödənişli)
+{fire_command}   # və ya hamısı bir yerdə
 ```
-`--confirm` real kredit xərcləyir; video paket qovluğuna `.mp4` kimi enir.
+`--confirm` real kredit xərcləyir; nəticələr paket qovluğuna enir
+(`frames/`, `animatic.mp4`, `beats/`, `promo-beats-master.mp4`).
 
 ## Alternativ: xam FLORA CLI (2 variant — reference + motion)
 ```powershell

@@ -168,6 +168,81 @@ class GenerateTests(unittest.TestCase):
         self.assertEqual(pl["params"]["resolution"], "1080p")
 
 
+class KeyframePipelineTests(unittest.TestCase):
+    def _pkg(self):
+        out = director.direct("seedance 2.5 ilə 10s səyahət sığortası promo", use_llm=False)
+        return {"slug": "t", "request": out["request"], "concept": out["concept"],
+                "brief": out["brief"], "resolution": out["resolution"], "meta": out["meta"]}
+
+    def test_beat_time_parsing(self):
+        from mediaforge import frames
+        pkg = self._pkg()
+        durs = frames.parse_beat_seconds(pkg["brief"]["storyboard"])
+        self.assertEqual(len(durs), 4)
+        self.assertAlmostEqual(sum(durs), 10.0, places=1)
+        self.assertAlmostEqual(durs[0], 1.5, places=1)
+
+    def test_keyframe_prompt_carries_style_bible_and_no_text(self):
+        from mediaforge import knowledge
+        p = knowledge.compose_keyframe_prompt("travel", "a passport on a tray table")
+        self.assertIn("35mm", p)                      # style bible look
+        self.assertIn("No readable text", p)          # compliance
+        self.assertIn("early 30s", p)                 # fixed protagonist
+        self.assertIn("9:16", p)
+
+    def test_beat_video_prompt_has_continuity_lock(self):
+        from mediaforge import knowledge
+        beat = {"visual": "traveler at a skyline", "motion": "slow push-in"}
+        p = knowledge.compose_beat_video_prompt("travel", beat, beat_index=2,
+                                                total_beats=4, prev_visual="a calm hand")
+        self.assertIn("Shot 3 of a continuous 4-shot", p)
+        self.assertIn("Continuing directly from the previous shot", p)
+        self.assertIn("No readable text", p)
+
+    def test_frames_plan_costs_and_prompts(self):
+        from mediaforge import frames
+        pkg = self._pkg()
+        plan = frames.plan_frames(pkg, variants=2)
+        self.assertEqual(plan["total_images"], 8)
+        self.assertEqual(plan["estimated_credits"], 8 * 28)
+        self.assertEqual(plan["params"]["aspect_ratio"], "9:16")
+        self.assertTrue(all("No readable text" in b["prompt"] for b in plan["beats"]))
+
+    def test_stage_plan_lists_all_stages_with_costs(self):
+        from mediaforge import generate
+        pkg = self._pkg()
+        sp = generate.plan_stages(pkg)
+        names = [s["stage"] for s in sp["stages"]]
+        self.assertEqual(names[:4], ["frames", "pick", "animatic", "beats"])
+        animatic = sp["stages"][2]
+        self.assertEqual(animatic["credits"], 0)      # the animatic must stay free
+        beats = sp["stages"][3]
+        self.assertGreater(beats["credits"], 0)
+        self.assertIn("--confirm", beats["cmd"])
+
+    def test_pick_selection_roundtrip(self):
+        import tempfile
+        from mediaforge import frames
+        with tempfile.TemporaryDirectory() as td:
+            folder = Path(td)
+            sel = frames.apply_picks(folder, "1=2,3=1")
+            self.assertEqual(sel[0], 2)               # 1-based input -> 0-based beat
+            self.assertEqual(sel[2], 1)
+            loaded = frames.load_selection(folder, 4)
+            self.assertEqual(loaded[0], 2)
+            self.assertEqual(loaded[3], 1)            # default for unpicked beats
+
+    def test_animatic_clip_command_is_exact_length(self):
+        from mediaforge import animatic
+        cmd = animatic.beat_clip_cmd("ffmpeg", Path("kf.png"), Path("out.mp4"),
+                                     seconds=2.5, zoom_in=True)
+        self.assertIn("-t", cmd)
+        self.assertEqual(cmd[cmd.index("-t") + 1], "2.500")
+        vf = cmd[cmd.index("-vf") + 1]
+        self.assertIn("zoompan", vf)
+        self.assertIn("1080x1920", vf)
+
+
 class KnowledgeTests(unittest.TestCase):
     def test_category_resolution(self):
         self.assertEqual(knowledge.category_for("səyahət sığortası"), "travel")
