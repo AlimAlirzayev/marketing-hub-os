@@ -97,3 +97,6 @@ lab/ledger.json
 lab/config.json
 lab/KILL
 lab/.env
+
+# workspace: agent build sandbox — deliverables are local, not engine code
+workspace/

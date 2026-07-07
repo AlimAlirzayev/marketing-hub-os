@@ -12,8 +12,10 @@ Extension points (clearly marked TODO) for the next phases:
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -26,6 +28,8 @@ from orchestrator.router import classify, route
 load_env()
 
 _OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output" / "jobs"
+_WORKSPACE_ROOT = Path(__file__).resolve().parent.parent / "workspace"
+_WS_RE = re.compile(r"workspace:\s*([^\s)]+)")
 
 # Single source of truth for the agent model id. Was split — 'gemini-2.5-pro' in
 # execute() vs 'gemini-2.5-flash' in _execute_direct() for the SAME mode — a cost
@@ -35,7 +39,13 @@ AGENT_MODEL = os.getenv("MODEL_AGENT", "gemini-2.5-flash")
 # Task wording that requires triggering internal studio automation tools
 _TOOL_HINTS = (
     "studio", "kreativ", "kampaniya", "yarat", "skript", "script",
-    "avtomatlaşdırma", "generate", "run ads", "make a video", "alət"
+    "avtomatlaşdırma", "generate", "run ads", "make a video", "alət",
+    # build/coding intent -> the workspace agent (real hands). Multi-word phrases
+    # stay precise so they don't over-trigger on ordinary words.
+    "sayt qur", "saytı qur", "sayt hazırla", "veb sayt", "web sayt", "landing",
+    "html", "css", "kod yaz", "write code", "build a", "scaffold", "web app",
+    "layihə qur", "app qur", "tətbiq qur", "deploy", "publish", "paylaş",
+    "məqalə yaz", "article", "video düzəlt", "video hazırla", "[approved-action]",
 )
 
 # Task wording that should drive a real browser (a specific site / interaction).
@@ -111,6 +121,32 @@ _SYSTEM = (
     "checkpoint. Output clean Markdown."
 )
 
+# Appended to _SYSTEM only in tools mode, where the agent has real hands
+# (workspace_agent: run_command / write_file / read_file / request_owner_approval).
+_WORKSPACE_ADDENDUM = (
+    "\n\nYOU HAVE HANDS. Beyond the studio tools you can build real deliverables "
+    "in a private sandbox workspace using run_command (a shell), write_file and "
+    "read_file. Work like an engineer:\n"
+    "- Do everything INSIDE the workspace; the rest of the system is read-only, "
+    "so build freely without fear.\n"
+    "- For ANY website / landing / UI: FIRST author a DESIGN.md design system "
+    "(concept + mood, exact HEX palette, type pairing, spacing rhythm, 2-3 "
+    "signature motifs, and an explicit ban-list against the generic-AI look — "
+    "purple gradients, emoji bullets, glassmorphism, everything-centered), then "
+    "build strictly to it. Escape the template look.\n"
+    "- Generate images/video/voice with generate_media or the mediagen studio; "
+    "write articles/SEO via the seo studio; pull data via call_studio_api.\n"
+    "- Actually run the build and check the output before calling it done.\n"
+    "- Reversible/build work runs on its own. OUTWARD or irreversible actions "
+    "(deploy, publish, post, git push, sending to the internet) will NOT run "
+    "automatically: finish the buildable part, then call request_owner_approval "
+    "with the exact action so the owner can /approve it.\n"
+    "- If the task begins with [approved-action], the owner has ALREADY approved "
+    "it — perform exactly that action now with run_command.\n"
+    "- Finish by summarizing WHAT you built and listing the workspace file paths "
+    "you produced, so the owner can review and download them."
+)
+
 def run_studio_automation(studio_name: str, script_name: str) -> str:
     """Runs an automation script inside the given studio (e.g., ads-studio, social-studio, copy-studio).
     
@@ -144,6 +180,33 @@ def _save_artifact(job_id: int, text: str) -> str:
     path = _OUTPUT_DIR / f"job-{job_id}.md"
     path.write_text(text, encoding="utf-8")
     return str(path)
+
+
+def _workspace_for(job: Job) -> Path:
+    """The sandbox dir for this job. An [approved-action] job reuses the workspace
+    named in its task (so the approved step acts on what was already built);
+    every other job gets its own job-<id> dir."""
+    m = _WS_RE.search(job.task or "")
+    if m:
+        p = Path(m.group(1)).resolve()
+        try:
+            p.relative_to(_WORKSPACE_ROOT)
+            return p
+        except ValueError:
+            pass
+    return _WORKSPACE_ROOT / f"job-{job.id}"
+
+
+def _bundle_workspace(job_id: int, ws: Path) -> str | None:
+    """Zip the workspace so a built deliverable is downloadable. None if empty."""
+    try:
+        if not ws.exists() or not any(p.is_file() for p in ws.rglob("*")):
+            return None
+        _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        out = _OUTPUT_DIR / f"job-{job_id}-workspace"
+        return shutil.make_archive(str(out), "zip", root_dir=str(ws))
+    except Exception:
+        return None
 
 
 def _execute_direct(task: str) -> tuple[str, str]:
@@ -307,18 +370,43 @@ def execute(job: Job) -> dict:
         if mode == "tools":
             from google import genai
             from google.genai import types
+            from . import workspace_agent
             agent_model = AGENT_MODEL
+            ws = _workspace_for(job)
+            workspace_agent.configure(
+                job_id=job.id, workspace=ws, chat_id=job.chat_id,
+                approved=bool(job.approved),
+            )
             client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
             chat = client.chats.create(
                 model=agent_model,
                 config=types.GenerateContentConfig(
-                    system_instruction=knowledge.augment_system(_SYSTEM, job.task, job.chat_id),
+                    system_instruction=knowledge.augment_system(
+                        _SYSTEM + _WORKSPACE_ADDENDUM, job.task, job.chat_id),
                     temperature=0.2,
-                    tools=[run_studio_automation, call_studio_api, list_studios, generate_media],
+                    tools=[run_studio_automation, call_studio_api, list_studios,
+                           generate_media, workspace_agent.run_command,
+                           workspace_agent.write_file, workspace_agent.read_file,
+                           workspace_agent.request_owner_approval],
                 )
             )
-            resp = chat.send_message(job.task)
-            text = resp.text or "Alətlər icra edildi, lakin mətn qaytarılmadı."
+            try:
+                resp = chat.send_message(job.task)
+                text = resp.text or "Alətlər icra edildi, lakin mətn qaytarılmadı."
+            except Exception as loop_exc:
+                # The agent may have already built real files before a mid-loop
+                # failure (e.g. a free-tier quota hit). Never throw that work away.
+                built = [str(p.relative_to(ws)) for p in sorted(ws.rglob("*")) if p.is_file()]
+                if not built:
+                    raise
+                text = (
+                    "⚠️ İcra tam bitmədi (" + loop_exc.__class__.__name__ +
+                    "), amma bu fayllar iş sahəsində hazırlandı:\n- " +
+                    "\n- ".join(built)
+                )
+            bundle = _bundle_workspace(job.id, ws)
+            if bundle:
+                text += f"\n\n📦 İş sahəsi paketi (yüklə): {bundle}"
             label = f"agentic-tools:{agent_model}"
         elif mode == "browser":
             agent_model = AGENT_MODEL
