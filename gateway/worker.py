@@ -31,6 +31,25 @@ def _notify(job: queue.Job, text: str) -> None:
             print(f"[worker] notify failed for job {job.id}: {exc}")
 
 
+# Deliverable file types worth pushing to the chat as real documents. The .md
+# result artifact is skipped — it just repeats the text already sent.
+_DELIVER_SUFFIXES = {".zip", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp",
+                     ".mp4", ".mp3", ".wav", ".ogg", ".html", ".csv", ".pptx", ".docx"}
+
+
+def _deliver_files(job: queue.Job, artifacts: list[str] | None) -> None:
+    """Hand built deliverables to the owner as downloadable Telegram documents."""
+    if not (job.source == "telegram" and job.chat_id and telegram.is_configured()):
+        return
+    import os as _os
+    for path in artifacts or []:
+        try:
+            if _os.path.splitext(path)[1].lower() in _DELIVER_SUFFIXES and _os.path.exists(path):
+                telegram.send_document(job.chat_id, path, caption=_os.path.basename(path))
+        except Exception as exc:
+            print(f"[worker] file delivery failed for job {job.id} ({path}): {exc}")
+
+
 def run_once() -> bool:
     """Process one job if available. Returns True if a job was handled."""
     job = queue.claim_next()
@@ -52,6 +71,7 @@ def run_once() -> bool:
         print(f"[worker] job {job.id} done -> {out.get('artifacts')}")
         sense.emit("job", f"#{job.id} done ({job.source})", {"task": job.task[:80]})
         _notify(job, f"✅ Job {job.id} done:\n\n{out['result']}")
+        _deliver_files(job, out.get("artifacts"))
         # Record the exchange into the shared hierarchical memory (blackboard),
         # keyed by the conversation thread (Telegram chat). CLI jobs have no chat
         # and are skipped. Guarded — memory must never delay or break delivery.

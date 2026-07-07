@@ -142,7 +142,10 @@ _WORKSPACE_ADDENDUM = (
     "automatically: finish the buildable part, then call request_owner_approval "
     "with the exact action so the owner can /approve it.\n"
     "- If the task begins with [approved-action], the owner has ALREADY approved "
-    "it — perform exactly that action now with run_command.\n"
+    "it — perform exactly that action now with run_command (or publish_site).\n"
+    "- To put a finished website online, call publish_site('short-name') — it "
+    "goes live at the fleet's public URL. It only works on an approved job, so "
+    "build first, then request_owner_approval, then publish_site after /approve.\n"
     "- Finish by summarizing WHAT you built and listing the workspace file paths "
     "you produced, so the owner can review and download them."
 )
@@ -366,6 +369,7 @@ def execute(job: Job) -> dict:
             return {"result": f"_[{label}]_\n\n{text}", "artifacts": [artifact]}
 
         mode = _choose_mode(job.task)
+        bundle = None  # workspace zip, set in tools mode; delivered as a file
 
         if mode == "tools":
             from google import genai
@@ -387,7 +391,8 @@ def execute(job: Job) -> dict:
                     tools=[run_studio_automation, call_studio_api, list_studios,
                            generate_media, workspace_agent.run_command,
                            workspace_agent.write_file, workspace_agent.read_file,
-                           workspace_agent.request_owner_approval],
+                           workspace_agent.request_owner_approval,
+                           workspace_agent.publish_site],
                 )
             )
             try:
@@ -437,7 +442,8 @@ def execute(job: Job) -> dict:
 
         sense.emit("llm", label, {"job": job.id, "mode": mode})
         artifact = _save_artifact(job.id, text)
-        return {"result": f"_[{label}]_\n\n{text}", "artifacts": [artifact]}
+        return {"result": f"_[{label}]_\n\n{text}",
+                "artifacts": [artifact] + ([bundle] if bundle else [])}
     except Exception as e:
         error_msg = str(e)
         if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:

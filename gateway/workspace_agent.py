@@ -40,6 +40,8 @@ from . import queue, sense
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE_ROOT = REPO_ROOT / "workspace"
+PUBLISHED_ROOT = REPO_ROOT / "published"   # caddy serves this at <base>/sites/
+_PUBLIC_BASE = os.getenv("PUBLIC_BASE_URL", "https://178-104-163-52.sslip.io").rstrip("/")
 _KILL = WORKSPACE_ROOT / "KILL"
 
 _CMD_TIMEOUT = int(os.getenv("WORKSPACE_CMD_TIMEOUT", "300"))
@@ -281,9 +283,42 @@ def request_owner_approval(action: str) -> str:
             f"“/approve {jid}” to run it, “/reject {jid}” to cancel.")
 
 
+def publish_site(subdir: str) -> str:
+    """Put the website built in this workspace ONLINE at the fleet's public URL.
+
+    Copies the workspace to the public web root so it is live at
+    <base>/sites/<subdir>/. This is an outward action: it runs ONLY on a job the
+    owner already /approved. So the flow is: build the site -> call
+    request_owner_approval('publish the site as <subdir>') -> after the owner
+    /approves, call publish_site('<subdir>').
+
+    Args:
+        subdir: a short url-safe name for the site, e.g. 'sonarzum' or 'promo-eid'.
+    """
+    if _killed():
+        return "BLOCKED: workspace agent is disabled (kill switch active)."
+    if not _CTX.approved:
+        return ("NOT RUN (needs approval): publishing is outward. Build the site, "
+                "then call request_owner_approval('publish the site as <name>') so "
+                "the owner can /approve it; publish_site works after that.")
+    name = re.sub(r"[^a-z0-9_-]", "", (subdir or "").lower()).strip("-") or f"job-{_CTX.job_id}"
+    dest = PUBLISHED_ROOT / name
+    try:
+        PUBLISHED_ROOT.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(_CTX.workspace, dest, ignore=shutil.ignore_patterns(".git", "node_modules"))
+    except Exception as exc:
+        return f"publish_site error: {exc.__class__.__name__}: {exc}"
+    url = f"{_PUBLIC_BASE}/sites/{name}/"
+    sense.emit("publish", f"site live -> {url}", {"job": _CTX.job_id})
+    return f"Published. Live at: {url}"
+
+
 # Defensive PEP563: real annotations so google-genai automatic function-calling
 # can introspect these even under `from __future__ import annotations`.
 run_command.__annotations__ = {"command": str, "return": str}
 write_file.__annotations__ = {"path": str, "content": str, "return": str}
 read_file.__annotations__ = {"path": str, "return": str}
 request_owner_approval.__annotations__ = {"action": str, "return": str}
+publish_site.__annotations__ = {"subdir": str, "return": str}

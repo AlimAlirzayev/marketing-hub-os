@@ -100,3 +100,6 @@ lab/.env
 
 # workspace: agent build sandbox — deliverables are local, not engine code
 workspace/
+
+# published: agent-deployed static sites (data, served by caddy)
+published/

@@ -59,6 +59,24 @@ def delete_message(chat_id: str | int, message_id: int) -> None:
     _call("deleteMessage", chat_id=chat_id, message_id=message_id)
 
 
+def send_document(chat_id: str | int, file_path: str, caption: str = "") -> None:
+    """Deliver a built file (zip/image/pdf/…) to the chat as a real document.
+
+    This is the 'hand it to me' half: a background job builds a deliverable and
+    it arrives in Telegram as a downloadable file, not just a path in text.
+    Uses multipart upload (not the JSON _call path)."""
+    tok = _token()
+    if not tok:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN not set")
+    url = _API.format(token=tok, method="sendDocument")
+    data = {"chat_id": str(chat_id)}
+    if caption:
+        data["caption"] = caption[:1024]
+    with open(file_path, "rb") as fh:
+        resp = requests.post(url, data=data, files={"document": fh}, timeout=180)
+    resp.raise_for_status()
+
+
 def get_updates(offset: int | None = None) -> list[dict]:
     """Long-poll for new updates. Returns the raw 'result' list."""
     data = _call("getUpdates", offset=offset, timeout=_TIMEOUT)
