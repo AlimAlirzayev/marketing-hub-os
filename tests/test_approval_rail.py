@@ -110,6 +110,7 @@ class ExecutorCheckpoint(_IsolatedJobsDB):
             provider, model = "test", "fake"
 
         with mock.patch.object(executor, "_council_should_run", return_value=False), \
+             mock.patch.object(executor, "_choose_mode", return_value="plain"), \
              mock.patch.object(executor, "route", return_value="fake"), \
              mock.patch.object(executor.llm, "complete",
                                return_value=("OK icra edildi", _Used())), \
@@ -168,7 +169,8 @@ class BotApproveCommand(_IsolatedJobsDB):
             bot._handle_message({"chat": {"id": 999}, "text": f"/approve {jid}"})
 
         self.assertEqual(self.queue.get(jid).status, "awaiting_approval")
-        self.assertTrue(any("Not authorized" in t for t in sent))
+        # fleet's fail-closed shell rejects non-owners with "Unauthorized"
+        self.assertTrue(any("Unauthorized" in t for t in sent))
 
 
 class PanelApi(_IsolatedJobsDB):

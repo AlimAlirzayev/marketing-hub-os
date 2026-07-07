@@ -82,7 +82,7 @@ class StatusCommand(unittest.TestCase):
 
     def test_non_owner_denied(self):
         self.bot._handle_message({"chat": {"id": 999}, "text": "/status"})
-        self.assertTrue(any("Not authorized" in t for t in self.sent))
+        self.assertTrue(any("Unauthorized" in t for t in self.sent))
 
 
 class SupervisorSingleton(unittest.TestCase):

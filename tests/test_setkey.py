@@ -72,7 +72,7 @@ class SetKeyCommand(unittest.TestCase):
     def test_non_owner_is_refused(self):
         self.bot._handle_message(self._msg("/setkey X_KEY val", chat=999))
         self.assertFalse(self.env.exists())
-        self.assertTrue(any("Not authorized" in r for r in self.sent))
+        self.assertTrue(any("Unauthorized" in r for r in self.sent))
 
     def test_bad_key_name_gets_usage_not_write(self):
         self.bot._handle_message(self._msg("/setkey lower-case val"))
@@ -81,7 +81,7 @@ class SetKeyCommand(unittest.TestCase):
 
     def test_keys_command_is_owner_only_and_masked(self):
         self.bot._handle_message(self._msg("/keys", chat=999))
-        self.assertTrue(any("Not authorized" in r for r in self.sent))
+        self.assertTrue(any("Unauthorized" in r for r in self.sent))
         self.sent.clear()
         with mock.patch.object(self.bot.sense, "env_status",
                                return_value={"GEMINI_API_KEY": "SET (len=39, …5UD0)"}):
