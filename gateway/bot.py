@@ -26,7 +26,7 @@ from pathlib import Path
 import requests
 
 from ._bootstrap import load_env
-from . import keyvault, queue, sense, telegram
+from . import keyvault, mic, queue, sense, telegram
 
 load_env()
 
@@ -394,7 +394,7 @@ def _handle_message(msg: dict) -> None:
             )
         return
 
-    job_id = queue.submit(text, source="telegram", chat_id=str(chat_id))
+    job_id = mic.speak(text, source="telegram", chat_id=str(chat_id))
     telegram.send_message(chat_id, f"📥 Queued as job #{job_id}. Working on it...")
 
 

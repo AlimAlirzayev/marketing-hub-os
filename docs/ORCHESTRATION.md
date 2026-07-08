@@ -11,6 +11,40 @@ that decide where a task goes.
 
 ---
 
+## 0. One microphone (the single input rule)
+
+The system is **one entity reached through many microphones**: this Claude Code
+chat, Telegram, Codex, the control panel. To stop input fragmenting into per-
+channel islands, every channel speaks through one front door — `gateway/mic.py`:
+
+```
+chat / Telegram / Codex / panel  ──▶  mic.speak(text, source=…)
+                                         │  (one FIFO queue = turn-taking)
+                                         ▼
+                                   gateway.worker ─▶ executor
+                                         │  reads MIC_THREAD history
+                                         ▼
+                          one continuous conversation + memory
+```
+
+- **One conversation thread** (`mic.MIC_THREAD = "main"`): the brain answers with
+  the full cross-channel history, so "today you here, tomorrow Telegram, next
+  Codex" is literally one continuous conversation — each source just takes the
+  mic in its turn. The worker records every turn under this thread, tagged with
+  its source.
+- **One serialized queue**: the durable job queue (single worker, oldest-first)
+  IS the turn-taking — whoever speaks now holds the mic; the next waits.
+- **Conversational by default, not a council.** The default path is a single
+  strong brain with the shared history + the `_CHAT_SYSTEM` persona, so Telegram
+  feels like talking to the operator's teammate here — not a terse multi-CLI
+  vote. The council is now **opt-in** (`AI_COUNCIL_ENABLED=1`) for deliberate
+  runs only.
+- The conversation lives in the per-deployment blackboard (git-ignored), so it
+  **never travels** between the two friend-systems — only the ENGINE does. Each
+  system keeps its own single microphone.
+
+---
+
 ## 1. Two planes (the core mental model)
 
 The system has **two distinct planes**. Most of the past confusion came from

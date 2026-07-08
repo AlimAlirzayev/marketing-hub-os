@@ -27,7 +27,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from ._bootstrap import load_env
-from . import advisor, queue, scheduler, sense
+from . import advisor, mic, queue, scheduler, sense
 
 load_env()
 
@@ -92,8 +92,7 @@ def submit(body: NewTask) -> JSONResponse:
     task = (body.task or "").strip()
     if not task:
         return JSONResponse({"error": "boş tapşırıq"}, status_code=400)
-    job_id = queue.submit(task, source="panel")
-    sense.emit("job", f"#{job_id} submitted (panel)", {"task": task[:80]})
+    job_id = mic.speak(task, source="panel")
     return JSONResponse({"id": job_id, "status": "queued"})
 
 

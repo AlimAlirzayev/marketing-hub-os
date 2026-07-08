@@ -14,7 +14,7 @@ import time
 import traceback
 
 from ._bootstrap import load_env
-from . import knowledge, queue, sense, telegram
+from . import knowledge, mic, queue, sense, telegram
 from .executor import execute
 
 load_env()
@@ -76,8 +76,12 @@ def run_once() -> bool:
         # keyed by the conversation thread (Telegram chat). CLI jobs have no chat
         # and are skipped. Guarded — memory must never delay or break delivery.
         try:
-            knowledge.record_turn(job.chat_id, "user", job.task)
-            knowledge.record_turn(job.chat_id, "assistant", out["result"])
+            # Record into the ONE shared conversation (mic thread), tagged with
+            # the source, so every microphone's turns land in the same memory —
+            # not fragmented per chat id.
+            thread = mic.thread_for(job)
+            knowledge.record_turn(thread, "user", f"[{job.source}] {job.task}")
+            knowledge.record_turn(thread, "assistant", out["result"])
         except Exception as exc:
             print(f"[worker] memory record skipped for job {job.id}: {exc}")
         # Learn from the finished job AFTER delivery, so the brain never delays
