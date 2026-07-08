@@ -145,3 +145,27 @@ Studio — never rendered as generated pixels.
 - **Never fails silently** — if the LLM is unavailable, the deterministic brain
   still ships a professional, schema-valid brief.
 - **Deliverables in Azerbaijani**; code/config in English.
+
+## AI UGC Campaign Pack
+
+`--ugc` adds the Doruk-style AI influencer agency workflow as a native
+MediaForge mode:
+
+```powershell
+python -m mediaforge --ugc --no-llm "seedance 2.5 ile 10 saniyelik seyahat sigortasi ucun AI UGC influencer videosu"
+```
+
+It creates `ugc-pack/` inside the campaign folder:
+
+- `persona.md` - synthetic creator card and consent/safety rules.
+- `script-10s.md` - UGC hook/story/turn/CTA script.
+- `voiceover.md` - Audio Studio route: rough TTS, natural clone, premium ElevenLabs gate.
+- `video-prompt.md` - reference-still prompt, image-to-video prompt, text fallback, cost commands.
+- `unit-economics.md` - video credits, voice/finish assumptions, margin formula.
+- `landing-wireframe.md` - conversion page structure with payments disabled by default.
+- `qa-checklist.md` - realism, voice, brand, legal, and synthetic-person checks.
+- `publish-dry-run.md` - final packaging path after a finished MP4 exists.
+
+The mode is draft-only. It never spends credits, never calls payment APIs, and
+never posts. The real video step still goes through `mediaforge.generate` with
+an explicit `--confirm` cost gate.

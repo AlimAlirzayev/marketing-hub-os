@@ -36,7 +36,7 @@ _WORKER_IDLE = 2.0   # seconds to wait when the queue is empty
 # Periodic engine sync for the always-on host: a 24/7 supervisor never reboots,
 # so without this it would only learn about the other machine's pushed updates
 # when a human said so. Minutes between checks; 0 disables.
-_SYNC_MIN = float(os.getenv("ENGINE_SYNC_MIN", "60"))
+_SYNC_MIN = float(os.getenv("ENGINE_SYNC_MIN", "15"))
 
 
 def _supervise(name: str, step, idle: float) -> None:
@@ -124,7 +124,7 @@ def _singleton_lock() -> socket.socket | None:
     (double Telegram polling, double workers) simply refuses to start."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        s.bind(("127.0.0.1", int(os.getenv("SUPERVISOR_LOCK_PORT", "8899"))))
+        s.bind(("127.0.0.1", int(os.getenv("SUPERVISOR_LOCK_PORT", "18999"))))
         s.listen(1)
         return s
     except OSError:

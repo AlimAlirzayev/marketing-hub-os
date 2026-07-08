@@ -20,6 +20,6 @@ Layers:
 
 from __future__ import annotations
 
-__all__ = ["knowledge", "models", "director", "pipeline"]
+__all__ = ["knowledge", "models", "director", "pipeline", "ugc"]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

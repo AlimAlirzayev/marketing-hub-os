@@ -46,6 +46,7 @@ _I2V_TO_T2V = {
 
 BEAT_MODEL = "t2v-kling-2.6"      # 327 cr, 5s/10s — cheap polished beats
 BEAT_CLIP_SECONDS = "5"           # shoot long, trim short at stitch
+FILM_MODEL = "t2v-kling-v3-standard"  # 588 cr — one multi-shot run, native continuity
 USD_PER_CREDIT = 0.0009           # observed: $1.059 for 1176 cr
 
 PROJECT_NAME = "MediaForge — {name}"
@@ -73,18 +74,27 @@ def load_package(slug: str | None) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def build_prompt(brief: dict[str, Any]) -> str:
-    """The single-shot ('oner') prompt: whole storyboard as one continuous film."""
+def build_prompt(brief: dict[str, Any], category: str | None = None) -> str:
+    """The single-shot ('oner') prompt in the Seedance 2.0 official 6-step
+    formula: subject, action, environment, ONE camera instruction, style
+    (lighting-led, rhythm words, no lens jargon), avoid-list. ~60-100 words."""
+    from . import knowledge
+
     beats = brief["storyboard"]
-    scene = " ".join(f"{b['visual']}. {b['motion']}." for b in beats if b.get("visual"))
-    tone = ", ".join(brief["brand"]["tone"])
+    cat = category or knowledge.category_for(brief["campaign"].get("source_brief", ""))
+    sb = knowledge.style_bible_for(cat)
     dur = brief["format"]["duration_s"]
-    aspect = brief["format"]["aspect"]
+
+    links = ["First", "Then", "Next", "Finally"]
+    action = " ".join(
+        f"{links[min(i, 3)]}, {b['visual']}." for i, b in enumerate(beats) if b.get("visual")
+    )
     return (
-        f"Cinematic {dur}-second vertical {aspect} promo film, {tone}. {scene} "
-        "No on-screen text, no captions, no logos, no watermark. Shot on a cinema "
-        "camera, shallow depth of field, natural warm color grade, smooth "
-        "stabilized motion, premium and emotionally resonant."
+        f"{knowledge.hero_anchor(cat)} in one continuous {dur}-second "
+        f"vertical 9:16 commercial scene. {action} "
+        f"Camera: one slow, smooth, gradual push-in, ending locked and stable on the final moment. "
+        f"Style: {sb['look_video']}; {sb['palette']}. "
+        f"Avoid: {knowledge.VIDEO_AVOID}."
     )
 
 
@@ -146,7 +156,11 @@ def plan_stages(pkg: dict[str, Any], *, variants: int = 2) -> dict[str, Any]:
             {"stage": "animatic", "what": "PULSUZ Ken Burns animatic (lokal ffmpeg)",
              "credits": 0, "usd": 0,
              "cmd": f"python -m mediaforge.generate {pkg['slug']} --animatic"},
-            {"stage": "beats", "what": f"{n_beats} beat × {BEAT_MODEL} + stitch",
+            {"stage": "film (tövsiyə)", "what": f"TƏK multi-shot run × {FILM_MODEL} — native davamlılıq, stitch yox",
+             "credits": models.CATALOG[FILM_MODEL].credits,
+             "usd": round(models.CATALOG[FILM_MODEL].credits * USD_PER_CREDIT, 2),
+             "cmd": f"python -m mediaforge.generate {pkg['slug']} --film --confirm"},
+            {"stage": "beats", "what": f"{n_beats} beat × {BEAT_MODEL} + stitch (beat-level redo üçün)",
              "credits": n_beats * beat_cr,
              "usd": round(n_beats * beat_cr * USD_PER_CREDIT, 2),
              "cmd": f"python -m mediaforge.generate {pkg['slug']} --beats --confirm"},
@@ -262,9 +276,53 @@ def stage_beats(pkg: dict[str, Any], folder: Path, *, confirm: bool, model: str)
     return 0
 
 
+def stage_film(pkg: dict[str, Any], folder: Path, *, confirm: bool, model: str | None) -> int:
+    """ONE multi-shot generation (Kling 3.0 dialect): the whole storyboard in a
+    single run with native cross-shot continuity. Cheaper than 4 separate beats
+    and the hero/world/grade stay consistent without stitching."""
+    from . import knowledge
+    from .flora_client import FloraMCP
+
+    brief = pkg["brief"]
+    category = pkg["request"]["category"]
+    model_id = model or FILM_MODEL
+    m = models.CATALOG.get(model_id)
+    dur = int(brief["format"]["duration_s"])
+    prompt = knowledge.compose_film_prompt(category, brief["storyboard"], duration_s=dur)
+    print(f"🎞  Film (multi-shot, tək run): {model_id} · ~{m.credits if m else '?'}cr "
+          f"(≈${round((m.credits if m else 0) * USD_PER_CREDIT, 2)})")
+    print(f"Prompt:\n{prompt}\n")
+    if not confirm:
+        print("⏸  COST GATE — generasiya üçün əlavə et: --confirm")
+        return 0
+
+    flora = FloraMCP()
+    try:
+        ws = flora.default_workspace_id()
+        proj = flora.ensure_project(ws, PROJECT_NAME.format(name=brief["campaign"]["name"])[:60])
+        gen = flora.generate_media(
+            media_type="video", workspace_id=ws, project_id=proj["project_id"],
+            model=model_id, prompt=prompt,
+            params={"duration": str(dur), "aspect_ratio": brief["format"]["aspect"]})
+        run_id = gen.get("run_id")
+        print(f"   run={run_id}  ${gen.get('charged_cost')}  ~{gen.get('estimated_seconds')}s")
+        if not run_id:
+            return 1
+        url = framod._wait_for_output(flora, run_id, want_type="videoUrl", timeout_s=900)
+        if not url:
+            print("⚠ Video URL gəlmədi.")
+            return 1
+        dest = folder / "promo-film-master.mp4"
+        urllib.request.urlretrieve(url, dest)
+        print(f"✅ Hazır: {dest}")
+        return 0
+    finally:
+        flora.close()
+
+
 def stage_oner(pkg: dict[str, Any], folder: Path, *, confirm: bool, model: str | None) -> int:
     brief = pkg["brief"]
-    prompt = build_prompt(brief)
+    prompt = build_prompt(brief, category=pkg.get("request", {}).get("category"))
     model_id, reason = choose_model(brief, model)
     pl = plan(pkg, model_id, reason, prompt)
     print(f"🎬 Oner: {pl['label']} ({pl['model_id']}) · ~{pl['credits']}cr · {pl['params']}")
@@ -308,6 +366,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--pick", default=None, help="Select variants: '1=2,3=1' (1-based beat=variant).")
     ap.add_argument("--animatic", action="store_true", help="FREE local Ken Burns animatic.")
     ap.add_argument("--beats", action="store_true", help="Stage 3: per-beat videos + stitch (paid).")
+    ap.add_argument("--film", action="store_true",
+                    help="ONE multi-shot run (Kling 3.0 dialect) — native continuity, no stitch (paid).")
     ap.add_argument("--oner", action="store_true", help="Single-shot t2v film (paid, v1 mode).")
     ap.add_argument("--pro", action="store_true", help="frames → animatic → beats, hands-free.")
     ap.add_argument("--model", default=None, help="Model override (oner) / beat model (beats).")
@@ -341,6 +401,9 @@ def main(argv: list[str] | None = None) -> int:
             ran_stage = True
             rc = stage_beats(pkg, folder, confirm=args.confirm,
                              model=args.model or BEAT_MODEL)
+        if args.film and rc == 0:
+            ran_stage = True
+            rc = stage_film(pkg, folder, confirm=args.confirm, model=args.model)
         if args.oner and rc == 0:
             ran_stage = True
             rc = stage_oner(pkg, folder, confirm=args.confirm, model=args.model)

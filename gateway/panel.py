@@ -23,11 +23,11 @@ import time
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from ._bootstrap import load_env
-from . import advisor, queue, scheduler, sense
+from . import advisor, mic, queue, scheduler, sense
 
 load_env()
 
@@ -92,8 +92,7 @@ def submit(body: NewTask) -> JSONResponse:
     task = (body.task or "").strip()
     if not task:
         return JSONResponse({"error": "boş tapşırıq"}, status_code=400)
-    job_id = queue.submit(task, source="panel")
-    sense.emit("job", f"#{job_id} submitted (panel)", {"task": task[:80]})
+    job_id = mic.speak(task, source="panel")
     return JSONResponse({"id": job_id, "status": "queued"})
 
 
@@ -138,6 +137,94 @@ def sync_now() -> JSONResponse:
 
 
 # --------------------------------------------------------------------------
+# Deliverables — the visual front office: SEE what the system built, don't just
+# read a path. Sites preview live in an iframe, images/video inline, reports
+# rendered. Files are served ONLY from these output roots (never .env / source).
+# --------------------------------------------------------------------------
+
+_DELIVERABLE_ROOTS = [ROOT / "output", ROOT / "workspace", ROOT / "published", ROOT / "data" / "seo"]
+_PREVIEW_EXT = {
+    ".html", ".htm", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",
+    ".mp4", ".webm", ".mov", ".mp3", ".wav", ".ogg", ".md", ".pdf",
+    ".zip", ".csv", ".json", ".pptx", ".docx",
+}
+_KIND = {
+    "site": {".html", ".htm"},
+    "image": {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"},
+    "video": {".mp4", ".webm", ".mov"},
+    "audio": {".mp3", ".wav", ".ogg"},
+    "report": {".md"},
+    "pdf": {".pdf"},
+    "bundle": {".zip"},
+}
+
+
+def _kind_of(ext: str) -> str:
+    for k, exts in _KIND.items():
+        if ext in exts:
+            return k
+    return "file"
+
+
+def _safe_resolve(rel_path: str) -> Path | None:
+    """Resolve a requested path and allow it ONLY if it lives inside a
+    deliverable root. This is the guard against path traversal and against ever
+    serving .env, secrets, or source from elsewhere in the repo."""
+    try:
+        target = (ROOT / rel_path).resolve()
+    except Exception:
+        return None
+    for root in _DELIVERABLE_ROOTS:
+        try:
+            target.relative_to(root.resolve())
+        except ValueError:
+            continue
+        return target if target.is_file() else None
+    return None
+
+
+@app.get("/file/{file_path:path}")
+def serve_file(file_path: str):
+    """Serve a deliverable (sandboxed to the output roots). Path-based so an
+    HTML site's relative assets (css/js/img) resolve correctly in the iframe."""
+    target = _safe_resolve(file_path)
+    if target is None:
+        return JSONResponse({"error": "not found or not allowed"}, status_code=404)
+    return FileResponse(str(target))
+
+
+@app.get("/api/deliverables")
+def deliverables(limit: int = 60) -> JSONResponse:
+    """Everything the system produced, newest first, classified for visual
+    review. Job artifacts + a scan of the output roots."""
+    items: dict[str, dict] = {}
+    for root in _DELIVERABLE_ROOTS:
+        if not root.exists():
+            continue
+        for p in root.rglob("*"):
+            if not p.is_file() or p.suffix.lower() not in _PREVIEW_EXT:
+                continue
+            try:
+                rel = p.relative_to(ROOT).as_posix()
+            except ValueError:
+                continue
+            try:
+                stat = p.stat()
+            except OSError:
+                continue
+            items[rel] = {
+                "name": p.name,
+                "path": rel,
+                "url": f"/file/{rel}",
+                "kind": _kind_of(p.suffix.lower()),
+                "size": stat.st_size,
+                "mtime": stat.st_mtime,
+            }
+    ordered = sorted(items.values(), key=lambda d: d["mtime"], reverse=True)
+    return JSONResponse(ordered[:limit])
+
+
+# --------------------------------------------------------------------------
 # UI — one premium dark screen, zero external assets (corporate-offline safe)
 # --------------------------------------------------------------------------
 
@@ -160,6 +247,7 @@ button{background:var(--acc);color:#04212e;border:0;border-radius:8px;padding:8p
 button.ghost{background:var(--card);color:var(--txt);border:1px solid var(--line)}
 button.ok{background:var(--ok);color:#052e21} button.bad{background:var(--bad);color:#3a0a0a}
 button:disabled{opacity:.5;cursor:wait}
+select{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;cursor:pointer}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
 .card .k{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
@@ -191,6 +279,31 @@ padding:10px;font:inherit;min-height:64px;resize:vertical}
 #msg{font-size:13px;color:var(--ok);min-height:18px}
 details summary{cursor:pointer;color:var(--acc);font-size:12px}
 pre{white-space:pre-wrap;font-size:12px;color:var(--dim);margin-top:6px;max-height:300px;overflow:auto}
+/* deliverables gallery — the visual front office */
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:.15s;display:flex;flex-direction:column}
+.tile:hover{border-color:var(--acc);transform:translateY(-2px)}
+.thumb{height:148px;background:#0a0e13;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb iframe{width:200%;height:296px;transform:scale(.5);transform-origin:0 0;border:0;pointer-events:none;background:#fff}
+.thumb .ic{font-size:42px;opacity:.85}
+.tmeta{padding:9px 12px}
+.tmeta .nm{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tmeta .kd{font-size:11px;color:var(--dim);margin-top:4px;display:flex;justify-content:space-between;align-items:center}
+.kbadge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-radius:5px;padding:1px 7px}
+.kbadge.site{background:#0b2233;color:var(--acc)} .kbadge.image{background:#251d3f;color:var(--vio)}
+.kbadge.report{background:#0b2e22;color:var(--ok)} .kbadge.video,.kbadge.audio{background:#332605;color:var(--warn)}
+.kbadge.bundle,.kbadge.file,.kbadge.pdf{background:#1f2b3a;color:var(--dim)}
+.modal{position:fixed;inset:0;background:rgba(3,6,10,.86);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal.on{display:flex}
+.mbox{background:var(--card2);border:1px solid var(--line);border-radius:16px;width:min(1150px,96vw);height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.mbar{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line)}
+.mbar .nm{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbar a{text-decoration:none}
+.mbody{flex:1;overflow:auto;background:#0a0e13}
+.mbody iframe{width:100%;height:100%;border:0;background:#fff}
+.mbody img{max-width:100%;display:block;margin:0 auto}
+.mbody pre.md{padding:26px;white-space:pre-wrap;color:var(--txt);font:14px/1.65 "Segoe UI",system-ui;max-height:none;margin:0}
 </style></head><body>
 
 <div class="top">
@@ -203,6 +316,23 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--dim);margin-top:6px;max-heig
 </div>
 
 <div class="grid" id="cards"></div>
+
+<section>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+    <h2 style="margin:0">🖥️ Nəticələr — ön büro (gözünlə yoxla)</h2>
+    <span style="flex:1"></span>
+    <select id="delFilter" onchange="renderDeliverables()">
+      <option value="all">hamısı</option>
+      <option value="site">🌐 saytlar</option>
+      <option value="image">🖼️ şəkillər</option>
+      <option value="report">📄 hesabatlar</option>
+      <option value="video">🎬 video</option>
+      <option value="bundle">📦 paketlər</option>
+    </select>
+    <button class="ghost" onclick="loadDeliverables()">↻</button>
+  </div>
+  <div class="gallery" id="gallery"><div class="muted">yüklənir…</div></div>
+</section>
 
 <section id="approvalsWrap" style="display:none">
   <h2>⏸ Təsdiq gözləyənlər — bayıra yönəlik əməllər</h2>
@@ -234,11 +364,64 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--dim);margin-top:6px;max-heig
   <div id="events" class="muted">yüklənir…</div>
 </section>
 
+<div class="modal" id="modal" onclick="if(event.target.id==='modal')closeModal()">
+  <div class="mbox">
+    <div class="mbar">
+      <span class="nm" id="mNm"></span>
+      <a class="badge" id="mOpen" target="_blank">↗ tam aç</a>
+      <a class="badge" id="mDl" download>⬇ yüklə</a>
+      <button class="ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mbody" id="mBody"></div>
+  </div>
+</div>
+
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 async function j(url,opt){const r=await fetch(url,opt);return r.json()}
+
+// ---- deliverables: the visual front office ----
+let _deliverables=[];
+const _IC={site:"🌐",image:"🖼️",report:"📄",video:"🎬",audio:"🎵",bundle:"📦",pdf:"📕",file:"📎"};
+function fmtSize(b){return b>1e6?(b/1e6).toFixed(1)+"MB":b>1e3?(b/1e3).toFixed(0)+"KB":b+"B"}
+async function loadDeliverables(){
+  try{_deliverables=await j("/api/deliverables?limit=60");}catch(e){_deliverables=[];}
+  renderDeliverables();
+}
+function renderDeliverables(){
+  const f=$("delFilter")?$("delFilter").value:"all";
+  const list=_deliverables.filter(d=>f==="all"||d.kind===f);
+  if(!list.length){$("gallery").innerHTML=`<div class="muted">hələ nəticə yoxdur — bir tapşırıq ver, burada görünəcək.</div>`;return;}
+  $("gallery").innerHTML=list.map((d,i)=>{
+    let thumb;
+    if(d.kind==="image") thumb=`<img src="${d.url}" loading="lazy">`;
+    else if(d.kind==="site") thumb=`<iframe src="${d.url}" scrolling="no" loading="lazy"></iframe>`;
+    else thumb=`<div class="ic">${_IC[d.kind]||"📎"}</div>`;
+    return `<div class="tile" onclick="openDeliverable(${i})" title="${esc(d.name)}">
+      <div class="thumb">${thumb}</div>
+      <div class="tmeta"><div class="nm">${esc(d.name)}</div>
+        <div class="kd"><span class="kbadge ${d.kind}">${d.kind}</span><span>${fmtSize(d.size)}</span></div>
+      </div></div>`;
+  }).join("");
+}
+async function openDeliverable(i){
+  const d=_deliverables[i]; if(!d)return;
+  $("mNm").textContent=d.name; $("mOpen").href=d.url; $("mDl").href=d.url;
+  const b=$("mBody");
+  if(d.kind==="image") b.innerHTML=`<img src="${d.url}">`;
+  else if(d.kind==="site"||d.kind==="pdf") b.innerHTML=`<iframe src="${d.url}"></iframe>`;
+  else if(d.kind==="video") b.innerHTML=`<video src="${d.url}" controls style="width:100%;max-height:100%"></video>`;
+  else if(d.kind==="audio") b.innerHTML=`<div style="padding:40px"><audio src="${d.url}" controls style="width:100%"></audio></div>`;
+  else if(d.kind==="report"){
+    try{const t=await (await fetch(d.url)).text(); b.innerHTML=`<pre class="md">${esc(t)}</pre>`;}
+    catch(e){b.innerHTML=`<div class="muted" style="padding:40px">oxunmadı</div>`;}
+  } else b.innerHTML=`<div style="padding:48px;text-align:center" class="muted">Önizləmə yoxdur — “yüklə” düyməsini işlət.</div>`;
+  $("modal").classList.add("on");
+}
+function closeModal(){$("modal").classList.remove("on"); $("mBody").innerHTML="";}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
 
 function card(k,v,s){return `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s||""}</div></div>`}
 
@@ -309,7 +492,9 @@ async function doSync(){
 }
 
 refresh();
+loadDeliverables();
 setInterval(refresh, 15000);
+setInterval(loadDeliverables, 60000);
 </script>
 </body></html>"""
 

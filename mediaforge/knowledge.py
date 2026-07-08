@@ -14,6 +14,7 @@ confirmed by a human.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -135,7 +136,10 @@ TECHNIQUES: dict[str, list[str]] = {
 # --------------------------------------------------------------------------- #
 CATEGORY_PLAYBOOKS: dict[str, dict[str, Any]] = {
     "travel": {
-        "aliases": ["travel", "səyahət", "seyahet", "seyahət", "tourism", "trip", "abroad", "xarici"],
+        "aliases": [
+            "travel", "səyahət", "seyahet", "seyahət", "seyahat",
+            "turizm", "tourism", "trip", "abroad", "xarici",
+        ],
         "product": "Səyahət sığortası (travel insurance)",
         "core_truth": "People buy travel insurance to keep the adventure feeling free — the promise is 'go, enjoy, we carry the risk'.",
         "core_truth_az": "İnsanlar səyahət sığortasını macəranı azad hiss etmək üçün alır — vəd budur: 'get, həzz al, riski biz daşıyırıq'.",
@@ -153,7 +157,7 @@ CATEGORY_PLAYBOOKS: dict[str, dict[str, Any]] = {
         "single_minded": "Səyahət et, qalanını bizə burax — Xalq Sığorta yanındadır.",
     },
     "auto": {
-        "aliases": ["auto", "kasko", "avto", "car", "avtomobil", "casco", "vehicle"],
+        "aliases": ["auto", "kasko", "avto", "car", "araba", "avtomobil", "casco", "vehicle"],
         "product": "Avtomobil / KASKO sığortası",
         "core_truth": "The car is pride and daily freedom; the fear is losing it to one bad moment.",
         "core_truth_az": "Avtomobil qürur və gündəlik azadlıqdır; qorxu isə onu bir pis anda itirməkdir.",
@@ -171,7 +175,7 @@ CATEGORY_PLAYBOOKS: dict[str, dict[str, Any]] = {
         "single_minded": "Sevdiyin avtomobili bir anlıq bədbəxtlikdən qoru.",
     },
     "health": {
-        "aliases": ["health", "saglamliq", "sağlamlıq", "medical", "tibbi"],
+        "aliases": ["health", "saglamliq", "sağlamlıq", "saglik", "medical", "tibbi"],
         "product": "Sağlamlıq sığortası",
         "core_truth": "Health cover is really about protecting the people you love and the moments with them.",
         "core_truth_az": "Sağlamlıq sığortası əslində sevdiyin insanları və onlarla anları qorumaqdır.",
@@ -189,7 +193,7 @@ CATEGORY_PLAYBOOKS: dict[str, dict[str, Any]] = {
         "single_minded": "Sağlamlığın arxasında dayanan sığorta.",
     },
     "property": {
-        "aliases": ["property", "emlak", "əmlak", "home", "ev", "mənzil", "menzil"],
+        "aliases": ["property", "emlak", "əmlak", "konut", "home", "ev", "mənzil", "menzil"],
         "product": "Əmlak / ev sığortası",
         "core_truth": "Home is safety itself; insuring it protects the feeling of home, not just walls.",
         "core_truth_az": "Ev təhlükəsizliyin özüdür; onu sığortalamaq divarları yox, ev hissini qoruyur.",
@@ -259,6 +263,8 @@ STYLE_BIBLES: dict[str, dict[str, str]] = {
             "warm golden-hour sunlight with soft practical highlights, gentle film-emulation "
             "color grade with lifted blacks, natural skin tones, subtle grain"
         ),
+        # Video models want lighting + rhythm words, NOT lens jargon (Seedance official guide).
+        "look_video": "warm golden hour light, soft backlit highlights, natural skin tones, slow smooth stable motion",
         "palette": "warm amber and honey light, soft teal-neutral shadows, one deliberate deep-red accent allowed",
         "composition": (
             "clean negative space in the upper third and lower quarter of the frame for later "
@@ -273,6 +279,7 @@ STYLE_BIBLES: dict[str, dict[str, str]] = {
             "shot on a cinema camera with a 50mm prime lens, controlled studio-meets-street lighting, "
             "rich contrast with deep clean shadows, polished automotive reflections, crisp specular highlights"
         ),
+        "look_video": "controlled rim light, deep clean shadows, polished reflections, slow smooth stable motion",
         "palette": "graphite, silver and charcoal with one deliberate deep-red accent",
         "composition": "low hero angles, symmetric framing, clean negative space in the upper third for overlays",
         "texture": "paint gloss, brushed metal, wet asphalt reflections",
@@ -284,6 +291,7 @@ STYLE_BIBLES: dict[str, dict[str, str]] = {
             "handheld documentary intimacy on a 28mm lens, soft overcast daylight through windows, "
             "airy high-key grade with gentle contrast, honest natural color"
         ),
+        "look_video": "soft natural window light, airy and honest tones, gentle handheld motion, slow and stable",
         "palette": "soft whites, warm wood, sage green accents",
         "composition": "eye-level human framing, breathing room around subjects, negative space kept for overlays",
         "texture": "home textiles, morning light dust, skin detail",
@@ -304,6 +312,12 @@ _CATEGORY_STYLE = {
 NO_TEXT_RULES = (
     "No readable text anywhere in the frame, no lettering on documents or signs, "
     "no captions, no subtitles, no logos, no brand marks, no watermark, no UI elements."
+)
+
+# Video-model negative checklist (Seedance 2.0 official pitfall list + our text policy).
+VIDEO_AVOID = (
+    "readable text, captions, logos, watermarks; jitter, bent limbs, "
+    "temporal flicker, identity drift, chaotic composition"
 )
 
 
@@ -335,6 +349,13 @@ def character_block(category: str) -> str:
     return blocks.get(category, blocks["travel"])
 
 
+def hero_anchor(category: str) -> str:
+    """Compact `[Hero: …]` anchor (Kling character-anchoring convention)."""
+    block = character_block(category)
+    block = re.sub(r"^The protagonists?:\s*", "", block)
+    return f"[Hero: {block}]"
+
+
 def compose_keyframe_prompt(category: str, beat_visual: str, *, wide_or_close: str = "") -> str:
     """One beat's storyboard visual -> a fully directed still-photography prompt."""
     sb = style_bible_for(category)
@@ -348,22 +369,64 @@ def compose_keyframe_prompt(category: str, beat_visual: str, *, wide_or_close: s
     )
 
 
+def primary_camera_move(motion: str) -> str:
+    """Collapse a storyboard motion note to ONE primary camera instruction.
+
+    Both Seedance's and Kling's official guides warn that chained/conflicting
+    camera directions cause jitter — one deliberate move per shot, slow.
+    """
+    first = re.split(r"[;,]|->|→", motion or "")[0].strip().rstrip(".")
+    if not first:
+        first = "slow push-in"
+    low = first.lower()
+    if not any(w in low for w in ("slow", "gentle", "gradual", "smooth", "locked", "fixed", "stable")):
+        first = f"slow {first}"
+    return first
+
+
 def compose_beat_video_prompt(category: str, beat: dict, *, beat_index: int,
                               total_beats: int, prev_visual: str = "") -> str:
-    """One storyboard beat -> a directed text-to-video prompt with continuity locks."""
+    """One storyboard beat -> a Kling-dialect text-to-video prompt.
+
+    Kling official guidance: camera-first, Hollywood movement terms, ~20-50
+    precise words, explicit motion, slow moves over fast. Continuity comes from
+    the shot label + the previous-shot link + the shared character anchor.
+    """
     sb = style_bible_for(category)
-    continuity = (
-        f"Shot {beat_index + 1} of a continuous {total_beats}-shot commercial sequence — "
-        f"same world, same light, same color grade, same protagonist throughout."
-    )
+    camera = primary_camera_move(beat.get("motion", ""))
     prev = f" Continuing directly from the previous shot: {prev_visual}." if prev_visual else ""
     return (
-        f"Cinematic vertical 9:16 commercial shot. {continuity}{prev} "
-        f"{beat['visual']}. Camera: {beat['motion']}. "
-        f"{character_block(category)}. "
-        f"Look: {sb['look']}. Palette: {sb['palette']}. Composition: {sb['composition']}. "
-        f"{NO_TEXT_RULES} Smooth stabilized premium motion, emotionally resonant."
+        f"Shot {beat_index + 1} of a continuous {total_beats}-shot commercial sequence. "
+        f"Camera: {camera}. "
+        f"{hero_anchor(category)} {beat['visual']}. "
+        f"{sb['look_video']}.{prev} "
+        f"No readable text, no logos. Avoid: jitter, identity drift, temporal flicker."
     )
+
+
+def compose_film_prompt(category: str, storyboard: list[dict], *, duration_s: int = 10) -> str:
+    """The whole storyboard as ONE multi-shot generation (Kling 3.0 dialect).
+
+    Kling 3.0 officially supports up to six labeled shots in a single run with
+    native cross-shot continuity — the same protagonist, world and grade carry
+    through without stitching. Structure per the fal.ai official guide:
+    character anchor first, then explicitly labeled shots (framing + subject +
+    motion each), temporal links between them, one avoid clause at the end.
+    """
+    sb = style_bible_for(category)
+    lines = [
+        f"A continuous {duration_s}-second vertical 9:16 commercial film, {len(storyboard)} shots.",
+        hero_anchor(category),
+        f"World: {sb['look_video']}; {sb['palette']}.",
+    ]
+    for i, beat in enumerate(storyboard):
+        camera = primary_camera_move(beat.get("motion", ""))
+        link = "Then, " if i else ""
+        lines.append(f"Shot {i + 1} ({beat.get('time', '')}): {link}camera {camera}. Hero {beat['visual']}.")
+    lines.append(
+        f"Hold the final shot stable. Avoid: {VIDEO_AVOID}."
+    )
+    return "\n".join(lines)
 
 
 def category_for(text: str) -> str:

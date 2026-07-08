@@ -52,7 +52,9 @@ class SymmetricModelDefault(unittest.TestCase):
 
 
 class TieredCouncil(unittest.TestCase):
-    """Council fires for deliberation-worthy tiers, not every trivial task (FIX-3)."""
+    """Council is now EXPLICIT-ONLY: 'one microphone' means one conversational
+    brain by default; the council never fires on its own — you summon it by name
+    (/council or 'şura:'). The operator's directive superseded tier auto-firing."""
 
     def _executor(self):
         try:
@@ -71,23 +73,23 @@ class TieredCouncil(unittest.TestCase):
             else:
                 os.environ[k] = v
 
-    def test_complex_task_runs_council_simple_does_not(self):
+    def test_casual_task_never_fires_council(self):
         ex = self._executor()
         os.environ["AI_COUNCIL_ENABLED"] = "1"
-        os.environ.pop("AI_COUNCIL_TIERS", None)  # default = complex
-        self.assertTrue(ex._council_should_run("refactor and debug the payment module"))
+        # Even a 'complex' task stays in the conversational brain now.
+        self.assertFalse(ex._council_should_run("refactor and debug the payment module"))
         self.assertFalse(ex._council_should_run("write 3 instagram captions"))
 
-    def test_all_tier_restores_fire_on_everything(self):
+    def test_explicit_trigger_fires_council(self):
         ex = self._executor()
         os.environ["AI_COUNCIL_ENABLED"] = "1"
-        os.environ["AI_COUNCIL_TIERS"] = "all"
-        self.assertTrue(ex._council_should_run("write 3 instagram captions"))
+        self.assertTrue(ex._council_should_run("/council refactor the architecture"))
+        self.assertTrue(ex._council_should_run("şura: bu qərarı müzakirə et"))
 
-    def test_master_switch_off(self):
+    def test_master_switch_off_beats_trigger(self):
         ex = self._executor()
         os.environ["AI_COUNCIL_ENABLED"] = "0"
-        self.assertFalse(ex._council_should_run("refactor the architecture"))
+        self.assertFalse(ex._council_should_run("/council refactor the architecture"))
 
 
 class UnifiedSpendBoard(unittest.TestCase):

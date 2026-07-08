@@ -11,7 +11,7 @@ import argparse
 import json
 import sys
 
-from . import pipeline
+from . import pipeline, ugc
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,10 +29,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("sentence", nargs="+", help="Natural-language request (AZ or EN).")
     parser.add_argument("--no-llm", action="store_true", help="Deterministic brain only (no LLM call).")
     parser.add_argument("--json", action="store_true", help="Print the full package as JSON.")
+    parser.add_argument(
+        "--ugc",
+        action="store_true",
+        help="Build a Doruk-style AI UGC campaign pack (persona, script, voice, prompts, economics).",
+    )
     args = parser.parse_args(argv)
 
     sentence = " ".join(args.sentence)
-    pkg = pipeline.create(sentence, use_llm=not args.no_llm)
+    pkg = ugc.create(sentence, use_llm=not args.no_llm) if args.ugc else pipeline.create(
+        sentence, use_llm=not args.no_llm
+    )
 
     if args.json:
         print(json.dumps(pkg, ensure_ascii=False, indent=2))
@@ -64,6 +71,11 @@ def main(argv: list[str] | None = None) -> int:
           + (f" ({pkg['meta']['llm_model']})" if pkg['meta'].get('llm_model') else ""))
     print(f"Paket     : {pkg['artifacts']['folder']}")
     print(f"Board (SVG): {pkg['artifacts']['board_svg']}")
+    if args.ugc and pkg.get("ugc_pack"):
+        up = pkg["ugc_pack"]
+        print(f"UGC pack  : {up['folder']}")
+        print(f"Persona   : {up['persona']['name']}")
+        print(f"Variable cost floor: ~{up['economics']['one_round_video_credit_floor']} FLORA kredit")
     print()
     print("İşə salmağa hazır (cost gate — kredit avtomatik xərclənmir):")
     print(f"  plan (xərcsiz): {g.get('plan_command','')}")

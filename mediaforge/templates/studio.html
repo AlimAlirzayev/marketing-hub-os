@@ -83,6 +83,8 @@
 
   .fire{background:linear-gradient(180deg,#161418,#111014);border:1px solid #3a2020;border-radius:16px;padding:20px;margin-top:18px}
   .fire h3{color:#ff9d7a}
+  .ugcbox{display:none;margin-top:18px;background:#101416;border:1px solid #1c3a42;border-radius:16px;padding:20px}
+  .ugcbox h3{color:#9be7ff}
   .cmd{background:#08080a;border:1px solid var(--line);border-radius:10px;padding:14px;font-family:Consolas,monospace;
     font-size:13px;color:#d5e5ff;white-space:pre-wrap;word-break:break-word;position:relative}
   .copy{position:absolute;top:10px;right:10px;background:var(--panel2);border:1px solid var(--line);color:var(--dim);
@@ -115,6 +117,7 @@
     <div class="row">
       <button class="go" id="go"><span>İşə sal</span> →</button>
       <label class="toggle"><input type="checkbox" id="useLlm" checked> LLM kreativ beyni</label>
+      <label class="toggle"><input type="checkbox" id="ugcMode"> AI UGC pack</label>
     </div>
     <div class="chips" id="chips"></div>
   </div>
@@ -158,6 +161,14 @@
       <div class="gate" id="gate"></div>
       <div class="arts" id="arts"></div>
     </div>
+
+    <div class="ugcbox" id="ugcBox">
+      <h3>AI UGC campaign pack</h3>
+      <div class="meta-line">Persona: <b id="uPersona"></b></div>
+      <div class="meta-line">One-round video floor: <b id="uCost"></b></div>
+      <div class="meta-line">Pack: <b id="uFolder"></b></div>
+      <div class="arts" id="uFiles"></div>
+    </div>
   </div>
 
   <div class="foot">MediaForge · motion plate direzhissura; dəqiq mətn / logo / qiymət / CTA deterministik overlay kimi Video Studio-da bağlanır · heç bir kanal səssiz düşmür</div>
@@ -185,7 +196,11 @@ async function run(){
   document.getElementById('status').style.display='flex';
   try{
     const res=await fetch('/api/create',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sentence,use_llm:document.getElementById('useLlm').checked})});
+      body:JSON.stringify({
+        sentence,
+        use_llm:document.getElementById('useLlm').checked,
+        mode:document.getElementById('ugcMode').checked?'ugc':'promo'
+      })});
     const data=await res.json();
     if(!res.ok||data.error){throw new Error(data.error||'server error');}
     render(data);
@@ -236,6 +251,17 @@ function render(d){
   document.getElementById('mcpText').textContent=g.mcp_instruction;
   document.getElementById('gate').innerHTML='🛡️ '+g.gate_reason+'<br>Manual addım: '+g.manual_step;
   document.getElementById('arts').innerHTML='Paket: <code>'+d.artifacts.folder+'</code> · brief.json · compiled-flora-prompt.md · storyboard-board.svg';
+
+  const ub=document.getElementById('ugcBox');
+  if(d.ugc_pack){
+    document.getElementById('uPersona').textContent=d.ugc_pack.persona.name;
+    document.getElementById('uCost').textContent='~'+d.ugc_pack.economics.one_round_video_credit_floor+' FLORA kredit';
+    document.getElementById('uFolder').textContent=d.ugc_pack.folder;
+    document.getElementById('uFiles').innerHTML=Object.values(d.ugc_pack.files).map(p=>'<code>'+p+'</code>').join(' ');
+    ub.style.display='block';
+  }else{
+    ub.style.display='none';
+  }
 
   document.getElementById('result').style.display='block';
   document.getElementById('result').scrollIntoView({behavior:'smooth'});

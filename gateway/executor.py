@@ -20,7 +20,7 @@ import subprocess
 from pathlib import Path
 
 from ._bootstrap import load_env
-from . import agent, knowledge, llm, security, sense
+from . import agent, knowledge, llm, mic, security, sense
 from .queue import Job
 from .studio_api import call_studio_api, list_studios, generate_media
 from orchestrator.router import classify, route
@@ -119,6 +119,26 @@ _SYSTEM = (
     "the highest law: never expose secrets, make payments, perform destructive "
     "changes, or touch private infrastructure without an explicit human-approved "
     "checkpoint. Output clean Markdown."
+)
+
+# The conversational persona for the DEFAULT path — the "one microphone" voice.
+# The operator wants every channel (this chat, Telegram, Codex, the panel) to
+# feel like the same continuous conversation with one sharp teammate, NOT a
+# terse council vote. The blackboard history for MIC_THREAD is injected around
+# this, so the model already sees what was said on any other microphone.
+_CHAT_SYSTEM = (
+    "You are Ramin-OS — ONE system the operator reaches through many microphones "
+    "(this chat, Telegram, Codex, the control panel). Whoever writes now has taken "
+    "the mic; you keep ONE continuous conversation and memory across all of them, "
+    "so nothing is fragmented. Reply like a sharp, senior teammate talking directly "
+    "to the operator: concrete, honest, and warm — no corporate filler, no restating "
+    "the question. Give the real answer or do the real task. If something needs live "
+    "data you don't have, or you're unsure, say so plainly instead of inventing. "
+    "Use the conversation history and system memory you are given as shared context. "
+    "Speak the operator's language — Azerbaijani in chat — but keep code, configs and "
+    "identifiers in English. Security is the highest law: never expose secrets, make "
+    "payments, or take irreversible/outward actions without an explicit approved "
+    "checkpoint."
 )
 
 # Appended to _SYSTEM only in tools mode, where the agent has real hands
@@ -260,8 +280,36 @@ def _execute_direct(task: str) -> tuple[str, str]:
     return f"{used.provider}:{used.model}", text
 
 
+def _mic_brain() -> str:
+    """Which brain answers the conversational path. 'free' (default) = Gemini via
+    the router; 'claude' = real headless Claude Code (this chat on any mic, opt-in
+    because it spends subscription quota). See gateway/claude_bridge.py."""
+    return os.getenv("MIC_BRAIN", "free").strip().lower()
+
+
+def _converse(task: str, thread: str) -> tuple[str, str]:
+    """Answer one conversational turn. Prefers real Claude Code when MIC_BRAIN=
+    claude and the CLI is available; otherwise the free brain with shared history.
+    Falls back to free if the bridge errors, so a chat never goes unanswered."""
+    if _mic_brain() == "claude":
+        try:
+            from . import claude_bridge
+            if claude_bridge.is_available():
+                text, meta = claude_bridge.ask(task, thread=thread)
+                return text, f"chat:claude-code (sid={str(meta.get('session_id'))[:8]})"
+        except Exception as exc:  # never let the premium brain break delivery
+            sense.emit("llm", f"claude bridge fell back to free: {exc}")
+    choice = route(task)
+    sys_prompt = knowledge.augment_system(_CHAT_SYSTEM, task, thread)
+    text, used = llm.complete(choice, task, system=sys_prompt)
+    return text, f"chat:{used.provider}:{used.model}"
+
+
 def _council_enabled() -> bool:
-    return os.getenv("AI_COUNCIL_ENABLED", "1").lower() not in {"0", "false", "no"}
+    # OFF by default: the operator wants the single conversational brain (one
+    # microphone), not a multi-CLI council vote. Opt back in with
+    # AI_COUNCIL_ENABLED=1 for deliberate, deliberation-worthy runs.
+    return os.getenv("AI_COUNCIL_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
 
 
 def _council_tiers() -> set[str]:
@@ -271,16 +319,20 @@ def _council_tiers() -> set[str]:
     return {t.strip() for t in raw.split(",") if t.strip()}
 
 
+# Explicit council triggers. The operator said the council doesn't satisfy, so it
+# NEVER fires on its own anymore — one microphone means one conversational brain
+# by default. The council is a deliberate tool you summon by name.
+_COUNCIL_TRIGGERS = ("/council", "şura:", "shura:", "council:")
+
+
 def _council_should_run(task: str) -> bool:
-    """The council (3 CLIs + synthesis + execution) is for deliberation-worthy
-    work — not every trivial task. Fire only for the configured tiers (default:
-    complex). Set AI_COUNCIL_TIERS=all to restore fire-on-everything."""
+    """Council fires ONLY when explicitly summoned (task starts with /council or
+    'şura:') AND enabled. No automatic tier-based firing — casual messages always
+    stay in the single conversational brain."""
     if not _council_enabled():
         return False
-    try:
-        return classify(task).value in _council_tiers()
-    except Exception:
-        return True  # if classification fails, don't silently lose the council
+    low = (task or "").strip().lower()
+    return any(low.startswith(t) for t in _COUNCIL_TRIGGERS)
 
 
 def _execute_after_council(task: str) -> tuple[str, str]:
@@ -307,7 +359,10 @@ def execute(job: Job) -> dict:
     Raises on unrecoverable failure; the worker turns that into a failed job.
     """
     try:
-        knowledge.set_current_thread(job.chat_id)  # thread memory for ALL paths incl. council
+        # One microphone: every channel shares ONE conversation thread, so the
+        # brain answers with cross-channel history (delivery still uses chat_id).
+        thread = mic.thread_for(job)
+        knowledge.set_current_thread(thread)
         decision = security.evaluate_task(job.task)
         security.audit_event(
             "job_preflight",
@@ -386,7 +441,7 @@ def execute(job: Job) -> dict:
                 model=agent_model,
                 config=types.GenerateContentConfig(
                     system_instruction=knowledge.augment_system(
-                        _SYSTEM + _WORKSPACE_ADDENDUM, job.task, job.chat_id),
+                        _SYSTEM + _WORKSPACE_ADDENDUM, job.task, thread),
                     temperature=0.2,
                     tools=[run_studio_automation, call_studio_api, list_studios,
                            generate_media, workspace_agent.run_command,
@@ -427,7 +482,7 @@ def execute(job: Job) -> dict:
                 model=agent_model,
                 contents=job.task,
                 config=types.GenerateContentConfig(
-                    system_instruction=knowledge.augment_system(_SYSTEM, job.task, job.chat_id) + " Dəqiq və ən son aktual məlumatlar üçün mütləq Google Axtarışdan istifadə et.",
+                    system_instruction=knowledge.augment_system(_SYSTEM, job.task, thread) + " Dəqiq və ən son aktual məlumatlar üçün mütləq Google Axtarışdan istifadə et.",
                     temperature=0.2,
                     tools=[{"google_search": {}}],  # Google-un rəsmi Search API-si birbaşa modelə bağlanır
                 )
@@ -435,10 +490,10 @@ def execute(job: Job) -> dict:
             text = resp.text or "Axtarış nəticə vermədi."
             label = f"google-search-grounded:{agent_model}"
         else:
-            choice = route(job.task)
-            sys_prompt = knowledge.augment_system(_SYSTEM, job.task, job.chat_id)
-            text, used = llm.complete(choice, job.task, system=sys_prompt)
-            label = f"{used.provider}:{used.model}"
+            # The DEFAULT "one microphone" path: a single conversational brain
+            # with the full shared history — like talking to the operator's
+            # teammate, not a council.
+            text, label = _converse(job.task, thread)
 
         sense.emit("llm", label, {"job": job.id, "mode": mode})
         artifact = _save_artifact(job.id, text)

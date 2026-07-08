@@ -10,6 +10,7 @@ data/vector_db/*
 data/memory/*
 data/logs/*
 data/agent_radar/*
+data/certification_coach/
 output/agent-radar/*
 tmp/
 !data/**/.gitkeep
@@ -63,6 +64,9 @@ data/graph_checkpoints.sqlite*
 # Job queue runtime DB (gateway/queue.py) incl. SQLite WAL/SHM siblings
 data/jobs.sqlite*
 
+# Headless Claude Code bridge session map (gateway/claude_bridge.py) — local only
+data/claude_session.json
+
 # PRIVATE context (business/customer/brand/strategy/conversation) — NEVER travels.
 # Only the shared engine (memory/ + code) crosses between systems via git.
 data/private_context/
@@ -78,6 +82,8 @@ __pycache__/
 
 # Node
 node_modules/
+notion-workers/**/dist/
+notion-workers/**/workers.json
 
 # OpenCode local session/cache data (keep opencode.json, ignore runtime state)
 .opencode/

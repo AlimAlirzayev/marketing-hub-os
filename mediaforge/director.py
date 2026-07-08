@@ -34,7 +34,12 @@ _PLATFORMS = [
 
 
 def detect_language(text: str) -> str:
-    return "az" if any(ch in _AZ_LETTERS for ch in text) else "en"
+    low = (text or "").casefold()
+    local_terms = (
+        "sigorta", "sigortasi", "sığorta", "səyahət", "seyahat", "seyahet",
+        "kasko", "avtomobil", "saglam", "saglik", "emlak", "konut", "ucun",
+    )
+    return "az" if any(ch in _AZ_LETTERS for ch in text) or any(t in low for t in local_terms) else "en"
 
 
 def parse_request(sentence: str) -> dict[str, Any]:
