@@ -280,6 +280,31 @@ def _execute_direct(task: str) -> tuple[str, str]:
     return f"{used.provider}:{used.model}", text
 
 
+def _mic_brain() -> str:
+    """Which brain answers the conversational path. 'free' (default) = Gemini via
+    the router; 'claude' = real headless Claude Code (this chat on any mic, opt-in
+    because it spends subscription quota). See gateway/claude_bridge.py."""
+    return os.getenv("MIC_BRAIN", "free").strip().lower()
+
+
+def _converse(task: str, thread: str) -> tuple[str, str]:
+    """Answer one conversational turn. Prefers real Claude Code when MIC_BRAIN=
+    claude and the CLI is available; otherwise the free brain with shared history.
+    Falls back to free if the bridge errors, so a chat never goes unanswered."""
+    if _mic_brain() == "claude":
+        try:
+            from . import claude_bridge
+            if claude_bridge.is_available():
+                text, meta = claude_bridge.ask(task, thread=thread)
+                return text, f"chat:claude-code (sid={str(meta.get('session_id'))[:8]})"
+        except Exception as exc:  # never let the premium brain break delivery
+            sense.emit("llm", f"claude bridge fell back to free: {exc}")
+    choice = route(task)
+    sys_prompt = knowledge.augment_system(_CHAT_SYSTEM, task, thread)
+    text, used = llm.complete(choice, task, system=sys_prompt)
+    return text, f"chat:{used.provider}:{used.model}"
+
+
 def _council_enabled() -> bool:
     # OFF by default: the operator wants the single conversational brain (one
     # microphone), not a multi-CLI council vote. Opt back in with
@@ -294,16 +319,20 @@ def _council_tiers() -> set[str]:
     return {t.strip() for t in raw.split(",") if t.strip()}
 
 
+# Explicit council triggers. The operator said the council doesn't satisfy, so it
+# NEVER fires on its own anymore — one microphone means one conversational brain
+# by default. The council is a deliberate tool you summon by name.
+_COUNCIL_TRIGGERS = ("/council", "şura:", "shura:", "council:")
+
+
 def _council_should_run(task: str) -> bool:
-    """The council (3 CLIs + synthesis + execution) is for deliberation-worthy
-    work — not every trivial task. Fire only for the configured tiers (default:
-    complex). Set AI_COUNCIL_TIERS=all to restore fire-on-everything."""
+    """Council fires ONLY when explicitly summoned (task starts with /council or
+    'şura:') AND enabled. No automatic tier-based firing — casual messages always
+    stay in the single conversational brain."""
     if not _council_enabled():
         return False
-    try:
-        return classify(task).value in _council_tiers()
-    except Exception:
-        return True  # if classification fails, don't silently lose the council
+    low = (task or "").strip().lower()
+    return any(low.startswith(t) for t in _COUNCIL_TRIGGERS)
 
 
 def _execute_after_council(task: str) -> tuple[str, str]:
@@ -463,11 +492,8 @@ def execute(job: Job) -> dict:
         else:
             # The DEFAULT "one microphone" path: a single conversational brain
             # with the full shared history — like talking to the operator's
-            # teammate, not a council. Free-first via the router.
-            choice = route(job.task)
-            sys_prompt = knowledge.augment_system(_CHAT_SYSTEM, job.task, thread)
-            text, used = llm.complete(choice, job.task, system=sys_prompt)
-            label = f"chat:{used.provider}:{used.model}"
+            # teammate, not a council.
+            text, label = _converse(job.task, thread)
 
         sense.emit("llm", label, {"job": job.id, "mode": mode})
         artifact = _save_artifact(job.id, text)
