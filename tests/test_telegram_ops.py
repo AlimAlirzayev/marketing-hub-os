@@ -85,6 +85,52 @@ class StatusCommand(unittest.TestCase):
         self.assertTrue(any("Unauthorized" in t for t in self.sent))
 
 
+class SelfDocumentingReject(unittest.TestCase):
+    """A bare 'Unauthorized' is what made the owner-id mix-up unfixable. The
+    rejection must now reveal the sender's id, the configured owner, its source
+    env var, and the exact fix."""
+
+    def setUp(self):
+        from gateway import bot
+        self.bot = bot
+        self.sent: list[str] = []
+        p = [
+            mock.patch.object(bot.telegram, "send_message",
+                              side_effect=lambda c, t: self.sent.append(t)),
+            mock.patch.object(bot.sense, "emit"),
+        ]
+        for x in p:
+            x.start()
+        self.addCleanup(lambda: [x.stop() for x in p])
+
+    def test_wrong_owner_reveals_id_owner_and_fix(self):
+        with mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "784455040"},
+                             clear=False):
+            os.environ.pop("GATEWAY_OWNER_ID", None)
+            self.bot._handle_message({"chat": {"id": 1923265939}, "text": "/status"})
+        text = "\n".join(self.sent)
+        self.assertIn("1923265939", text)          # your id
+        self.assertIn("784455040", text)           # the wrong configured owner
+        self.assertIn("TELEGRAM_OWNER_CHAT_ID=1923265939", text)  # exact fix
+
+    def test_legacy_gateway_owner_id_is_named_as_culprit(self):
+        with mock.patch.dict(os.environ, {"GATEWAY_OWNER_ID": "784455040"},
+                             clear=False):
+            os.environ.pop("TELEGRAM_OWNER_CHAT_ID", None)
+            self.bot._handle_message({"chat": {"id": 1923265939}, "text": "/jobs"})
+        text = "\n".join(self.sent)
+        self.assertIn("GATEWAY_OWNER_ID", text)     # names the leaking var
+
+    def test_unset_owner_tells_how_to_claim(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("TELEGRAM_OWNER_CHAT_ID", None)
+            os.environ.pop("GATEWAY_OWNER_ID", None)
+            self.bot._handle_message({"chat": {"id": 555}, "text": "/status"})
+        text = "\n".join(self.sent)
+        self.assertIn("kilidlidir", text)
+        self.assertIn("TELEGRAM_OWNER_CHAT_ID=555", text)
+
+
 class SupervisorSingleton(unittest.TestCase):
     def test_second_instance_refuses(self):
         from gateway import supervisor

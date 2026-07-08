@@ -61,14 +61,22 @@ _HELP = (
 )
 
 
+def _owner_source() -> tuple[str | None, str | None]:
+    """(owner_id, which_env_var). TELEGRAM_OWNER_CHAT_ID is the canonical name
+    across both friend-systems; GATEWAY_OWNER_ID is honored as the legacy fleet
+    name so an already-locked box never silently unlocks. Returning the source
+    lets a rejection name the culprit — e.g. a fleet GATEWAY_OWNER_ID that bled
+    into the corporate bot and locked out the real owner."""
+    for var in ("TELEGRAM_OWNER_CHAT_ID", "GATEWAY_OWNER_ID"):
+        v = (os.getenv(var) or "").strip()
+        if v:
+            return v, var
+    return None, None
+
+
 def _owner_id() -> str | None:
-    """The single chat allowed to talk to this bot. TELEGRAM_OWNER_CHAT_ID is
-    the shared name across both friend-systems; GATEWAY_OWNER_ID is honored as
-    the legacy fleet name so an already-locked box never silently unlocks."""
-    val = (
-        os.getenv("TELEGRAM_OWNER_CHAT_ID") or os.getenv("GATEWAY_OWNER_ID") or ""
-    ).strip()
-    return val or None
+    """The single chat allowed to talk to this bot, or None if unconfigured."""
+    return _owner_source()[0]
 
 
 def _is_owner(chat_id) -> bool:
@@ -192,10 +200,26 @@ def _handle_message(msg: dict) -> None:
     chat_id = msg["chat"]["id"]
 
     # ---- inbound hard shell: owner-only, fail-closed --------------------
+    # The rejection is SELF-DOCUMENTING on purpose: a bare "Unauthorized" is what
+    # made the owner-id mix-up so hard to debug. Now every rejection tells you
+    # your chat id, the configured owner, WHICH env var supplied it, and the
+    # exact one-line fix — so a wrong owner is diagnosable from the phone.
     if not _is_owner(chat_id):
         sense.emit("security", f"rejected non-owner chat_id={chat_id}")
-        if _owner_id():
-            reply = "⛔ Unauthorized."
+        owner, src = _owner_source()
+        if owner:
+            reply = (
+                f"⛔ Unauthorized — İcazə yoxdur.\n"
+                f"Sizin chat id: {chat_id}\n"
+                f"Bu botun təyin olunmuş sahibi: {owner} (mənbə: {src})\n"
+            )
+            if src == "GATEWAY_OWNER_ID":
+                reply += ("Diqqət: sahib köhnə GATEWAY_OWNER_ID-dən gəlir. "
+                          f"TELEGRAM_OWNER_CHAT_ID={chat_id} onu əvəz edəcək.\n")
+            reply += (
+                f"Siz sahibsinizsə: bu maşının .env faylında "
+                f"TELEGRAM_OWNER_CHAT_ID={chat_id} yazıb prosesi restart edin."
+            )
         else:
             # Locked because NO owner is configured yet. Tell the (probable)
             # owner how to claim the bot — but execute nothing until then.
