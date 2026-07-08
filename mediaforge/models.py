@@ -58,10 +58,10 @@ CATALOG: dict[str, VideoModel] = {
     ),
     "t2v-kling-v3-standard": VideoModel(
         "t2v-kling-v3-standard", "t2v", "production", "Kling 3.0 Standard",
-        _SEEDANCE_DUR, "1080p",
+        _SEEDANCE_DUR, "720p",
         "Multi-shot single-run film: up to 6 labeled shots with native cross-shot "
         "continuity (same hero/world/grade, no stitching)",
-        "No image reference", 588,
+        "Outputs 720p (no resolution param) — add video-upscaler-topaz (27cr) for 1080p+", 588,
     ),
     "t2v-kling-v3-pro": VideoModel(
         "t2v-kling-v3-pro", "t2v", "premium", "Kling 3.0 Pro",
