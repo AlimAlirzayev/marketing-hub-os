@@ -13,9 +13,13 @@ The contract (see docs/SYNC.md): move only the ENGINE. Private business data is
 git-ignored, so `git push` can physically only ship engine code -- the boundary
 is enforced by .gitignore, not by trust. This script is deliberately conservative:
 
-  * fast-forward pulls only (never a merge/rebase that could mangle local work)
-  * push only already-committed commits that are strictly ahead (never auto-commit
-    a dirty tree, never force-push)
+  * fast-forward pulls only for the common case (never a blind merge/rebase that
+    could mangle local work)
+  * for the ONE unavoidable two-writer case -- the append-only shared decisions
+    log -- it (a) auto-commits that single union-merge-safe file before syncing so
+    an uncommitted handoff can never jam the pull, and (b) does a GUARDED union
+    auto-merge that aborts on any real conflict and falls back to manual review
+  * push only committed commits; never force-push
   * a short network timeout so a hook can never hang a session
   * never raises on a network/git hiccup -- prints one line and exits 0
 
@@ -31,6 +35,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 NET_TIMEOUT = 20  # seconds; keep a hook from ever blocking on a dead network
+
+# The only paths sync is allowed to auto-commit. Must be append-only shared logs
+# carrying a `merge=union` driver in .gitattributes, so committing + merging them
+# can never lose data or conflict. Keep this list tiny and boring.
+_AUTOCOMMIT_SAFE = ("memory/decisions.jsonl",)
 
 
 def _git(*args: str, timeout: int | None = None) -> tuple[int, str]:
@@ -56,9 +65,42 @@ def _rev(ref: str) -> str | None:
     return out if code == 0 else None
 
 
+def _autocommit_shared_logs(say) -> bool:
+    """Commit ONLY the union-merge-safe shared append-log(s) if a session left them
+    dirty, so an uncommitted handoff never blocks the ff-pull mailbox. Never touches
+    any other path (a partial, path-limited commit). Skips a file whose last line is
+    torn (mid-write) -- it'll be caught on the next pass. Returns True if it committed."""
+    to_commit: list[str] = []
+    for rel in _AUTOCOMMIT_SAFE:
+        _, status = _git("status", "--porcelain", "--", rel)
+        if not status:
+            continue  # clean -> nothing to do
+        try:
+            data = (ROOT / rel).read_bytes()
+        except OSError:
+            continue
+        if data and not data.endswith(b"\n"):
+            continue  # a write is in flight; leave it for the next sync
+        to_commit.append(rel)
+    if not to_commit:
+        return False
+    _git("add", "--", *to_commit)
+    code, _ = _git(
+        "commit",
+        "-m",
+        "chore(memory): checkpoint shared decisions log before sync [auto]",
+        "--",
+        *to_commit,
+    )
+    if code == 0:
+        say(f"checkpointed shared log before sync ({', '.join(to_commit)})")
+        return True
+    return False
+
+
 def _apply_vault_keys() -> None:
     """After a pull, decrypt any newly-arrived API keys from the encrypted vault
-    (secrets/keys.vault) into this machine's .env — the other half of the
+    (secrets/keys.vault) into this machine's .env -- the other half of the
     'keys travel encrypted' rule (docs/SYNC.md). Best-effort: needs the repo
     venv's `cryptography` and a KEY_VAULT_SECRET in .env; silently skips
     otherwise so this stdlib-only script never gains a hard dependency."""
@@ -90,6 +132,12 @@ def sync(*, pull: bool = True, push: bool = True, quiet: bool = False) -> str:
     # Is there an upstream at all?
     if _rev("@{u}") is None:
         return say("no upstream set (run once: git push -u origin master) -- skipped")
+
+    # A session may have appended a shared handoff without committing it, which
+    # would leave the tree dirty and silently block the ff-pull. Checkpoint that
+    # one safe file first so the mailbox never jams on it.
+    if pull or push:
+        _autocommit_shared_logs(say)
 
     # Fetch (the only network read). Offline -> skip gracefully, never block.
     code, out = _git("fetch", "origin", timeout=NET_TIMEOUT)
@@ -125,9 +173,26 @@ def sync(*, pull: bool = True, push: bool = True, quiet: bool = False) -> str:
             return say(f"pushed local engine commits -> origin ({(local or '')[:7]})")
         return say(f"push failed: {out.splitlines()[-1] if out else 'unknown'}")
 
-    # Diverged -> never auto-merge; the human decides.
+    # Diverged (both sides moved). The only expected cause after the checkpoint
+    # above is two twins each appending to the union-merge decisions log. Attempt
+    # a GUARDED union auto-merge; abort on ANY real conflict so we never mangle
+    # local work, and fall back to the human.
     if local != base and remote != base:
-        return say("branches DIVERGED -- manual review needed (no auto-merge)")
+        if dirty:
+            return say("branches DIVERGED with uncommitted local edits -- manual review needed")
+        code, out = _git("merge", "--no-edit", "@{u}", timeout=NET_TIMEOUT)
+        if code != 0:
+            _git("merge", "--abort")
+            return say("branches DIVERGED -- auto-merge would conflict, manual review needed")
+        _apply_vault_keys()
+        merged = (_rev("@") or "")[:7]
+        if push:
+            pcode, _ = _git("push", "origin", "HEAD", timeout=NET_TIMEOUT)
+            if pcode == 0:
+                # keep the "pulled new engine" phrase so the supervisor announces it
+                return say(f"pulled new engine updates (auto-merged divergent log) -> {merged}")
+            return say(f"pulled new engine updates (auto-merged, push pending) -> {merged}")
+        return say(f"pulled new engine updates (auto-merged divergent log) -> {merged}")
 
     return say("nothing to do")
 
