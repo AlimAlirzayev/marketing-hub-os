@@ -109,3 +109,14 @@ workspace/
 
 # published: agent-deployed static sites (data, served by caddy)
 published/
+
+# --- keep the tree clean so ff-pull never jams (root cause of the 2026-07-08 mailbox jam) ---
+# Per-job generated artifacts are DATA (private), not engine — never track them.
+output/jobs/
+output/media/
+output/social/
+# Editor/rollback backups clutter `git status` and mask real dirtiness.
+*.bak
+*.bak.*
+*.bak2.*
+*.bak3.*
