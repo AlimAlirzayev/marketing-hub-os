@@ -38,6 +38,8 @@ class CheckpointClassifier(unittest.TestCase):
             "KASKO üçün 3 kampaniya ideyası hazırla",
             "Summarize Q2 ad performance",
             "Draft an email announcement for the team",
+            "Yaratdığın vizual kontentləri bura göndər baxım",
+            "Send the generated image here so I can review it",
         ):
             self.assertTrue(self._dec(task).allowed, task)
 

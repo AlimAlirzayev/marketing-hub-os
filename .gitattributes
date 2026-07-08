@@ -1,0 +1,2 @@
+# append-only shared logs: auto-union on merge so two twins never conflict
+memory/decisions.jsonl merge=union

@@ -244,10 +244,27 @@ _CHECKPOINT_PHRASES = (
     "call the customer", "call customer", "call client", "email to", "email the",
 )
 
+_INTERNAL_DELIVERY_CUES = (
+    "bura", "burda", "buraya", "mene", "mənə", "menim ucun", "mənim üçün",
+    "goster", "göstər", "baxim", "baxım", "burada", "here", "show me",
+    "send here", "send it here",
+)
+
 
 def evaluate_checkpoint(task: str) -> SecurityDecision:
     """Classify a task that already passed evaluate_task(): does it perform an
     outward-facing action that must wait for operator approval?"""
+    low = _norm(task)
+    if (
+        any(cue in low for cue in _INTERNAL_DELIVERY_CUES)
+        and not any(phrase in low for phrase in _CHECKPOINT_PHRASES)
+        and "email" not in low
+        and "customer" not in low
+        and "müştəri" not in low
+        and "musteri" not in low
+    ):
+        return allow("internal_delivery", "Request is to show or attach a draft artifact in the current chat.")
+
     hits = _matches(task, _CHECKPOINT_TERMS) + _matches(task, _CHECKPOINT_PHRASES)
     if hits:
         return checkpoint(
