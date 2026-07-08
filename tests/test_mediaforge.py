@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mediaforge import director, knowledge, models, pipeline
+from mediaforge import director, knowledge, models, pipeline, ugc
 
 
 class ParseTests(unittest.TestCase):
@@ -30,6 +30,11 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(r["category"], "auto")
         self.assertEqual(r["platform"], "tiktok")
         self.assertEqual(r["duration_s"], 8)
+
+    def test_turkish_ascii_insurance_brief_is_local_language(self):
+        r = director.parse_request("seedance 2.5 ile 10 saniyelik seyahat sigortasi ucun UGC")
+        self.assertEqual(r["category"], "travel")
+        self.assertEqual(r["language"], "az")
 
 
 class ModelResolverTests(unittest.TestCase):
@@ -134,19 +139,76 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("i2v-runway-gen-4.5", compiled)
 
 
+class UgcPackTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._orig_campaigns = pipeline.CAMPAIGNS
+        self._orig_log = pipeline.RUN_LOG
+        pipeline.CAMPAIGNS = Path(self._tmp.name) / "campaigns"
+        pipeline.RUN_LOG = Path(self._tmp.name) / "runs.jsonl"
+
+    def tearDown(self):
+        pipeline.CAMPAIGNS = self._orig_campaigns
+        pipeline.RUN_LOG = self._orig_log
+        self._tmp.cleanup()
+
+    def test_ugc_pack_writes_doruk_style_draft_package(self):
+        pkg = ugc.create(
+            "seedance 2.5 ilə 10 saniyəlik səyahət sığortası üçün AI UGC influencer videosu",
+            use_llm=False,
+        )
+        pack = pkg["ugc_pack"]
+        pack_dir = pipeline.CAMPAIGNS / pkg["slug"] / "ugc-pack"
+
+        self.assertEqual(pkg["mode"], "ugc_pack")
+        self.assertEqual(pack["status"], "draft_only")
+        self.assertFalse(pack["can_autofire"])
+        self.assertTrue(pack["no_spend"])
+        self.assertTrue(pack["no_posting"])
+        self.assertEqual(pack["persona"]["name"], "Aysel, travel micro-creator")
+        self.assertGreater(pack["economics"]["one_round_video_credit_floor"], 0)
+
+        for rel in ugc.PACK_FILES.values():
+            self.assertTrue((pack_dir / rel).exists(), rel)
+
+        manifest = json.loads((pack_dir / "ugc-pack.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["status"], "draft_only")
+        self.assertIn("voice", manifest)
+        self.assertIn("video", manifest)
+
+    def test_ugc_video_prompt_keeps_text_and_spend_gated(self):
+        pkg = ugc.create("kling ilə 8 saniyəlik KASKO UGC reels", use_llm=False)
+        prompt = (
+            pipeline.CAMPAIGNS / pkg["slug"] / "ugc-pack" / "video-prompt.md"
+        ).read_text(encoding="utf-8")
+        economics = (
+            pipeline.CAMPAIGNS / pkg["slug"] / "ugc-pack" / "unit-economics.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("No readable text", prompt)
+        self.assertIn("final copy is added later", prompt)
+        self.assertIn("spends credits only when the human intentionally confirms", prompt)
+        self.assertIn("formula_only_no_payment", economics)
+
+
 class GenerateTests(unittest.TestCase):
     def _pkg(self):
         out = director.direct("seedance 2.5 ilə 10s səyahət sığortası promo", use_llm=False)
         return {"slug": "t", "concept": out["concept"], "brief": out["brief"],
                 "resolution": out["resolution"], "meta": out["meta"]}
 
-    def test_prompt_has_no_text_and_is_cinematic(self):
+    def test_oner_prompt_follows_seedance_official_formula(self):
+        # Seedance 2.0 official guide: subject/action/environment + ONE camera
+        # instruction + lighting-led style + avoid-list; rhythm words, no lens jargon.
         from mediaforge import generate
         pkg = self._pkg()
-        prompt = generate.build_prompt(pkg["brief"])
-        self.assertIn("Cinematic", prompt)
-        self.assertIn("no logos", prompt.lower())
-        self.assertIn("no on-screen text", prompt.lower())
+        prompt = generate.build_prompt(pkg["brief"], category="travel")
+        self.assertIn("[Hero:", prompt)
+        self.assertIn("Camera: one slow", prompt)
+        self.assertIn("Avoid:", prompt)
+        self.assertIn("readable text", prompt.lower())
+        self.assertNotIn("f/2.8", prompt)
+        self.assertNotIn("Cinematic ", prompt)   # bare "cinematic" is an official anti-pattern
 
     def test_no_reference_image_picks_text_to_video_model(self):
         from mediaforge import generate
@@ -213,12 +275,35 @@ class KeyframePipelineTests(unittest.TestCase):
         pkg = self._pkg()
         sp = generate.plan_stages(pkg)
         names = [s["stage"] for s in sp["stages"]]
-        self.assertEqual(names[:4], ["frames", "pick", "animatic", "beats"])
+        self.assertEqual(names[:3], ["frames", "pick", "animatic"])
+        self.assertTrue(any(n.startswith("film") for n in names))
+        self.assertIn("beats", names)
         animatic = sp["stages"][2]
         self.assertEqual(animatic["credits"], 0)      # the animatic must stay free
-        beats = sp["stages"][3]
-        self.assertGreater(beats["credits"], 0)
+        film = next(s for s in sp["stages"] if s["stage"].startswith("film"))
+        beats = next(s for s in sp["stages"] if s["stage"] == "beats")
+        self.assertLess(film["credits"], beats["credits"])   # single run beats 4 runs
         self.assertIn("--confirm", beats["cmd"])
+        self.assertIn("--film", film["cmd"])
+
+    def test_film_prompt_is_multishot_kling_dialect(self):
+        from mediaforge import knowledge
+        pkg = self._pkg()
+        p = knowledge.compose_film_prompt("travel", pkg["brief"]["storyboard"], duration_s=10)
+        for i in range(1, 5):
+            self.assertIn(f"Shot {i}", p)             # explicit shot labels
+        self.assertIn("[Hero:", p)                    # character anchor
+        self.assertIn("Then,", p)                     # temporal link
+        self.assertIn("Avoid:", p)
+        self.assertIn("Hold the final shot stable", p)
+
+    def test_primary_camera_move_is_single_and_slow(self):
+        from mediaforge import knowledge
+        # chained storyboard motion must collapse to ONE slow instruction
+        move = knowledge.primary_camera_move("slow push-in, hero wide → detail; motion already alive")
+        self.assertEqual(move, "slow push-in")
+        self.assertEqual(knowledge.primary_camera_move("whip pan"), "slow whip pan")
+        self.assertEqual(knowledge.primary_camera_move(""), "slow push-in")
 
     def test_pick_selection_roundtrip(self):
         import tempfile
@@ -246,6 +331,7 @@ class KeyframePipelineTests(unittest.TestCase):
 class KnowledgeTests(unittest.TestCase):
     def test_category_resolution(self):
         self.assertEqual(knowledge.category_for("səyahət sığortası"), "travel")
+        self.assertEqual(knowledge.category_for("seyahat sigortasi"), "travel")
         self.assertEqual(knowledge.category_for("kasko avtomobil"), "auto")
         self.assertEqual(knowledge.category_for("tamamilə naməlum şey"), "generic")
 

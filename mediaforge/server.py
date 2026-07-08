@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
-from . import knowledge, models, pipeline
+from . import knowledge, models, pipeline, ugc
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = Path(__file__).resolve().parent / "templates"
@@ -27,6 +27,7 @@ app = FastAPI(title="MediaForge — Media Rejissoru", docs_url="/api/docs")
 class CreateRequest(BaseModel):
     sentence: str
     use_llm: bool = True
+    mode: str = "promo"
 
 
 @app.get("/")
@@ -36,7 +37,7 @@ def index() -> FileResponse:
 
 @app.get("/api/health")
 def health() -> JSONResponse:
-    return JSONResponse({"ok": True, "service": "mediaforge", "version": "0.1.0"})
+    return JSONResponse({"ok": True, "service": "mediaforge", "version": "0.2.0"})
 
 
 @app.get("/api/catalog")
@@ -60,6 +61,7 @@ def catalog() -> JSONResponse:
                 {"key": k, "product": v["product"], "hero_emotion": v["hero_emotion"]}
                 for k, v in knowledge.CATEGORY_PLAYBOOKS.items()
             ],
+            "modes": ["promo", "ugc"],
             "catalog_refreshed": models.CATALOG_REFRESHED,
         }
     )
@@ -70,7 +72,10 @@ def create(req: CreateRequest) -> JSONResponse:
     sentence = (req.sentence or "").strip()
     if not sentence:
         return JSONResponse({"error": "Boş cümlə"}, status_code=400)
-    pkg = pipeline.create(sentence, use_llm=req.use_llm)
+    mode = (req.mode or "promo").strip().casefold()
+    pkg = ugc.create(sentence, use_llm=req.use_llm) if mode == "ugc" else pipeline.create(
+        sentence, use_llm=req.use_llm
+    )
     return JSONResponse(pkg)
 
 

@@ -56,10 +56,17 @@ CATALOG: dict[str, VideoModel] = {
         "Cheap, polished short commercial motion from text",
         "Fewer controls", 327,
     ),
+    "t2v-kling-v3-standard": VideoModel(
+        "t2v-kling-v3-standard", "t2v", "production", "Kling 3.0 Standard",
+        _SEEDANCE_DUR, "1080p",
+        "Multi-shot single-run film: up to 6 labeled shots with native cross-shot "
+        "continuity (same hero/world/grade, no stitching)",
+        "No image reference", 588,
+    ),
     "t2v-kling-v3-pro": VideoModel(
         "t2v-kling-v3-pro", "t2v", "premium", "Kling 3.0 Pro",
         _SEEDANCE_DUR, "4k",
-        "Strong 1080p/4k cinematic text-to-video",
+        "Strong 1080p/4k cinematic text-to-video; multi-shot capable",
         "No image reference; weaker brand consistency", 784,
     ),
     "t2v-runway-gen-4.5": VideoModel(
