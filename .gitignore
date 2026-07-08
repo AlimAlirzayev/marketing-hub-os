@@ -120,3 +120,4 @@ output/social/
 *.bak.*
 *.bak2.*
 *.bak3.*
+data/postpull_state.json
