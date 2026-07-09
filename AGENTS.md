@@ -6,6 +6,17 @@ serve this one system.
 
 ## Always Start Here
 
+**Step 0 — equalize with the twin.** Two twin systems (corporate + fleet) share
+this engine via GitHub. Your FIRST action in any session — Codex, Claude, Gemini,
+or any other agent — is to pull the newest engine so you never work on stale code:
+
+```bash
+python scripts/sync_engine.py --pull-only
+```
+
+(Claude Code does this automatically via the SessionStart hook; every other agent
+runs it manually. It is safe: ff-only, never touches local work, exits quietly.)
+
 Before planning broad work or editing shared behavior, read:
 
 1. `docs/RAMIN_OS_CONTEXT.md`
