@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from ._bootstrap import load_env
-from . import queue, scheduler, sense, telegram, worker
+from . import engine_sync, queue, scheduler, sense, telegram, worker
 
 load_env()
 
@@ -69,68 +69,15 @@ def bot_main() -> None:
     bot.main()
 
 
-def _sync_once() -> str:
-    """Run the shared sync brain (scripts/sync_engine.py); return its summary."""
-    proc = subprocess.run(
-        [sys.executable, str(_ROOT / "scripts" / "sync_engine.py")],
-        cwd=str(_ROOT), capture_output=True, text=True, timeout=120,
-    )
-    return (proc.stdout or proc.stderr or "").strip()
-
-
-def _head() -> str:
-    """Current HEAD sha (empty on any error) — lets the sync loop see the pull range."""
-    try:
-        p = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(_ROOT),
-                           capture_output=True, text=True, timeout=10)
-        return (p.stdout or "").strip()
-    except Exception:
-        return ""
-
-
-def _announce_if_updated(summary: str, report: str | None = None) -> bool:
-    """If the sync actually pulled new engine commits, tell the owner on Telegram
-    ('dostum, yeniliklər gəldi'), fold in the post-pull tripwire verdict, and log the
-    event. Returns True on an update."""
-    if "pulled new engine" not in summary:
-        return False
-    sense.emit("sync", "engine updated from origin",
-               {"summary": summary[:120], "check": (report or "")[:160]})
-    owner = (os.getenv("TELEGRAM_OWNER_CHAT_ID") or "").strip()
-    if owner and telegram.is_configured():
-        try:
-            msg = ("🔄 Dostum, o biri sistemdən yeniliklər gəldi — GitHub-dan çəkib "
-                   f"yerləşdirdim.\n{summary}\n")
-            if report:
-                msg += report + "\n"
-            msg += "Qeyd: işləyən proseslər yeni kodu növbəti restartda tam götürür."
-            telegram.send_message(owner, msg)
-        except Exception as exc:  # announcement must never hurt the loop
-            print(f"[supervisor] sync announce failed: {exc}")
-    return True
-
-
 def _sync_forever() -> None:
     """Keep the always-on host current on its own: pull at start, then every
-    _SYNC_MIN minutes. Best-effort — a network hiccup never stops the agent.
-    When new commits actually LAND, run the post-pull tripwire (tests + risky-diff)
-    and fold its verdict into the owner announcement — trust the twin, but verify."""
+    _SYNC_MIN minutes. Delegates to the one canonical brain (gateway.engine_sync)
+    that every entry point shares — pull-first, post-pull tripwire, owner announce —
+    so nothing drifts. Best-effort: a network hiccup never stops the agent."""
     while not _stop.is_set():
         try:
-            prev = _head()
-            summary = _sync_once()
+            summary = engine_sync.refresh(announce=True)
             print(f"[supervisor] engine sync: {summary}")
-            report = None
-            if "pulled new engine" in summary:
-                new = _head()
-                if prev and new and prev != new:
-                    try:
-                        from . import postpull
-                        report = postpull.verify(prev, new)
-                        print(f"[supervisor] post-pull check: {report}")
-                    except Exception as exc:  # a tripwire must never stop the loop
-                        print(f"[supervisor] post-pull check error: {exc}")
-            _announce_if_updated(summary, report)
         except Exception as exc:  # noqa: BLE001
             print(f"[supervisor] engine sync error: {exc}")
         _stop.wait(max(_SYNC_MIN, 1.0) * 60)

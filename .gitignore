@@ -121,3 +121,4 @@ output/social/
 *.bak2.*
 *.bak3.*
 data/postpull_state.json
+data/last_sync.json

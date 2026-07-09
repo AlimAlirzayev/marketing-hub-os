@@ -26,7 +26,7 @@ from pathlib import Path
 import requests
 
 from ._bootstrap import load_env
-from . import keyvault, mic, queue, sense, telegram
+from . import engine_sync, keyvault, mic, queue, sense, telegram
 
 load_env()
 
@@ -393,6 +393,14 @@ def _handle_message(msg: dict) -> None:
                 else f"Job #{job_id} təsdiq gözləmir (artıq həll olunub və ya yoxdur).",
             )
         return
+
+    # Pull-first: before queuing real work, equalize with the other twin (debounced,
+    # so a burst of messages doesn't hammer git). A message is the entry point — its
+    # first job is to check GitHub, then act.
+    try:
+        engine_sync.pull_if_stale()
+    except Exception as exc:  # freshness is best-effort, never block a task on it
+        print(f"[bot] pre-task sync skipped: {exc}")
 
     job_id = mic.speak(text, source="telegram", chat_id=str(chat_id))
     telegram.send_message(chat_id, f"📥 Queued as job #{job_id}. Working on it...")
