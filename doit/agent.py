@@ -175,9 +175,12 @@ def acquire(
         for url in recipe["scan_urls"]:
             try:
                 page.goto(url, wait_until="networkidle", timeout=45000)
-            except Exception:  # noqa: BLE001
-                pass
-            page.wait_for_timeout(1500)
+                page.wait_for_timeout(1500)
+            except Exception as exc:  # noqa: BLE001 — incl. the window being closed
+                if "closed" in str(exc).lower():
+                    ctx.close()
+                    return {**result, "error": "brauzer pəncərəsi bağlandı — pəncərəni "
+                                               "bağlama, agent özü bağlayacaq; yenidən işə sal"}
             key = _scan_page(page, captures)
             if key:
                 break
