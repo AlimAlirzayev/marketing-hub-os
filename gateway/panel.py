@@ -475,6 +475,39 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
   padding:11px 15px;font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.5);max-width:340px;animation:slidein .2s ease-out}
 .toast.err{border-left-color:var(--bad)}
 @keyframes slidein{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
+
+/* ── markdown inside bubbles & report modal ────────────────────── */
+.bubble b,.mdoc b{font-weight:700}
+.bubble code,.mdoc code{background:var(--bg3);border:1px solid var(--line);border-radius:5px;
+  padding:1px 5px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.bubble .mh{display:inline-block;font-weight:700;color:var(--acc)}
+.mdoc .mh{display:inline-block;font-weight:700;font-size:17px;color:var(--ink)}
+.bubble .mli,.mdoc .mli{color:var(--acc);font-weight:700}
+.bubble pre.mcb,.mdoc pre.mcb{background:var(--bg0);border:1px solid var(--line);border-radius:8px;
+  padding:9px 11px;margin:4px 0;font-size:12px;overflow-x:auto;white-space:pre-wrap;color:var(--ink2)}
+.bubble a,.mdoc a{color:var(--acc)}
+.mdoc{padding:26px;white-space:pre-wrap;color:var(--ink);font:14px/1.65 system-ui;word-break:break-word}
+.bubble{position:relative}
+.bubble .cpy{position:absolute;top:-9px;right:8px;background:var(--bg3);border:1px solid var(--line2);
+  color:var(--ink2);border-radius:7px;padding:2px 8px;font-size:10.5px;opacity:0;transition:opacity .15s}
+.bubble:hover .cpy{opacity:1}
+.bubble .more{display:block;color:var(--acc);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px}
+
+/* ── mic — voice input (az-AZ) ─────────────────────────────────── */
+.composer .micb{width:48px;height:48px;border-radius:13px;flex:none;display:grid;place-items:center;
+  background:var(--bg2);border:1px solid var(--line);color:var(--ink2)}
+.composer .micb:hover{border-color:var(--line2);color:var(--ink)}
+.composer .micb svg{width:19px;height:19px}
+.composer .micb.rec{background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.5);color:var(--bad);
+  animation:recpulse 1.4s infinite}
+@keyframes recpulse{0%{box-shadow:0 0 0 0 rgba(248,113,113,.35)}70%{box-shadow:0 0 0 8px rgba(248,113,113,0)}100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}}
+
+/* ── gallery search + chip counts ──────────────────────────────── */
+.gsearch{background:var(--bg2);border:1px solid var(--line);border-radius:999px;color:var(--ink);
+  padding:6px 13px;font:inherit;font-size:12px;width:150px}
+.gsearch::placeholder{color:var(--mut)}
+.gsearch:focus{outline:2px solid var(--acc);outline-offset:1px}
+.chip .cnt{margin-left:6px;font-size:10px;opacity:.7;font-variant-numeric:tabular-nums}
 </style></head><body>
 
 <header class="topbar">
@@ -505,6 +538,9 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
     <div class="composer">
       <textarea id="task" placeholder="Danış… (məs.: KASKO üçün 3 kampaniya ideyası hazırla)"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitTask();}"></textarea>
+      <button class="micb" id="micBtn" onclick="toggleMic()" title="Səslə de (az-AZ)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+      </button>
       <button class="send" onclick="submitTask()" title="Göndər (Enter)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>
       </button>
@@ -525,6 +561,7 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
       <div class="sect">
         <span class="ico">🖥️</span><h2>Nəticələr — ön büro</h2>
         <span class="sp"></span>
+        <input class="gsearch" id="gq" placeholder="axtar…" oninput="setQuery(this.value)">
         <div class="chips" id="delChips"></div>
         <button class="btn ghost" onclick="loadDeliverables()" title="Yenilə" style="padding:6px 10px">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 3v6h6"/></svg>
@@ -542,7 +579,7 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
     <section class="card">
       <div class="sect"><span class="ico">🗂</span><h2>Son işlər</h2></div>
       <div style="overflow-x:auto">
-      <table><thead><tr><th>#</th><th>Status</th><th>Mənbə</th><th>Tapşırıq</th><th>Nəticə</th></tr></thead>
+      <table><thead><tr><th>#</th><th>Status</th><th>Mənbə</th><th>Tapşırıq</th><th>Vaxt</th><th>Nəticə</th></tr></thead>
       <tbody id="jobs"></tbody></table>
       </div>
     </section>
@@ -570,6 +607,20 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+/* tiny safe markdown: escape FIRST, then transform — only whitelisted tags come out.
+   Inline-style output on purpose: bubbles/mdoc are pre-wrap, newlines already render. */
+function md(t){
+  const cbs=[];
+  let h=esc(t).replace(/```(\w*)\\n?([\s\S]*?)```/g,(m,l,c)=>{cbs.push(c);return "§CB"+(cbs.length-1)+"§";});
+  h=h
+    .replace(/`([^`\\n]+)`/g,'<code>$1</code>')
+    .replace(/^#{1,4} (.+)$/gm,'<span class="mh">$1</span>')
+    .replace(/\*\*([^*\\n]+)\*\*/g,'<b>$1</b>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/^[ \\t]*[-*•] /gm,'<span class="mli">• </span>')
+    .replace(/^---+$/gm,'───');
+  return h.replace(/§CB(\d+)§/g,(m,i)=>`<pre class="mcb">${cbs[+i].trimEnd()}</pre>`);
+}
 async function j(url,opt){const r=await fetch(url,opt);return r.json()}
 function toast(txt,err){
   const t=document.createElement("div");t.className="toast"+(err?" err":"");t.textContent=txt;
@@ -586,22 +637,28 @@ function ago(ts){
 }
 
 /* ── deliverables — the visual front office ── */
-let _deliverables=[],_delFilter="all";
+let _deliverables=[],_delFilter="all",_delQuery="";
 const _IC={site:"🌐",image:"🖼️",report:"📄",video:"🎬",audio:"🎵",bundle:"📦",pdf:"📕",file:"📎"};
 const _FILTERS=[["all","hamısı"],["site","🌐 saytlar"],["image","🖼️ şəkillər"],["report","📄 hesabatlar"],["video","🎬 video"],["bundle","📦 paketlər"]];
 function fmtSize(b){return b>1e6?(b/1e6).toFixed(1)+"MB":b>1e3?(b/1e3).toFixed(0)+"KB":b+"B"}
+function _visList(){
+  return _deliverables.filter(d=>(_delFilter==="all"||d.kind===_delFilter)
+    &&(!_delQuery||d.name.toLowerCase().includes(_delQuery)));
+}
 function renderChips(){
+  const n=k=>k==="all"?_deliverables.length:_deliverables.filter(d=>d.kind===k).length;
   $("delChips").innerHTML=_FILTERS.map(([k,l])=>
-    `<button class="chip${_delFilter===k?" on":""}" onclick="setFilter('${k}')">${l}</button>`).join("");
+    `<button class="chip${_delFilter===k?" on":""}" onclick="setFilter('${k}')">${l}<span class="cnt">${n(k)}</span></button>`).join("");
 }
 function setFilter(k){_delFilter=k;renderChips();renderDeliverables();}
+function setQuery(v){_delQuery=v.trim().toLowerCase();renderDeliverables();}
 async function loadDeliverables(){
   try{_deliverables=await j("/api/deliverables?limit=60");}catch(e){_deliverables=[];}
-  renderDeliverables();
+  renderChips();renderDeliverables();
 }
 function renderDeliverables(){
-  const list=_deliverables.filter(d=>_delFilter==="all"||d.kind===_delFilter);
-  if(!list.length){$("gallery").innerHTML=`<div class="muted">hələ nəticə yoxdur — bir tapşırıq ver, burada görünəcək.</div>`;return;}
+  const list=_visList();
+  if(!list.length){$("gallery").innerHTML=`<div class="muted">${_delQuery?"axtarışa uyğun nəticə yoxdur.":"hələ nəticə yoxdur — bir tapşırıq ver, burada görünəcək."}</div>`;return;}
   $("gallery").innerHTML=list.map((d,i)=>{
     let thumb;
     if(d.kind==="image") thumb=`<img src="${d.url}" loading="lazy">`;
@@ -615,7 +672,7 @@ function renderDeliverables(){
   }).join("");
 }
 async function openDeliverable(i){
-  const d=_deliverables.filter(x=>_delFilter==="all"||x.kind===_delFilter)[i]; if(!d)return;
+  const d=_visList()[i]; if(!d)return;
   $("mNm").textContent=d.name; $("mOpen").href=d.url; $("mDl").href=d.url;
   const b=$("mBody");
   if(d.kind==="image") b.innerHTML=`<img src="${d.url}">`;
@@ -623,13 +680,16 @@ async function openDeliverable(i){
   else if(d.kind==="video") b.innerHTML=`<video src="${d.url}" controls style="width:100%;max-height:100%"></video>`;
   else if(d.kind==="audio") b.innerHTML=`<div style="padding:40px"><audio src="${d.url}" controls style="width:100%"></audio></div>`;
   else if(d.kind==="report"){
-    try{const t=await (await fetch(d.url)).text(); b.innerHTML=`<pre class="md">${esc(t)}</pre>`;}
+    try{const t=await (await fetch(d.url)).text(); b.innerHTML=`<div class="mdoc">${md(t)}</div>`;}
     catch(e){b.innerHTML=`<div class="muted" style="padding:40px">oxunmadı</div>`;}
   } else b.innerHTML=`<div style="padding:48px;text-align:center" class="muted">Önizləmə yoxdur — "yüklə" düyməsini işlət.</div>`;
   $("modal").classList.add("on");
 }
 function closeModal(){$("modal").classList.remove("on"); $("mBody").innerHTML="";}
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape")closeModal();
+  if(e.key==="/"&&!/INPUT|TEXTAREA/.test(e.target.tagName)){e.preventDefault();$("task").focus();}
+});
 
 /* ── stat tiles ── */
 function tile(cls,ic,k,v,s){return `<div class="tile ${cls}">
@@ -659,8 +719,9 @@ async function refresh(){
     <td><span class="st ${x.status}">${x.status}</span></td>
     <td class="muted">${esc(x.source)}</td>
     <td title="${esc(x.task)}">${esc(x.task.slice(0,90))}</td>
+    <td class="muted" style="white-space:nowrap">${ago(x.created_at)||"—"}</td>
     <td>${x.result_preview?`<details><summary>bax</summary><pre>${esc(x.result_preview)}</pre></details>`:`<span class="muted">${esc(x.error||"—")}</span>`}</td>
-  </tr>`).join("")||`<tr><td colspan="5" class="muted">hələ iş yoxdur</td></tr>`;
+  </tr>`).join("")||`<tr><td colspan="6" class="muted">hələ iş yoxdur</td></tr>`;
 
   const parked=jobs.filter(x=>x.status==="awaiting_approval");
   $("approvalsWrap").style.display=parked.length?"block":"none";
@@ -691,30 +752,44 @@ async function decide(id,action){
 }
 
 /* ── chat: one microphone ── */
-let _watchJob=null;
+let _watchJob=null,_turns=[],_bubTxt=[];
+const _open=new Set();
+function hkey(t){let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return h}
 function bubble(role,text,src,pending){
   const s=src?`<span class="src">${esc(src)}</span>`:"";
-  return `<div class="bubble ${role}${pending?" pending":""}">${s}${esc(text)}</div>`;
+  const k=hkey(text), long=text.length>1600&&!pending, open=_open.has(k);
+  const shown=long&&!open?text.slice(0,1600)+" …":text;
+  const body=role==="assistant"&&!pending?md(shown):esc(shown);
+  const more=long?`<a class="more" onclick="toggleMore(${k})">${open?"— yığ":"davamı →"}</a>`:"";
+  const i=_bubTxt.push(text)-1;
+  const cpy=role==="assistant"&&!pending?`<button class="cpy" title="Mətni kopyala" onclick="copyBub(${i})">⧉ kopyala</button>`:"";
+  return `<div class="bubble ${role}${pending?" pending":""}">${cpy}${s}${body}${more}</div>`;
+}
+function toggleMore(k){_open.has(k)?_open.delete(k):_open.add(k);renderChat();}
+async function copyBub(i){
+  try{await navigator.clipboard.writeText(_bubTxt[i]||"");toast("⧉ kopyalandı");}
+  catch(e){toast("kopyalama alınmadı",true);}
+}
+function renderChat(){
+  const box=$("chat");
+  const atBottom = box.scrollTop+box.clientHeight >= box.scrollHeight-40;
+  _bubTxt=[];
+  let html=_turns.map(t=>{
+    let src=null, txt=t.content||"";
+    if(t.role==="user"){
+      const m=txt.match(/^\[(\w+)\]\s*/); if(m){src=m[1];txt=txt.slice(m[0].length);}
+    }else{
+      const m=txt.match(/^_\[chat:([^\]]*)\]_\s*/);
+      if(m){src=(m[1].split(/[:/]/).pop()||"").slice(0,30);txt=txt.slice(m[0].length);}
+    }
+    return bubble(t.role==="user"?"user":"assistant", txt, src, false);
+  }).join("");
+  if(_watchJob) html+=bubble("assistant","… işləyir (job #"+_watchJob+")",null,true);
+  box.innerHTML=html||`<div class="muted">Söhbətə başla — bura, Telegram və Codex eyni yaddaşı görür.</div>`;
+  if(atBottom||_watchJob) box.scrollTop=box.scrollHeight;
 }
 async function loadChat(){
-  try{
-    const c=await j("/api/chat?n=40");
-    const box=$("chat");
-    const atBottom = box.scrollTop+box.clientHeight >= box.scrollHeight-40;
-    let html=(c.turns||[]).map(t=>{
-      let src=null, txt=t.content||"";
-      if(t.role==="user"){
-        const m=txt.match(/^\[(\w+)\]\s*/); if(m){src=m[1];txt=txt.slice(m[0].length);}
-      }else{
-        const m=txt.match(/^_\[chat:([^\]]*)\]_\s*/);
-        if(m){src=(m[1].split(/[:/]/).pop()||"").slice(0,30);txt=txt.slice(m[0].length);}
-      }
-      return bubble(t.role==="user"?"user":"assistant", txt.slice(0,2500), src, false);
-    }).join("");
-    if(_watchJob) html+=bubble("assistant","… işləyir (job #"+_watchJob+")",null,true);
-    box.innerHTML=html||`<div class="muted">Söhbətə başla — bura, Telegram və Codex eyni yaddaşı görür.</div>`;
-    if(atBottom||_watchJob) box.scrollTop=box.scrollHeight;
-  }catch(e){}
+  try{const c=await j("/api/chat?n=40");_turns=c.turns||[];renderChat();}catch(e){}
 }
 async function watchJob(id){
   _watchJob=id; loadChat();
@@ -733,9 +808,33 @@ async function submitTask(){
   const t=$("task").value.trim(); if(!t)return;
   const r=await j("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task:t})});
   $("msg").textContent=r.id?`📥 Job #${r.id} növbəyə salındı`:(r.error||"xəta");
+  setTimeout(()=>{$("msg").textContent="";},6000);
   $("task").value="";
   if(r.id){ $("chat").innerHTML+=bubble("user",t,"panel",false); $("chat").scrollTop=$("chat").scrollHeight; watchJob(r.id); }
   refresh();
+}
+
+/* ── voice input — Web Speech API, az-AZ (Chrome; localhost = secure context) ── */
+let _rec=null,_recOn=false;
+const _SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!_SR)$("micBtn").style.display="none";
+function toggleMic(){
+  if(!_SR)return;
+  if(_recOn){try{_rec.stop();}catch(e){} return;}
+  _rec=new _SR();
+  _rec.lang="az-AZ"; _rec.interimResults=true; _rec.continuous=true;
+  const base=$("task").value.trim();
+  _rec.onresult=e=>{
+    let t=""; for(const r of e.results)t+=r[0].transcript;
+    $("task").value=(base?base+" ":"")+t;
+  };
+  _rec.onend=()=>{_recOn=false;$("micBtn").classList.remove("rec");$("task").focus();};
+  _rec.onerror=e=>{
+    _recOn=false;$("micBtn").classList.remove("rec");
+    if(e.error!=="aborted"&&e.error!=="no-speech")toast("mikrofon alınmadı: "+e.error+" (Chrome-da aç)",true);
+  };
+  try{_rec.start();_recOn=true;$("micBtn").classList.add("rec");}
+  catch(e){toast("mikrofon başlamadı",true);}
 }
 
 async function doSync(){
