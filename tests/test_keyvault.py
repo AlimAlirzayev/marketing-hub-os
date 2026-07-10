@@ -52,6 +52,16 @@ class VaultCrypto(_VaultSandbox):
             self.assertFalse(self.kv.put("X_KEY", "v"))
 
 
+class DropKey(_VaultSandbox):
+    def test_drop_removes_a_poisoned_entry(self):
+        self.kv.put("BAD_KEY", "leaked-test-value")
+        self.assertTrue(self.kv.drop("BAD_KEY"))
+        self.assertNotIn("BAD_KEY", self.kv.load())
+
+    def test_drop_missing_is_false(self):
+        self.assertFalse(self.kv.drop("NO_SUCH_KEY"))
+
+
 class NeverSync(_VaultSandbox):
     def test_machine_identity_keys_do_not_travel(self):
         for key in ("KEY_VAULT_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_OWNER_CHAT_ID"):

@@ -108,6 +108,19 @@ def names() -> list[str]:
     return sorted(load().keys())
 
 
+def drop(key: str) -> bool:
+    """Remove one key from the vault (e.g. a poisoned/stale entry). Returns True
+    if it was present. The caller decides whether to commit_and_push."""
+    if not enabled():
+        return False
+    keys = load()
+    if key not in keys:
+        return False
+    del keys[key]
+    _save(keys)
+    return True
+
+
 # --- applying arrived keys into this machine's .env -------------------------
 
 def _read_env_lines() -> list[str]:
@@ -187,5 +200,8 @@ if __name__ == "__main__":  # tiny CLI for the SessionStart hook + manual use
             print("[keyvault] locked (set KEY_VAULT_SECRET to enable)")
         else:
             print(f"[keyvault] {len(names())} synced key(s): {', '.join(names()) or '—'}")
+    elif cmd == "drop" and len(sys.argv) > 2:
+        ok = drop(sys.argv[2])
+        print(f"[keyvault] {'dropped' if ok else 'not found'}: {sys.argv[2]}")
     else:
-        print("usage: python -m gateway.keyvault [apply|status]")
+        print("usage: python -m gateway.keyvault [apply|status|drop KEY]")

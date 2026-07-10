@@ -52,6 +52,11 @@ class SetKeyCommand(unittest.TestCase):
             mock.patch.object(bot.telegram, "delete_message",
                               side_effect=lambda c, m: self.deleted.append((c, m))),
             mock.patch.object(bot.sense, "emit"),
+            # CRITICAL isolation: without this, running the suite on a machine
+            # whose real KEY_VAULT_SECRET is set writes the TEST value into the
+            # REAL vault and auto-pushes it — which actually happened (the
+            # tripwire's post-pull test run poisoned RAPIDAPI_KEY on 2026-07-10).
+            mock.patch.object(bot.keyvault, "enabled", return_value=False),
             mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "42"}),
         ]
         for p in self._patches:
