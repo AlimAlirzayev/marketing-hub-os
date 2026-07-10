@@ -3,57 +3,138 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Xalq Sigorta · Marketing OS</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<title>Marketing OS</title>
 <style>
-  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-  .nav-item.active { background:#E31E24; color:#fff; }
-  .nav-item.active .desc { color:rgba(255,255,255,.75); }
-  .dot { width:8px; height:8px; border-radius:9999px; }
+/* ── design tokens (shared with the panel) ─────────────────────── */
+:root{
+  --bg0:#090c11; --bg1:#0f141c; --bg2:#141b25; --bg3:#1a2330;
+  --line:rgba(148,163,184,.13); --line2:rgba(148,163,184,.22);
+  --ink:#eef3f8; --ink2:#9db0c3; --mut:#6b7f94;
+  --acc:#38bdf8; --acc2:#818cf8;
+  --ok:#34d399; --bad:#f87171; --warn:#fbbf24;
+}
+*{box-sizing:border-box;margin:0}
+body{height:100vh;overflow:hidden;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:var(--bg0);color:var(--ink)}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.app{display:flex;height:100vh}
+
+/* ── sidebar ───────────────────────────────────────────────────── */
+aside{width:292px;flex:none;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(56,189,248,.04),transparent 30%),var(--bg1);
+  border-right:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:11px;padding:17px 18px;border-bottom:1px solid var(--line)}
+.brand .mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04121c;font-weight:800;font-size:17px;
+  box-shadow:0 2px 12px rgba(56,189,248,.35)}
+.brand .nm{font-weight:700;line-height:1.25}
+.brand .sub{font-size:11px;color:var(--mut)}
+nav{flex:1;overflow-y:auto;padding:14px 12px;scrollbar-width:thin;scrollbar-color:var(--bg3) transparent}
+.cat{padding:0 10px;margin:16px 0 6px;font-size:10px;font-weight:700;letter-spacing:1.4px;
+  text-transform:uppercase;color:var(--mut)}
+.cat:first-child{margin-top:0}
+.nav-item{width:100%;text-align:left;display:flex;align-items:center;gap:11px;
+  padding:9px 10px;border-radius:11px;transition:background .13s;border:1px solid transparent}
+.nav-item:hover{background:rgba(148,163,184,.07)}
+.nav-item.active{background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.35)}
+.nav-item.active .n{color:#bae6fd}
+.nav-item .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex:none;
+  background:var(--bg2);border:1px solid var(--line)}
+.nav-item .tx{min-width:0;flex:1}
+.nav-item .n{display:block;font-size:13px;font-weight:600;line-height:1.3;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-item .d{display:block;font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--mut);flex:none;transition:background .3s}
+.dot.up{background:var(--ok);box-shadow:0 0 6px rgba(52,211,153,.6)}
+.dot.down{background:var(--bad)}
+.foot{padding:11px 18px;border-top:1px solid var(--line);display:flex;align-items:center;
+  justify-content:space-between;font-size:11px;color:var(--mut)}
+.foot button:hover{color:var(--ink)}
+
+/* ── main stage ────────────────────────────────────────────────── */
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 18px;
+  background:rgba(9,12,17,.85);border-bottom:1px solid var(--line)}
+.topbar .cic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;
+  background:var(--bg2);border:1px solid var(--line)}
+.topbar .nm{font-weight:650;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .d{font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-live{font-size:12px;white-space:nowrap}
+.st-live.up{color:var(--ok)} .st-live.down{color:var(--bad)} .st-live.wait{color:var(--mut)}
+.openbtn{font-size:13px;font-weight:600;background:var(--bg2);border:1px solid var(--line);
+  border-radius:10px;padding:7px 13px;color:var(--ink);text-decoration:none;white-space:nowrap;
+  transition:border-color .13s,background .13s}
+.openbtn:hover{border-color:var(--line2);background:var(--bg3)}
+.stage{flex:1;position:relative;background:#0a0e14}
+.stage iframe{width:100%;height:100%;border:0;background:#fff}
+.center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px}
+.center .big{font-size:46px;margin-bottom:12px}
+.center .t{font-weight:650;margin-bottom:5px}
+.center .s{font-size:13px;color:var(--mut);max-width:420px}
+
+/* ── health view ───────────────────────────────────────────────── */
+#health{position:absolute;inset:0;overflow:auto;padding:26px;background:var(--bg0);display:none}
+.hwrap{max-width:780px}
+.hcard{background:var(--bg1);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
+.hrow{display:flex;align-items:center;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:13px}
+.hrow:last-child{border-bottom:0}
+.hrow .port{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--mut);width:46px}
+.hrow .key{font-weight:600;width:110px}
+.hrow .nm2{color:var(--ink2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{border-radius:999px;padding:4px 13px;font-size:12.5px;font-weight:650}
+.pill.ok{background:rgba(52,211,153,.13);color:var(--ok)}
+.pill.err{background:rgba(248,113,113,.13);color:var(--bad)}
+.warnbox{margin-top:13px;border:1px solid rgba(248,113,113,.3);border-left:3px solid var(--bad);
+  background:rgba(248,113,113,.05);border-radius:12px;padding:13px 15px;font-size:13px;color:#fca5a5}
+.warnbox.amber{border-color:rgba(251,191,36,.3);border-left-color:var(--warn);
+  background:rgba(251,191,36,.05);color:#fcd34d}
+.monrow{font-size:12px;color:var(--ink2);margin-top:12px;padding:8px 12px;border-radius:9px;
+  background:var(--bg2);border:1px solid var(--line)}
+.ghostbtn{margin-top:16px;font-size:13px;font-weight:600;background:var(--bg2);
+  border:1px solid var(--line);border-radius:10px;padding:8px 14px;color:var(--ink)}
+.ghostbtn:hover{border-color:var(--line2)}
 </style>
 </head>
-<body class="h-screen overflow-hidden bg-slate-100">
-<div class="flex h-full">
+<body>
+<div class="app">
 
-  <!-- Sidebar -->
-  <aside class="w-72 shrink-0 bg-[#1C1B17] text-white flex flex-col">
-    <div class="px-5 py-5 flex items-center gap-3 border-b border-white/10">
-      <div class="w-10 h-10 rounded-xl bg-[#E31E24] grid place-items-center font-bold text-lg">X</div>
-      <div>
-        <div class="font-bold leading-tight">Marketing OS</div>
-        <div class="text-[11px] text-white/50">Xalq Sigorta · komanda paneli</div>
+  <aside>
+    <div class="brand">
+      <div class="mark" id="b-mark">M</div>
+      <div class="tx">
+        <div class="nm" id="b-name">Marketing OS</div>
+        <div class="sub" id="b-sub">komanda paneli</div>
       </div>
     </div>
-    <nav id="nav" class="flex-1 overflow-y-auto px-3 py-4 space-y-5"></nav>
-    <div class="px-5 py-3 border-t border-white/10 flex items-center justify-between text-[11px] text-white/45">
+    <nav id="nav"></nav>
+    <div class="foot">
       <span>Bütün xidmətlər lokal</span>
-      <button id="refresh" class="hover:text-white" title="Statusu yenilə">↻ status</button>
+      <button id="refresh" title="Statusu yenilə">↻ status</button>
     </div>
   </aside>
 
-  <!-- Main -->
-  <main class="flex-1 flex flex-col min-w-0">
-    <div class="h-14 shrink-0 bg-white border-b border-slate-200 flex items-center gap-3 px-5">
-      <div id="cur-icon" class="text-xl">📊</div>
-      <div class="min-w-0">
-        <div id="cur-name" class="font-semibold text-slate-900 leading-tight truncate">Hesabatlılıq</div>
-        <div id="cur-desc" class="text-xs text-slate-500 truncate">Meta Ads performans hesabatı</div>
+  <main>
+    <div class="topbar">
+      <div class="cic" id="cur-icon">📊</div>
+      <div style="min-width:0">
+        <div class="nm" id="cur-name">—</div>
+        <div class="d" id="cur-desc"></div>
       </div>
-      <div class="ml-auto flex items-center gap-2">
-        <span id="cur-status" class="text-xs text-slate-400">yoxlanılır…</span>
-        <a id="cur-open" href="#" target="_blank" class="text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium text-slate-700">Yeni pəncərədə ↗</a>
-      </div>
+      <div style="flex:1"></div>
+      <span class="st-live wait" id="cur-status">yoxlanılır…</span>
+      <a id="cur-open" href="#" target="_blank" class="openbtn">Yeni pəncərədə ↗</a>
     </div>
-    <div class="flex-1 relative bg-slate-50">
-      <div id="offline" class="hidden absolute inset-0 grid place-items-center text-center px-6">
+    <div class="stage">
+      <div id="offline" class="center" style="display:none">
         <div>
-          <div class="text-5xl mb-3">😴</div>
-          <div class="font-semibold text-slate-700 mb-1">Bu xidmət hazırda işləmir</div>
-          <div class="text-sm text-slate-500">START_MARKETING_OS faylını işə sal — bütün xidmətlər birlikdə qalxır.</div>
+          <div class="big">😴</div>
+          <div class="t">Bu xidmət hazırda işləmir</div>
+          <div class="s">START_MARKETING_OS faylını işə sal — bütün xidmətlər birlikdə qalxır.</div>
         </div>
       </div>
-      <iframe id="frame" class="w-full h-full border-0" src="about:blank"></iframe>
-      <div id="health" class="hidden absolute inset-0 overflow-auto p-6 bg-slate-50"></div>
+      <iframe id="frame" src="about:blank"></iframe>
+      <div id="health"></div>
     </div>
   </main>
 </div>
@@ -63,6 +144,7 @@ const $ = id => document.getElementById(id);
 let SERVICES = [], statusMap = {}, current = null;
 
 async function init(){
+  loadBrand();
   SERVICES = await (await fetch('/api/services')).json();
   renderNav();
   await refreshStatus();
@@ -70,33 +152,40 @@ async function init(){
   setInterval(refreshStatus, 10000);
 }
 
+async function loadBrand(){
+  try{
+    const b = await (await fetch('/api/brand')).json();
+    const sys = b.system_name || 'Marketing OS';
+    $('b-name').textContent = sys;
+    $('b-sub').textContent = (b.name ? b.name + ' · ' : '') + 'komanda paneli';
+    $('b-mark').textContent = (sys[0] || 'M').toUpperCase();
+    document.title = sys;
+  }catch(e){}
+}
+
 function renderNav(){
   const cats = {};
   SERVICES.forEach(s => { (cats[s.cat] = cats[s.cat] || []).push(s); });
   $('nav').innerHTML = Object.entries(cats).map(([cat, items]) => `
-    <div>
-      <div class="px-3 mb-1 text-[10px] font-semibold tracking-wider text-white/35 uppercase">${cat}</div>
-      ${items.map(s => `
-        <button data-key="${s.key}" class="nav-item w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 hover:bg-white/10 transition">
-          <span class="text-lg">${s.icon}</span>
-          <span class="min-w-0 flex-1">
-            <span class="block text-sm font-medium leading-tight">${s.name}</span>
-            <span class="desc block text-[11px] text-white/45 truncate">${s.desc}</span>
-          </span>
-          <span class="dot bg-slate-500" data-dot="${s.key}"></span>
-        </button>`).join('')}
-    </div>`).join('');
-  $('nav').insertAdjacentHTML('beforeend', `
-    <div>
-      <div class="px-3 mb-1 text-[10px] font-semibold tracking-wider text-white/35 uppercase">Nəzarət</div>
-      <button data-key="_health" class="nav-item w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 hover:bg-white/10 transition">
-        <span class="text-lg">🩺</span>
-        <span class="min-w-0 flex-1">
-          <span class="block text-sm font-medium leading-tight">Sistem Sağlamlığı</span>
-          <span class="desc block text-[11px] text-white/45 truncate">Reyestr ↔ reallıq audit</span>
+    <div class="cat">${cat}</div>
+    ${items.map(s => `
+      <button data-key="${s.key}" class="nav-item">
+        <span class="ic">${s.icon}</span>
+        <span class="tx">
+          <span class="n">${s.name}</span>
+          <span class="d">${s.desc}</span>
         </span>
-      </button>
-    </div>`);
+        <span class="dot" data-dot="${s.key}"></span>
+      </button>`).join('')}`).join('');
+  $('nav').insertAdjacentHTML('beforeend', `
+    <div class="cat">Nəzarət</div>
+    <button data-key="_health" class="nav-item">
+      <span class="ic">🩺</span>
+      <span class="tx">
+        <span class="n">Sistem Sağlamlığı</span>
+        <span class="d">Reyestr ↔ reallıq audit</span>
+      </span>
+    </button>`);
   $('nav').querySelectorAll('.nav-item').forEach(b =>
     b.onclick = () => {
       if (b.dataset.key === '_health') return showHealth(b);
@@ -106,8 +195,8 @@ function renderNav(){
 
 function select(s){
   current = s;
-  $('health').classList.add('hidden');
-  $('cur-open').classList.remove('hidden');
+  $('health').style.display = 'none';
+  $('cur-open').style.display = '';
   $('nav').querySelectorAll('.nav-item').forEach(b =>
     b.classList.toggle('active', b.dataset.key === s.key));
   $('cur-icon').textContent = s.icon;
@@ -116,7 +205,7 @@ function select(s){
   const url = `http://localhost:${s.port}${s.path || ''}`;
   $('cur-open').href = url;
   const up = statusMap[s.key];
-  $('offline').classList.toggle('hidden', up !== false);
+  $('offline').style.display = (up === false) ? 'grid' : 'none';
   $('frame').style.visibility = (up === false) ? 'hidden' : 'visible';
   if(up !== false) $('frame').src = url;
   paintCurStatus();
@@ -126,19 +215,18 @@ function paintCurStatus(){
   if(!current) return;
   const up = statusMap[current.key];
   const el = $('cur-status');
-  if(up === true){ el.textContent = '● işləyir'; el.className = 'text-xs text-emerald-600'; }
-  else if(up === false){ el.textContent = '● dayanıb'; el.className = 'text-xs text-red-500'; }
-  else { el.textContent = 'yoxlanılır…'; el.className = 'text-xs text-slate-400'; }
+  if(up === true){ el.textContent = '● işləyir'; el.className = 'st-live up'; }
+  else if(up === false){ el.textContent = '● dayanıb'; el.className = 'st-live down'; }
+  else { el.textContent = 'yoxlanılır…'; el.className = 'st-live wait'; }
 }
 
 async function refreshStatus(){
   try { statusMap = await (await fetch('/api/status')).json(); } catch(e){ return; }
   SERVICES.forEach(s => {
     const dot = document.querySelector(`[data-dot="${s.key}"]`);
-    if(dot) dot.className = 'dot ' + (statusMap[s.key] ? 'bg-emerald-400' : 'bg-red-500');
+    if(dot) dot.className = 'dot ' + (statusMap[s.key] ? 'up' : 'down');
   });
   paintCurStatus();
-  // if the current tool just came online and frame is blank, load it
   if(current && statusMap[current.key] && $('frame').src === 'about:blank') select(current);
 }
 
@@ -148,56 +236,58 @@ async function showHealth(btn){
   $('cur-name').textContent = 'Sistem Sağlamlığı';
   $('cur-desc').textContent = 'Reyestr ↔ reallıq (services.json audit)';
   $('cur-status').textContent = '';
-  $('cur-open').classList.add('hidden');
+  $('cur-open').style.display = 'none';
   $('frame').style.visibility = 'hidden';
-  $('offline').classList.add('hidden');
+  $('offline').style.display = 'none';
   const h = $('health');
-  h.classList.remove('hidden');
-  h.innerHTML = '<div class="text-slate-400">Yoxlanılır…</div>';
+  h.style.display = 'block';
+  h.innerHTML = '<div style="color:var(--mut)">Yoxlanılır…</div>';
 
   let a;
   try { a = await (await fetch('/api/audit')).json(); }
-  catch(e){ h.innerHTML = '<div class="text-red-600">Audit alınmadı.</div>'; return; }
+  catch(e){ h.innerHTML = '<div style="color:var(--bad)">Audit alınmadı.</div>'; return; }
 
   const okBadge = a.ok
-    ? '<span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-semibold text-sm">✓ Reyestr reallıqla tam uyğundur</span>'
-    : '<span class="px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm">✗ Drift var — düzəliş lazımdır</span>';
+    ? '<span class="pill ok">✓ Reyestr reallıqla tam uyğundur</span>'
+    : '<span class="pill err">✗ Drift var — düzəliş lazımdır</span>';
 
   const rows = a.services.map(s => `
-    <div class="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
-      <span class="dot ${s.up ? 'bg-emerald-400' : 'bg-red-500'}"></span>
-      <span class="font-mono text-xs text-slate-400 w-12">${s.port}</span>
-      <span class="font-medium text-slate-700 w-28">${s.key}</span>
-      <span class="text-slate-500 text-sm flex-1 truncate">${s.name}</span>
-      <span class="text-xs ${s.up ? 'text-emerald-600' : 'text-red-500'}">${s.up ? 'işləyir' : 'dayanıb'}</span>
+    <div class="hrow">
+      <span class="dot ${s.up ? 'up' : 'down'}"></span>
+      <span class="port">${s.port}</span>
+      <span class="key">${s.key}</span>
+      <span class="nm2">${s.name}</span>
+      <span style="font-size:12px;color:${s.up ? 'var(--ok)' : 'var(--bad)'}">${s.up ? 'işləyir' : 'dayanıb'}</span>
     </div>`).join('');
 
   const drift = a.drift.length ? `
-    <div class="mt-5 p-4 rounded-xl bg-red-50">
-      <div class="font-semibold text-red-700 mb-2">⚠ Reyestrdə olmayan portlar (boşluq!)</div>
-      ${a.drift.map(d => `<div class="text-sm text-red-700">✗ ${d.port} (${d.why.join(', ')}) → services.json-a əlavə et</div>`).join('')}
+    <div class="warnbox">
+      <b>⚠ Reyestrdə olmayan portlar (boşluq!)</b><br>
+      ${a.drift.map(d => `✗ ${d.port} (${d.why.join(', ')}) → services.json-a əlavə et`).join('<br>')}
     </div>` : '';
 
   const md = a.missing_dir.length ? `
-    <div class="mt-3 p-4 rounded-xl bg-amber-50">
-      <div class="font-semibold text-amber-700 mb-2">⚠ Reyestrdə var, qovluq yox</div>
-      ${a.missing_dir.map(s => `<div class="text-sm text-amber-700">✗ ${s.key} → ${s.dir}</div>`).join('')}
+    <div class="warnbox amber">
+      <b>⚠ Reyestrdə var, qovluq yox</b><br>
+      ${a.missing_dir.map(s => `✗ ${s.key} → ${s.dir}`).join('<br>')}
     </div>` : '';
 
   const m = a.monitor || {};
-  const mon = `<div class="text-xs mb-5 px-3 py-2 rounded-lg ${m.enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}">
-      🔄 Avto-monitor: ${m.enabled ? 'AKTİV — hər ' + m.interval_min + ' dəq' : 'söndürülüb'} · son yoxlama: ${m.last_run || '—'}${m.last_alert ? ' · son Telegram: ' + m.last_alert : ''} · drift olsa Telegram</div>`;
+  const mon = `<div class="monrow">🔄 Avto-monitor: ${m.enabled ? 'AKTİV — hər ' + m.interval_min + ' dəq' : 'söndürülüb'}
+      · son yoxlama: ${m.last_run || '—'}${m.last_alert ? ' · son Telegram: ' + m.last_alert : ''} · drift olsa Telegram</div>`;
 
   h.innerHTML = `
-    <div class="max-w-3xl">
-      <div class="flex items-center gap-3 mb-1 flex-wrap">
-        <h2 class="text-lg font-bold text-slate-900">Sistem Sağlamlığı</h2>${okBadge}
+    <div class="hwrap">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h2 style="font-size:17px">Sistem Sağlamlığı</h2>${okBadge}
       </div>
-      <div class="text-sm text-slate-500 mb-3">Reyestr: ${a.counts.registered} · dinləyən: ${a.counts.listening} · kodda istinad: ${a.counts.referenced} · aralıq ${a.counts.range[0]}-${a.counts.range[1]}</div>
+      <div style="font-size:12.5px;color:var(--mut);margin-top:6px">
+        Reyestr: ${a.counts.registered} · dinləyən: ${a.counts.listening} · kodda istinad: ${a.counts.referenced}
+        · aralıq ${a.counts.range[0]}–${a.counts.range[1]}</div>
       ${mon}
-      <div class="bg-white rounded-2xl border border-slate-200 p-4">${rows}</div>
+      <div class="hcard">${rows}</div>
       ${drift}${md}
-      <button onclick="showHealth(document.querySelector('[data-key=_health]'))" class="mt-4 text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium text-slate-700">↻ Yenidən yoxla</button>
+      <button class="ghostbtn" onclick="showHealth(document.querySelector('[data-key=_health]'))">↻ Yenidən yoxla</button>
     </div>`;
 }
 

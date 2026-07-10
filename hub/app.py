@@ -69,6 +69,17 @@ def services() -> JSONResponse:
     return JSONResponse(_cards())
 
 
+@app.get("/api/brand")
+def brand_info() -> JSONResponse:
+    """Brand identity for the shell header — from brand.py (BRAND env), so the
+    portal never hardcodes a deployment's name (see docs/BRANDING.md)."""
+    try:
+        from brand import BRAND
+        return JSONResponse({"name": BRAND.name, "system_name": BRAND.system_name})
+    except Exception:
+        return JSONResponse({"name": "", "system_name": "Marketing OS"})
+
+
 def _alive(port: int, health: str) -> bool:
     # Probe the declared health path, then fall back to "/". A closed port on
     # Windows can hang on connect, so callers run these concurrently with a
