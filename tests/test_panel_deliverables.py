@@ -40,6 +40,51 @@ class FileServerSandbox(unittest.TestCase):
         self.assertEqual(resp.status_code, 404)
 
 
+class SiteGrouping(unittest.TestCase):
+    """A directory with index.html is ONE site tile; its inner files fold in."""
+
+    def setUp(self):
+        import shutil
+        self.dir = panel.ROOT / "workspace" / "_t_site_group_test"
+        (self.dir / "css").mkdir(parents=True, exist_ok=True)
+        (self.dir / "index.html").write_text("<html><body>test site</body></html>", encoding="utf-8")
+        (self.dir / "css" / "style.css").write_text("body{}", encoding="utf-8")
+        (self.dir / "logo.png").write_bytes(b"\x89PNG_fake")
+        self.addCleanup(lambda: shutil.rmtree(self.dir, ignore_errors=True))
+
+    def test_folder_site_is_one_tile(self):
+        data = json.loads(panel.deliverables(limit=200).body)
+        mine = [d for d in data if "_t_site_group_test" in d["path"]]
+        self.assertEqual(len(mine), 1, mine)          # ONE tile, not three
+        tile = mine[0]
+        self.assertEqual(tile["kind"], "site")
+        self.assertEqual(tile["name"], "_t_site_group_test")   # named by the site dir
+        self.assertTrue(tile["url"].endswith("/index.html"))
+
+    def test_site_assets_still_served_for_the_iframe(self):
+        rel = (self.dir / "css" / "style.css").relative_to(panel.ROOT).as_posix()
+        self.assertIsNotNone(panel._safe_resolve(rel))  # relative asset resolves
+
+
+class ChatApi(unittest.TestCase):
+    def test_history_reads_the_one_mic_thread(self):
+        from unittest import mock
+        turns = [{"role": "user", "content": "[telegram] salam"},
+                 {"role": "assistant", "content": "salam!"}]
+        with mock.patch("brain.blackboard.init"), \
+             mock.patch("brain.blackboard.working_buffer", return_value=turns) as wb:
+            data = json.loads(panel.chat_history(n=40).body)
+        wb.assert_called_once()
+        self.assertEqual(wb.call_args.args[0], "main")   # the ONE mic thread
+        self.assertEqual(data["turns"], turns)
+
+    def test_history_never_raises_without_brain(self):
+        from unittest import mock
+        with mock.patch("brain.blackboard.init", side_effect=RuntimeError("no db")):
+            data = json.loads(panel.chat_history().body)
+        self.assertEqual(data["turns"], [])
+
+
 class DeliverablesApi(unittest.TestCase):
     def test_classifies_and_orders(self):
         data = json.loads(panel.deliverables(limit=60).body)

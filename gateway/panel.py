@@ -112,6 +112,19 @@ def reject(job_id: int) -> JSONResponse:
     return JSONResponse({"ok": ok})
 
 
+@app.get("/api/chat")
+def chat_history(n: int = 40) -> JSONResponse:
+    """The one-microphone conversation, straight from the shared blackboard —
+    what was said on ANY channel (chat, Telegram, Codex, panel), in order."""
+    try:
+        from brain import blackboard
+        blackboard.init()
+        turns = blackboard.working_buffer(mic.MIC_THREAD, max_turns=n)
+    except Exception:
+        turns = []
+    return JSONResponse({"thread": mic.MIC_THREAD, "turns": turns})
+
+
 @app.get("/api/schedules")
 def schedules() -> JSONResponse:
     return JSONResponse(scheduler.list_schedules())
@@ -193,24 +206,57 @@ def serve_file(file_path: str):
     return FileResponse(str(target))
 
 
+def _site_dirs() -> list[Path]:
+    """Directories that ARE a website (contain index.html). A multi-file site
+    shows as ONE tile whose iframe loads index.html — its relative css/js/img
+    resolve through the path-based /file route, so the preview is the real site.
+    Nested index.htmls collapse into the shallowest site dir."""
+    dirs: list[Path] = []
+    for root in _DELIVERABLE_ROOTS:
+        if root.exists():
+            dirs += [p.parent for p in root.rglob("index.html")]
+    return [d for d in dirs if not any(o != d and o in d.parents for o in dirs)]
+
+
 @app.get("/api/deliverables")
 def deliverables(limit: int = 60) -> JSONResponse:
     """Everything the system produced, newest first, classified for visual
-    review. Job artifacts + a scan of the output roots."""
+    review. Multi-file sites are grouped into one entry; loose files listed
+    individually."""
     items: dict[str, dict] = {}
+    sites = _site_dirs()
+
+    def _site_of(p: Path) -> Path | None:
+        return next((d for d in sites if d == p.parent or d in p.parents), None)
+
     for root in _DELIVERABLE_ROOTS:
         if not root.exists():
             continue
         for p in root.rglob("*"):
-            if not p.is_file() or p.suffix.lower() not in _PREVIEW_EXT:
+            if not p.is_file():
+                continue
+            site = _site_of(p)
+            if site is not None:
+                # everything inside a site dir folds into ONE site tile
+                idx = site / "index.html"
+                if p != idx:
+                    continue
+                try:
+                    rel = idx.relative_to(ROOT).as_posix()
+                    stat = idx.stat()
+                except (ValueError, OSError):
+                    continue
+                items[rel] = {
+                    "name": site.name, "path": rel, "url": f"/file/{rel}",
+                    "kind": "site", "size": stat.st_size, "mtime": stat.st_mtime,
+                }
+                continue
+            if p.suffix.lower() not in _PREVIEW_EXT:
                 continue
             try:
                 rel = p.relative_to(ROOT).as_posix()
-            except ValueError:
-                continue
-            try:
                 stat = p.stat()
-            except OSError:
+            except (ValueError, OSError):
                 continue
             items[rel] = {
                 "name": p.name,
@@ -279,6 +325,13 @@ padding:10px;font:inherit;min-height:64px;resize:vertical}
 #msg{font-size:13px;color:var(--ok);min-height:18px}
 details summary{cursor:pointer;color:var(--acc);font-size:12px}
 pre{white-space:pre-wrap;font-size:12px;color:var(--dim);margin-top:6px;max-height:300px;overflow:auto}
+/* chat pane — the one microphone inside the front office */
+.chat{max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:6px 2px;margin-bottom:10px}
+.bubble{max-width:78%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.bubble.user{align-self:flex-end;background:#0e3a52;border:1px solid #17537a;border-bottom-right-radius:4px}
+.bubble.assistant{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+.bubble .src{display:block;font-size:10px;color:var(--dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.6px}
+.bubble.pending{opacity:.65;font-style:italic}
 /* deliverables gallery — the visual front office */
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
 .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:.15s;display:flex;flex-direction:column}
@@ -340,12 +393,14 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--dim);margin-top:6px;max-heig
 </section>
 
 <section>
-  <h2>➕ Yeni tapşırıq (pulsuz beyin icra edir)</h2>
-  <textarea id="task" placeholder="Tapşırığı yaz… (məs.: KASKO üçün 3 kampaniya ideyası hazırla)"></textarea>
+  <h2>💬 Söhbət — bir mikrofon (bura, Telegram, Codex: hamısı bir söhbətdir)</h2>
+  <div class="chat" id="chat"><div class="muted">yüklənir…</div></div>
   <div class="row">
-    <button onclick="submitTask()">Növbəyə göndər</button>
-    <span id="msg"></span>
+    <textarea id="task" placeholder="Danış… (məs.: KASKO üçün 3 kampaniya ideyası hazırla)" style="min-height:48px;flex:1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitTask();}"></textarea>
+    <button onclick="submitTask()" style="height:48px">Göndər</button>
   </div>
+  <div id="msg"></div>
 </section>
 
 <section>
@@ -476,11 +531,47 @@ async function decide(id,action){
   refresh();
 }
 
+// ---- the chat pane: one microphone, input + answer in the same screen ----
+let _watchJob=null;
+function bubble(role,text,src,pending){
+  const s=src?`<span class="src">${esc(src)}</span>`:"";
+  return `<div class="bubble ${role}${pending?" pending":""}">${s}${esc(text)}</div>`;
+}
+async function loadChat(){
+  try{
+    const c=await j("/api/chat?n=40");
+    const box=$("chat");
+    const atBottom = box.scrollTop+box.clientHeight >= box.scrollHeight-40;
+    let html=(c.turns||[]).map(t=>{
+      let src=null, txt=t.content||"";
+      const m=txt.match(/^\[(\w+)\]\s*/); if(m&&t.role==="user"){src=m[1];txt=txt.slice(m[0].length);}
+      return bubble(t.role==="user"?"user":"assistant", txt.slice(0,2500), src, false);
+    }).join("");
+    if(_watchJob) html+=bubble("assistant","… işləyir (job #"+_watchJob+")",null,true);
+    box.innerHTML=html||`<div class="muted">Söhbətə başla — bura, Telegram və Codex eyni yaddaşı görür.</div>`;
+    if(atBottom||_watchJob) box.scrollTop=box.scrollHeight;
+  }catch(e){}
+}
+async function watchJob(id){
+  _watchJob=id; loadChat();
+  for(let i=0;i<120;i++){
+    await new Promise(r=>setTimeout(r,2500));
+    try{
+      const d=await j(`/api/jobs/${id}`);
+      if(d.status==="done"||d.status==="error"||d.status==="awaiting_approval"||d.status==="rejected"){
+        _watchJob=null; await loadChat(); refresh(); loadDeliverables(); return;
+      }
+    }catch(e){}
+  }
+  _watchJob=null; loadChat();
+}
 async function submitTask(){
   const t=$("task").value.trim(); if(!t)return;
   const r=await j("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task:t})});
   $("msg").textContent=r.id?`📥 Job #${r.id} növbəyə salındı`:(r.error||"xəta");
-  $("task").value=""; refresh();
+  $("task").value="";
+  if(r.id){ $("chat").innerHTML+=bubble("user",t,"panel",false); $("chat").scrollTop=$("chat").scrollHeight; watchJob(r.id); }
+  refresh();
 }
 
 async function doSync(){
@@ -492,8 +583,10 @@ async function doSync(){
 }
 
 refresh();
+loadChat();
 loadDeliverables();
 setInterval(refresh, 15000);
+setInterval(loadChat, 12000);
 setInterval(loadDeliverables, 60000);
 </script>
 </body></html>"""
