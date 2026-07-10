@@ -31,6 +31,10 @@ import sys
 import time
 from pathlib import Path
 
+from ._bootstrap import load_env
+
+load_env()  # standalone CLI (`python -m gateway.keyvault`) must see .env too
+
 ROOT = Path(__file__).resolve().parent.parent
 VAULT_PATH = ROOT / "secrets" / "keys.vault"
 ENV_PATH = ROOT / ".env"
