@@ -54,6 +54,13 @@ def send_message(chat_id: str | int, text: str) -> None:
         _call("sendMessage", chat_id=chat_id, text=text[i : i + 4000])
 
 
+def send_chat_action(chat_id: str | int, action: str = "typing") -> None:
+    """Show a status indicator ("typing…") in the chat — the lightweight
+    acknowledgment for conversational turns, instead of a noisy service
+    message. Telegram shows it ~5s or until the next message arrives."""
+    _call("sendChatAction", chat_id=chat_id, action=action)
+
+
 def delete_message(chat_id: str | int, message_id: int) -> None:
     """Delete a message from the chat (e.g. one that carried a secret)."""
     _call("deleteMessage", chat_id=chat_id, message_id=message_id)

@@ -10,6 +10,7 @@ Run it (keep this process alive; this is the "background" in background agent):
 
 from __future__ import annotations
 
+import re
 import time
 import traceback
 
@@ -20,6 +21,19 @@ from .executor import execute
 load_env()
 
 _IDLE_SLEEP = 2.0  # seconds to wait when the queue is empty
+
+# Executor results carry a leading `_[label]_` source tag (which model/mode
+# produced this). The tag is for the STORES (panel + memory render it as a
+# small source chip) — a human in Telegram must never see it raw.
+_SOURCE_TAG = re.compile(r"^_\[([^\]\n]*)\]_\s*")
+
+
+def _split_source_tag(result: str) -> tuple[str | None, str]:
+    """Return (label, clean_text) — label is None when the result carries no tag."""
+    m = _SOURCE_TAG.match(result or "")
+    if not m:
+        return None, result
+    return m.group(1), result[m.end():]
 
 
 def _notify(job: queue.Job, text: str) -> None:
@@ -57,6 +71,11 @@ def run_once() -> bool:
         return False
 
     print(f"[worker] running job {job.id} ({job.source}): {job.task[:80]!r}")
+    if job.source == "telegram" and job.chat_id and telegram.is_configured():
+        try:  # "typing..." while the job runs — the chat feels alive, not queued
+            telegram.send_chat_action(job.chat_id, "typing")
+        except Exception:
+            pass
     try:
         out = execute(job)
         # Outward-facing action -> the job parks at the human checkpoint instead
@@ -70,7 +89,14 @@ def run_once() -> bool:
         queue.complete(job.id, out["result"], out.get("artifacts"))
         print(f"[worker] job {job.id} done -> {out.get('artifacts')}")
         sense.emit("job", f"#{job.id} done ({job.source})", {"task": job.task[:80]})
-        _notify(job, f"✅ Job {job.id} done:\n\n{out['result']}")
+        # The stored result keeps its `_[label]_` tag (panel renders it as a
+        # source chip); the HUMAN delivery must read like a teammate. A chat
+        # turn arrives as plain conversation; real work gets a compact header.
+        label, clean = _split_source_tag(out["result"])
+        if label and label.startswith("chat:"):
+            _notify(job, clean)
+        else:
+            _notify(job, f"✅ İş #{job.id} hazırdır:\n\n{clean}")
         _deliver_files(job, out.get("artifacts"))
         # Record the exchange into the shared hierarchical memory (blackboard),
         # keyed by the conversation thread (Telegram chat). CLI jobs have no chat
@@ -97,7 +123,7 @@ def run_once() -> bool:
         queue.fail(job.id, err)
         print(f"[worker] job {job.id} FAILED: {exc}")
         sense.emit("job", f"#{job.id} FAILED ({job.source})", {"error": str(exc)[:120]})
-        _notify(job, f"⚠️ Job {job.id} failed: {exc}")
+        _notify(job, f"⚠️ İş #{job.id} alınmadı: {exc}")
     return True
 
 

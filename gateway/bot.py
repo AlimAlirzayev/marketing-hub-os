@@ -403,7 +403,20 @@ def _handle_message(msg: dict) -> None:
         print(f"[bot] pre-task sync skipped: {exc}")
 
     job_id = mic.speak(text, source="telegram", chat_id=str(chat_id))
-    telegram.send_message(chat_id, f"📥 Queued as job #{job_id}. Working on it...")
+    # Conversational turns get a silent "typing…" indicator — the reply IS the
+    # acknowledgment (the owner hated the "Queued as job #N" service message).
+    # Real work (tools/browser/research) can run for minutes, so it keeps an
+    # explicit receipt; mode detection reuses the executor's own heuristic.
+    from .executor import _choose_mode
+    if _choose_mode(text) == "plain":
+        try:
+            telegram.send_chat_action(chat_id, "typing")
+        except Exception:
+            pass
+    else:
+        telegram.send_message(
+            chat_id, f"⚙️ Qəbul etdim (iş #{job_id}) — üzərində işləyirəm, nəticəni göndərəcəm."
+        )
 
 
 def _announce_online() -> None:
@@ -470,6 +483,12 @@ def main() -> None:
                     except Exception:
                         pass
             time.sleep(30)
+        except (requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError):
+            # A long-poll that times out or drops is NORMAL churn, not an
+            # incident — it was flooding journalctl as "[bot] error". Just
+            # reconnect quietly.
+            time.sleep(1)
         except Exception as exc:  # transient network errors -> back off, retry
             print(f"[bot] error: {exc}")
             time.sleep(3)
