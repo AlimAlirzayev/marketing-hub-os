@@ -314,7 +314,7 @@ def render_board_svg(result: dict[str, Any]) -> str:
     subtitle = html.escape(
         f"{c.get('big_idea','')[:110]}"
     )
-    header = html.escape(c.get("name", "MediaForge storyboard"))
+    header = html.escape(c.get("name", "Media Studio storyboard"))
     modeline = html.escape(f"{r['label']} · {r['duration_s']}s · {brief['format']['aspect']} · {brief['platform']['name']}")
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" font-family="Segoe UI, Arial">
@@ -324,7 +324,7 @@ def render_board_svg(result: dict[str, Any]) -> str:
   <text x="{pad}" y="82" fill="#b6b6bd" font-size="16">{subtitle}</text>
   <text x="{pad}" y="108" fill="#7fb2ff" font-size="14" font-family="Consolas, monospace">{modeline}</text>
   {''.join(frames)}
-  <text x="{pad}" y="{H-32}" fill="#5f5f66" font-size="13">Xalq Sığorta · MediaForge — motion plate; dəqiq mətn/logo deterministik overlay kimi əlavə olunur.</text>
+  <text x="{pad}" y="{H-32}" fill="#5f5f66" font-size="13">Xalq Sığorta · Media Studio — motion plate; dəqiq mətn/logo deterministik overlay kimi əlavə olunur.</text>
 </svg>"""
 
 
@@ -352,7 +352,7 @@ def _remember(package: dict[str, Any]) -> None:
     try:
         from brain import capture  # optional learning loop
         capture.remember(
-            f"MediaForge promo package: {package['concept'].get('name','')} "
+            f"Media Studio promo package: {package['concept'].get('name','')} "
             f"({package['resolution']['model_id']}, {package['request']['category']}). "
             f"Slug {package['slug']}.",
             tags=["mediaforge", "video", package["request"]["category"]],

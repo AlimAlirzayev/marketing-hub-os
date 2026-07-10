@@ -25,6 +25,13 @@ ROOT = Path(__file__).resolve().parent.parent
 _NODE_DIR = ROOT / "video-studio" / "tools" / "node-v24.15.0-win-x64"
 FLORA_URL = "https://agents.flora.ai/mcp"
 
+# All FLORA work lands in ONE pinned project so the workspace stays clean —
+# campaigns are already separated by local package folders, not FLORA projects.
+# The owner asked for the "test" folder; set FLORA_PROJECT="" to disable
+# pinning and use per-call names again. NOTE: the API key only sees workspace
+# projects — the UI's personal "Private" section is not reachable via the API.
+FLORA_PROJECT = os.environ.get("FLORA_PROJECT", "test")
+
 
 def _npx_env() -> dict[str, str]:
     env = dict(os.environ)
@@ -94,7 +101,7 @@ class FloraMCP:
         self._send({
             "jsonrpc": "2.0", "id": rid, "method": "initialize",
             "params": {"protocolVersion": "2024-11-05", "capabilities": {},
-                       "clientInfo": {"name": "mediaforge", "version": "0.1"}},
+                       "clientInfo": {"name": "media-studio", "version": "0.1"}},
         })
         self.server_info = self._read_reply(rid, timeout).get("serverInfo", {})
         self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
@@ -145,17 +152,20 @@ class FloraMCP:
         return ws[0]["workspace_id"]
 
     def ensure_project(self, workspace_id: str, name: str) -> dict[str, Any]:
+        """Find-or-create the target project. LIST-FIRST: FLORA happily creates
+        duplicate names, so a create-first strategy spawned a new project on
+        every run. When FLORA_PROJECT is set (default "test"), every caller is
+        routed into that one pinned project regardless of the requested name.
+        """
+        target = FLORA_PROJECT or name
         body = f"""
-  try {{
-    const p = await client.projects.create({{ workspace_id: {json.dumps(workspace_id)}, name: {json.dumps(name)} }});
-    return {{ project_id: p.project_id, created: true }};
-  }} catch (e) {{
-    const projs = [];
-    for await (const p of client.projects.list({{ workspace_id: {json.dumps(workspace_id)}, limit: 50 }})) projs.push(p);
-    const hit = projs.find(p => p.name === {json.dumps(name)});
-    if (hit) return {{ project_id: hit.project_id, created: false }};
-    return {{ project_id: projs.length ? projs[0].project_id : null, created: false, note: e.message }};
-  }}"""
+  const target = {json.dumps(target)};
+  const projs = [];
+  for await (const p of client.projects.list({{ workspace_id: {json.dumps(workspace_id)}, limit: 100 }})) projs.push(p);
+  const hit = projs.find(p => p.name === target);
+  if (hit) return {{ project_id: hit.project_id, created: false }};
+  const p = await client.projects.create({{ workspace_id: {json.dumps(workspace_id)}, name: target }});
+  return {{ project_id: p.project_id, created: true }};"""
         return self.run_json(body, intent="ensure project")
 
     def generate_media(self, *, media_type: str, workspace_id: str, project_id: str,

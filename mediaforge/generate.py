@@ -51,7 +51,9 @@ BEAT_CLIP_SECONDS = "5"           # shoot long, trim short at stitch
 FILM_MODEL = "t2v-kling-v3-standard"  # 588 cr — one multi-shot run, native continuity
 USD_PER_CREDIT = 0.0009           # observed: $1.059 for 1176 cr
 
-PROJECT_NAME = "MediaForge — {name}"
+# Display name only — with FLORA_PROJECT pinning active, all runs land in the
+# single pinned project and this fallback label is never used.
+PROJECT_NAME = "Media Studio — {name}"
 
 
 def _fix_console() -> None:
