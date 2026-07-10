@@ -9,7 +9,8 @@ sits behind --confirm; everything else is free and local:
     python -m mediaforge.generate <slug> --animatic          # 3) FREE Ken Burns animatic
     python -m mediaforge.generate <slug> --beats --confirm   # 4) beat videos + stitch (paid)
     python -m mediaforge.generate <slug> --oner --confirm    # single-shot t2v (v1 mode)
-    python -m mediaforge.generate <slug> --pro --confirm     # 1→3→4 hands-free
+    python -m mediaforge.generate <slug> --finish            # 5) FREE branded finishing
+    python -m mediaforge.generate <slug> --pro --confirm     # 1→3→4→5 hands-free
 
 Stage flags combine with --confirm as the explicit spend authorization; the
 Claude Code harness additionally requires a human-authored permission rule, so
@@ -27,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from . import animatic as animod
+from . import finish as finmod
 from . import frames as framod
 from . import models
 from .pipeline import CAMPAIGNS
@@ -167,6 +169,9 @@ def plan_stages(pkg: dict[str, Any], *, variants: int = 2) -> dict[str, Any]:
             {"stage": "oner (alternativ)", "what": f"tək fasiləsiz plan ({oner_model}; {oner_reason})",
              "credits": oner_cr, "usd": round(oner_cr * USD_PER_CREDIT, 2),
              "cmd": f"python -m mediaforge.generate {pkg['slug']} --oner --confirm"},
+            {"stage": "finish", "what": "PULSUZ finishing: AZ overlay + logo + CTA end-card + 1080p (lokal ffmpeg)",
+             "credits": 0, "usd": 0,
+             "cmd": f"python -m mediaforge.generate {pkg['slug']} --finish"},
         ],
     }
 
@@ -320,6 +325,29 @@ def stage_film(pkg: dict[str, Any], folder: Path, *, confirm: bool, model: str |
         flora.close()
 
 
+def stage_finish(pkg: dict[str, Any], folder: Path, *, master: str | None = None,
+                 aspect: str | None = None, no_logo: bool = False) -> int:
+    """FREE deterministic finishing: raw AI master -> publish-ready branded promo.
+
+    Burns the director's exact AZ overlay copy, adds the brand logo bug and a
+    guaranteed CTA end-card, upscales to the delivery canvas. Local ffmpeg only.
+    """
+    brief = pkg["brief"]
+    src = (folder / master) if master else finmod.pick_master(folder)
+    if not src or not src.exists():
+        print("⚠ Bitmiş master tapılmadı — əvvəlcə --film / --beats / --oner işə sal.")
+        return 1
+    out = folder / "promo-final.mp4"
+    res = finmod.finish_master(src, brief, out, canvas=aspect, with_logo=not no_logo)
+    if not res.get("ok"):
+        print(f"⚠ Finishing xətası: {res.get('error')}")
+        return 1
+    print(f"✨ Final hazır ({res['canvas']}, {res['duration_s']}s, "
+          f"{res['overlays']} overlay, logo={'var' if res['logo'] else 'yox'}, {res['cost']}):")
+    print(f"   {res['path']}")
+    return 0
+
+
 def stage_oner(pkg: dict[str, Any], folder: Path, *, confirm: bool, model: str | None) -> int:
     brief = pkg["brief"]
     prompt = build_prompt(brief, category=pkg.get("request", {}).get("category"))
@@ -369,6 +397,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--film", action="store_true",
                     help="ONE multi-shot run (Kling 3.0 dialect) — native continuity, no stitch (paid).")
     ap.add_argument("--oner", action="store_true", help="Single-shot t2v film (paid, v1 mode).")
+    ap.add_argument("--finish", action="store_true",
+                    help="FREE finishing: AZ overlays + logo + CTA end-card + upscale (local ffmpeg).")
+    ap.add_argument("--master", default=None,
+                    help="Finish a specific file in the package folder (default: best master).")
+    ap.add_argument("--aspect", default=None,
+                    help="Finishing canvas override: 9:16 | 4:5 | 1:1 | 16:9.")
+    ap.add_argument("--no-logo", action="store_true", help="Finish without the logo bug/lockup.")
     ap.add_argument("--pro", action="store_true", help="frames → animatic → beats, hands-free.")
     ap.add_argument("--model", default=None, help="Model override (oner) / beat model (beats).")
     ap.add_argument("--confirm", action="store_true", help="Authorize the spend.")
@@ -390,6 +425,8 @@ def main(argv: list[str] | None = None) -> int:
             rc = stage_animatic(pkg, folder) or 0
             rc = stage_beats(pkg, folder, confirm=args.confirm,
                              model=args.model or BEAT_MODEL)
+            if rc == 0:
+                rc = stage_finish(pkg, folder)
     else:
         if args.frames:
             ran_stage = True
@@ -407,6 +444,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.oner and rc == 0:
             ran_stage = True
             rc = stage_oner(pkg, folder, confirm=args.confirm, model=args.model)
+        if args.finish and rc == 0:
+            ran_stage = True
+            rc = stage_finish(pkg, folder, master=args.master,
+                              aspect=args.aspect, no_logo=args.no_logo)
 
     if not ran_stage and not args.pick:
         # legacy compatibility: bare --confirm behaves like v1 (oner)
