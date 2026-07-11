@@ -17,6 +17,7 @@ owner commands (/approve, /reject, /update); this is the desktop half.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import time
@@ -179,6 +180,43 @@ def _kind_of(ext: str) -> str:
     return "file"
 
 
+_META_CACHE: dict[str, tuple[float, dict]] = {}
+
+
+def _content_meta(p: Path, kind: str) -> dict:
+    """Human title + text snippet so content tiles read as CONTENT, not as
+    anonymous job-NN.md file icons. Cached per (path, mtime) — the gallery
+    polls once a minute and files rarely change."""
+    try:
+        mt = p.stat().st_mtime
+    except OSError:
+        return {}
+    key = str(p)
+    hit = _META_CACHE.get(key)
+    if hit and hit[0] == mt:
+        return hit[1]
+    meta: dict = {}
+    try:
+        if kind == "report":
+            text = p.read_text(errors="ignore")[:4000]
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            title = next((ln.lstrip("# ").strip() for ln in lines if ln.startswith("#")), None)
+            if not title and lines:
+                title = lines[0]
+            body = " ".join(ln for ln in lines if not ln.startswith("#"))
+            body = re.sub(r"[*_`>#|-]|\[|\]|\(http\S+\)", "", body)
+            meta = {"title": (title or p.stem)[:90], "snippet": body.strip()[:220]}
+        elif kind == "site":
+            head = p.read_text(errors="ignore")[:2000]
+            m = re.search(r"<title[^>]*>(.*?)</title>", head, re.I | re.S)
+            if m and m.group(1).strip():
+                meta = {"title": m.group(1).strip()[:90]}
+    except OSError:
+        meta = {}
+    _META_CACHE[key] = (mt, meta)
+    return meta
+
+
 def _safe_resolve(rel_path: str) -> Path | None:
     """Resolve a requested path and allow it ONLY if it lives inside a
     deliverable root. This is the guard against path traversal and against ever
@@ -246,10 +284,12 @@ def deliverables(limit: int = 60) -> JSONResponse:
                     stat = idx.stat()
                 except (ValueError, OSError):
                     continue
-                items[rel] = {
+                entry = {
                     "name": site.name, "path": rel, "url": f"/file/{rel}",
                     "kind": "site", "size": stat.st_size, "mtime": stat.st_mtime,
                 }
+                entry.update(_content_meta(idx, "site"))
+                items[rel] = entry
                 continue
             if p.suffix.lower() not in _PREVIEW_EXT:
                 continue
@@ -258,7 +298,7 @@ def deliverables(limit: int = 60) -> JSONResponse:
                 stat = p.stat()
             except (ValueError, OSError):
                 continue
-            items[rel] = {
+            entry = {
                 "name": p.name,
                 "path": rel,
                 "url": f"/file/{rel}",
@@ -266,330 +306,406 @@ def deliverables(limit: int = 60) -> JSONResponse:
                 "size": stat.st_size,
                 "mtime": stat.st_mtime,
             }
+            if entry["kind"] == "report":
+                entry.update(_content_meta(p, "report"))
+            items[rel] = entry
     ordered = sorted(items.values(), key=lambda d: d["mtime"], reverse=True)
     return JSONResponse(ordered[:limit])
 
 
 # --------------------------------------------------------------------------
-# UI — one premium dark screen, zero external assets (corporate-offline safe)
+# UI v4 "Studio" — content-first front office, zero external assets
+# (corporate-offline safe). Light editorial look by default, dark via toggle.
+# Three rooms: Studiya (talk + approve + latest), Nəticələr (the gallery),
+# Mühərrik (all engineering telemetry, demoted out of the operator's face).
+# NOTE: _HTML is a plain (non-raw) Python string — JS regexes must write
+# backslash-n as \\n or Python eats it and the inline script breaks.
 # --------------------------------------------------------------------------
 
 _HTML = """<!doctype html>
 <html lang="az"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RAMIN OS — İdarəetmə Mərkəzi</title>
+<title>Ramin Studio — İdarəetmə Mərkəzi</title>
 <style>
-/* ── design tokens ─────────────────────────────────────────────── */
+/* ── design tokens: light editorial (default) + dark ───────────── */
 :root{
-  --bg0:#090c11; --bg1:#0f141c; --bg2:#141b25; --bg3:#1a2330;
-  --line:rgba(148,163,184,.13); --line2:rgba(148,163,184,.22);
-  --ink:#eef3f8; --ink2:#9db0c3; --mut:#6b7f94;
-  --acc:#38bdf8; --acc2:#818cf8; --vio:#a78bfa;
-  --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
-  --r-lg:16px; --r-md:12px; --r-sm:8px;
-  --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.35);
+  --bg:#f4f3f0; --card:#ffffff; --card2:#f8f7f4; --thumb:#edece8;
+  --ink:#1b1d23; --ink2:#4d5361; --mut:#8b8f9a;
+  --line:#e5e3dd; --line2:#d3d0c8;
+  --acc:#4338ca; --acc-soft:#eceefc; --acc-line:#c7cdf4;
+  --ok:#087f5b; --ok-soft:#e3f5ee; --warn:#9a5b00; --warn-soft:#fdf2df;
+  --bad:#c92a2a; --bad-soft:#fdecec;
+  --btn:#1b1d23; --btnink:#ffffff;
+  --r-lg:16px; --r-md:12px; --r-sm:9px;
+  --shadow:0 1px 2px rgba(28,25,15,.04),0 10px 30px rgba(28,25,15,.06);
+}
+:root[data-theme="dark"]{
+  --bg:#0d1117; --card:#151b24; --card2:#1a2230; --thumb:#0f141c;
+  --ink:#edf2f8; --ink2:#9fb0c2; --mut:#6d8093;
+  --line:rgba(148,163,184,.15); --line2:rgba(148,163,184,.3);
+  --acc:#8b93f8; --acc-soft:rgba(129,140,248,.14); --acc-line:rgba(129,140,248,.4);
+  --ok:#34d399; --ok-soft:rgba(52,211,153,.12); --warn:#fbbf24; --warn-soft:rgba(251,191,36,.1);
+  --bad:#f87171; --bad-soft:rgba(248,113,113,.12);
+  --btn:#edf2f8; --btnink:#10141b;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px rgba(0,0,0,.35);
 }
 *{box-sizing:border-box;margin:0}
 html{scroll-behavior:smooth}
-body{
-  background:
-    radial-gradient(1100px 520px at 85% -8%, rgba(56,189,248,.07), transparent 60%),
-    radial-gradient(900px 480px at -8% 108%, rgba(129,140,248,.06), transparent 60%),
-    var(--bg0);
-  color:var(--ink);
-  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
-  min-height:100vh;
-}
-::selection{background:rgba(56,189,248,.3)}
-button{font:inherit;cursor:pointer;border:0}
-button:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+body{background:var(--bg);color:var(--ink);
+  font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;
+  transition:background .2s,color .2s}
+::selection{background:var(--acc-soft)}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+a{color:var(--acc)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+svg.i{width:16px;height:16px;flex:none}
 
-/* ── topbar ─────────────────────────────────────────────────────── */
-.topbar{
-  position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;
-  padding:12px 22px;background:rgba(9,12,17,.82);backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--line);
-}
-.mark{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04121c;font-weight:800;font-size:15px;
-  box-shadow:0 2px 10px rgba(56,189,248,.35)}
-.tt{font-size:15px;font-weight:650;letter-spacing:.2px;white-space:nowrap}
-.tt small{color:var(--ink2);font-weight:500}
-.live{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);white-space:nowrap}
-.live .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(52,211,153,.5);animation:pulse 2.2s infinite}
-.live.err .dot{background:var(--bad);animation:none}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.45)}70%{box-shadow:0 0 0 7px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
-.badge{background:var(--bg1);border:1px solid var(--line);border-radius:999px;
-  padding:4px 12px;font-size:12px;color:var(--ink2);white-space:nowrap}
-.badge b{color:var(--ink);font-variant-numeric:tabular-nums}
+/* ── topbar: brand · tabs · live · theme ───────────────────────── */
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:16px;
+  padding:12px 26px;background:color-mix(in srgb,var(--bg) 86%,transparent);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:11px;white-space:nowrap}
+.mark{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+  background:var(--btn);color:var(--btnink);font-weight:800;font-size:16px;
+  font-family:Georgia,"Times New Roman",serif}
+.bt{font-size:16px;font-weight:700;letter-spacing:.2px}
+.bt em{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:500;color:var(--acc)}
+.bt small{display:block;font-size:10.5px;font-weight:500;color:var(--mut);letter-spacing:.8px;
+  text-transform:uppercase;line-height:1.2}
+.tabs{display:flex;gap:4px;background:var(--card2);border:1px solid var(--line);
+  border-radius:999px;padding:4px}
+.tab{border-radius:999px;padding:7px 17px;font-size:13.5px;font-weight:600;color:var(--mut);
+  transition:all .15s;display:flex;align-items:center;gap:7px}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.tcnt{font-size:10.5px;background:var(--acc-soft);color:var(--acc);border-radius:999px;
+  padding:1px 7px;font-variant-numeric:tabular-nums}
+.tcnt:empty{display:none}
 .sp{flex:1}
-.btn{display:inline-flex;align-items:center;gap:7px;border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;
-  transition:filter .15s, transform .1s, background .15s, border-color .15s}
+.live{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.live .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);
+  box-shadow:0 0 0 0 var(--ok-soft);animation:pulse 2.2s infinite}
+.live.err .dot{background:var(--bad);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--ok-soft)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.ibtn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
+  border:1px solid var(--line);background:var(--card);color:var(--ink2);transition:all .15s}
+.ibtn:hover{color:var(--ink);border-color:var(--line2)}
+.ibtn svg{width:16px;height:16px}
+
+/* ── shared primitives ─────────────────────────────────────────── */
+main{max-width:1380px;margin:0 auto;padding:22px 26px 60px}
+.page{display:none}
+.page.on{display:block;animation:fadein .18s ease-out}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.pad{padding:20px}
+h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.3px;color:var(--mut);
+  margin-bottom:14px;display:flex;align-items:center;gap:8px}
+h3 .lnk{margin-left:auto;font-size:12px;font-weight:600;text-transform:none;letter-spacing:0;
+  color:var(--acc);cursor:pointer}
+.muted{color:var(--mut)} .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:11px;padding:9px 16px;
+  font-weight:600;font-size:13.5px;transition:all .15s}
 .btn:active{transform:translateY(1px)}
-.btn.primary{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04121c}
-.btn.primary:hover{filter:brightness(1.1)}
-.btn.ghost{background:var(--bg1);color:var(--ink);border:1px solid var(--line)}
-.btn.ghost:hover{border-color:var(--line2);background:var(--bg2)}
-.btn.good{background:rgba(52,211,153,.14);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
-.btn.good:hover{background:rgba(52,211,153,.22)}
-.btn.danger{background:rgba(248,113,113,.1);color:var(--bad);border:1px solid rgba(248,113,113,.3)}
-.btn.danger:hover{background:rgba(248,113,113,.18)}
+.btn.primary{background:var(--btn);color:var(--btnink)}
+.btn.primary:hover{opacity:.88}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--line2);background:var(--card2)}
+.btn.good{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok)}
+.btn.danger{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad)}
 .btn:disabled{opacity:.5;cursor:wait}
 .btn svg{width:15px;height:15px}
+.badge{background:var(--card);border:1px solid var(--line);border-radius:999px;
+  padding:5px 13px;font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.badge b{color:var(--ink);font-variant-numeric:tabular-nums}
 
-/* ── shell: chat rail + content ────────────────────────────────── */
-.shell{display:grid;grid-template-columns:minmax(340px,410px) 1fr;gap:18px;
-  padding:18px 22px 40px;max-width:1720px;margin:0 auto;align-items:start}
-@media (max-width:1080px){.shell{grid-template-columns:1fr}.chatcard{position:static!important;height:auto!important}.chat{max-height:46vh}}
-
-.card{background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 40%),var(--bg1);
-  border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow)}
-section.card{padding:18px;margin-bottom:16px}
-.sect{display:flex;align-items:center;gap:9px;margin-bottom:14px;flex-wrap:wrap}
-.sect h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:var(--ink2)}
-.sect .ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;
-  background:var(--bg2);border:1px solid var(--line)}
-.muted{color:var(--mut)} .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
-
-/* ── chat — the one microphone ─────────────────────────────────── */
-.chatcard{position:sticky;top:72px;height:calc(100vh - 96px);display:flex;flex-direction:column;padding:16px}
-.chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px;scrollbar-width:thin;scrollbar-color:var(--bg3) transparent}
-.bubble{max-width:85%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.55;
-  white-space:pre-wrap;word-break:break-word}
-.bubble.user{align-self:flex-end;background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.14));
-  border:1px solid rgba(56,189,248,.3);border-bottom-right-radius:5px}
-.bubble.assistant{align-self:flex-start;background:var(--bg2);border:1px solid var(--line);border-bottom-left-radius:5px}
-.bubble .src{display:block;font-size:10px;color:var(--mut);margin-bottom:4px;text-transform:uppercase;letter-spacing:.7px}
-.bubble.pending{opacity:.6;font-style:italic}
-.composer{display:flex;gap:9px;margin-top:12px;align-items:flex-end}
-.composer textarea{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:13px;color:var(--ink);
-  padding:11px 13px;font:inherit;min-height:48px;max-height:150px;resize:vertical}
-.composer textarea::placeholder{color:var(--mut)}
-.composer .send{width:48px;height:48px;border-radius:13px;flex:none;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04121c}
-.composer .send:hover{filter:brightness(1.12)}
-.composer .send svg{width:19px;height:19px}
-#msg{font-size:12px;color:var(--ok);min-height:16px;margin-top:6px}
-
-/* ── stat tiles ────────────────────────────────────────────────── */
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-bottom:16px}
-.tile{background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 40%),var(--bg1);
-  border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 15px;box-shadow:var(--shadow);
-  transition:border-color .15s}
-.tile:hover{border-color:var(--line2)}
-.tile .h{display:flex;align-items:center;gap:8px;margin-bottom:9px}
-.tile .tic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:14px}
-.tile .k{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);font-weight:600}
-.tile .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
-.tile .s{font-size:11.5px;color:var(--mut);margin-top:3px}
-.t-acc .tic{background:rgba(56,189,248,.12);color:var(--acc)}
-.t-ok  .tic{background:rgba(52,211,153,.12);color:var(--ok)}
-.t-warn .tic{background:rgba(251,191,36,.12);color:var(--warn)}
-.t-vio .tic{background:rgba(167,139,250,.12);color:var(--vio)}
-
-/* ── approvals ─────────────────────────────────────────────────── */
-.approval{border:1px solid rgba(251,191,36,.3);border-left:3px solid var(--warn);
-  background:rgba(251,191,36,.05);border-radius:var(--r-md);padding:13px 15px;margin-bottom:9px;
-  display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.approval .t{flex:1;min-width:220px;font-size:13.5px}
+/* ── STUDIYA: approvals + chat + aside ─────────────────────────── */
+.approvalbar{background:var(--warn-soft);border:1px solid var(--warn);border-radius:var(--r-lg);
+  padding:16px 20px;margin-bottom:18px}
+.approvalbar h3{color:var(--warn);margin-bottom:10px}
+.approval{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 0}
+.approval .t{flex:1;min-width:220px;font-size:14px}
 .approval .t b{color:var(--warn)}
+.stgrid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:20px;align-items:start}
+@media (max-width:1000px){.stgrid{grid-template-columns:1fr}}
+.stside{display:flex;flex-direction:column;gap:18px}
+.chatcard{display:flex;flex-direction:column;padding:20px;height:calc(100vh - 200px);min-height:460px}
+.chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 2px;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.bubble{position:relative;max-width:82%;padding:11px 15px;border-radius:15px;font-size:14px;
+  line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.bubble.user{align-self:flex-end;background:var(--acc-soft);border:1px solid var(--acc-line);
+  border-bottom-right-radius:5px}
+.bubble.assistant{align-self:flex-start;background:var(--card2);border:1px solid var(--line);
+  border-bottom-left-radius:5px}
+.bubble .src{display:block;font-size:10px;color:var(--mut);margin-bottom:4px;
+  text-transform:uppercase;letter-spacing:.7px}
+.bubble.pending{opacity:.6;font-style:italic}
+.bubble .cpy{position:absolute;top:-10px;right:8px;background:var(--card);border:1px solid var(--line2);
+  color:var(--ink2);border-radius:7px;padding:2px 9px;font-size:10.5px;opacity:0;transition:opacity .15s}
+.bubble:hover .cpy{opacity:1}
+.bubble .more{display:block;color:var(--acc);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px}
+.bubble b{font-weight:700}
+.bubble code,.mdoc code{background:var(--thumb);border:1px solid var(--line);border-radius:5px;
+  padding:1px 5px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.bubble .mh{display:inline-block;font-weight:700;color:var(--acc)}
+.mdoc .mh{display:inline-block;font-weight:700;font-size:17px;color:var(--ink)}
+.bubble .mli,.mdoc .mli{color:var(--acc);font-weight:700}
+.bubble pre.mcb,.mdoc pre.mcb{background:var(--thumb);border:1px solid var(--line);border-radius:8px;
+  padding:9px 11px;margin:4px 0;font-size:12px;overflow-x:auto;white-space:pre-wrap;color:var(--ink2)}
+.mdoc{padding:28px;white-space:pre-wrap;color:var(--ink);font:14.5px/1.7 system-ui;word-break:break-word}
+.mdoc b{font-weight:700}
+.composer{display:flex;gap:9px;margin-top:14px;align-items:flex-end}
+.composer textarea{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:13px;
+  color:var(--ink);padding:12px 14px;font:inherit;font-size:14px;min-height:50px;max-height:150px;resize:vertical}
+.composer textarea::placeholder{color:var(--mut)}
+.composer .send{width:50px;height:50px;border-radius:13px;flex:none;display:grid;place-items:center;
+  background:var(--btn);color:var(--btnink)}
+.composer .send:hover{opacity:.88}
+.composer .send svg{width:19px;height:19px}
+.composer .micb{width:50px;height:50px;border-radius:13px;flex:none;display:grid;place-items:center;
+  background:var(--card2);border:1px solid var(--line);color:var(--ink2)}
+.composer .micb:hover{border-color:var(--line2);color:var(--ink)}
+.composer .micb svg{width:19px;height:19px}
+.composer .micb.rec{background:var(--bad-soft);border-color:var(--bad);color:var(--bad);
+  animation:recpulse 1.4s infinite}
+@keyframes recpulse{0%{box-shadow:0 0 0 0 var(--bad-soft)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+#msg{font-size:12.5px;color:var(--ok);min-height:17px;margin-top:7px}
+.trow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.trow:last-child{border-bottom:0}
+.trow .v{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
+.trow.hot .v{color:var(--warn)}
+.rrow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dashed var(--line);cursor:pointer}
+.rrow:last-child{border-bottom:0}
+.rrow:hover .rt{color:var(--acc)}
+.rthumb{width:44px;height:44px;border-radius:10px;background:var(--thumb);border:1px solid var(--line);
+  display:grid;place-items:center;overflow:hidden;flex:none;color:var(--mut)}
+.rthumb img{width:100%;height:100%;object-fit:cover}
+.rthumb svg{width:19px;height:19px}
+.rtx{min-width:0}
+.rt{display:block;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs{display:block;font-size:11.5px;color:var(--mut);margin-top:1px}
+.sug{color:var(--acc);font-size:12.5px;margin-top:5px}
 
-/* ── gallery ───────────────────────────────────────────────────── */
+/* ── NƏTİCƏLƏR: toolbar + content-first gallery ────────────────── */
+.gtools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.gsearch{background:var(--card);border:1px solid var(--line);border-radius:999px;color:var(--ink);
+  padding:8px 16px;font:inherit;font-size:13px;width:200px}
+.gsearch::placeholder{color:var(--mut)}
 .chips{display:flex;gap:7px;flex-wrap:wrap}
-.chip{background:var(--bg2);border:1px solid var(--line);color:var(--ink2);border-radius:999px;
-  padding:5px 13px;font-size:12px;font-weight:600;transition:all .15s}
+.chip{background:var(--card);border:1px solid var(--line);color:var(--ink2);border-radius:999px;
+  padding:6px 14px;font-size:12.5px;font-weight:600;transition:all .15s}
 .chip:hover{border-color:var(--line2);color:var(--ink)}
-.chip.on{background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.45);color:#7dd3fc}
-.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:13px}
-.gtile{background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;
-  display:flex;flex-direction:column;transition:transform .16s, border-color .16s, box-shadow .16s}
-.gtile:hover{border-color:rgba(56,189,248,.5);transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.45)}
-.thumb{height:146px;background:#0a0e14;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.chip.on{background:var(--btn);border-color:var(--btn);color:var(--btnink)}
+.chip .cnt{margin-left:6px;font-size:10.5px;opacity:.65;font-variant-numeric:tabular-nums}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:16px}
+.gtile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  cursor:pointer;display:flex;flex-direction:column;box-shadow:var(--shadow);
+  transition:transform .16s,border-color .16s}
+.gtile:hover{border-color:var(--acc-line);transform:translateY(-3px)}
+.thumb{height:158px;background:var(--thumb);display:flex;align-items:center;justify-content:center;
+  overflow:hidden;position:relative;border-bottom:1px solid var(--line)}
 .thumb img{width:100%;height:100%;object-fit:cover}
-.thumb iframe{width:200%;height:292px;transform:scale(.5);transform-origin:0 0;border:0;pointer-events:none;background:#fff}
-.thumb .ic{font-size:40px;opacity:.8}
-.tmeta{padding:10px 12px}
-.tmeta .nm{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tmeta .kd{font-size:11px;color:var(--mut);margin-top:5px;display:flex;justify-content:space-between;align-items:center;font-variant-numeric:tabular-nums}
-.kbadge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-radius:5px;padding:2px 7px}
-.kbadge.site{background:rgba(56,189,248,.14);color:#7dd3fc}
-.kbadge.image{background:rgba(167,139,250,.14);color:#c4b5fd}
-.kbadge.report{background:rgba(52,211,153,.13);color:#6ee7b7}
-.kbadge.video,.kbadge.audio{background:rgba(251,191,36,.13);color:#fcd34d}
-.kbadge.bundle,.kbadge.file,.kbadge.pdf{background:var(--bg3);color:var(--ink2)}
+.thumb iframe{width:200%;height:316px;transform:scale(.5);transform-origin:0 0;border:0;
+  pointer-events:none;background:#fff}
+.thumb .gic{width:34px;height:34px;color:var(--mut)}
+.rprev{align-self:stretch;width:100%;padding:14px 15px;text-align:left;background:var(--card2)}
+.rprev b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:13.5px;line-height:1.45;color:var(--ink)}
+.rprev p{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:12px;line-height:1.55;color:var(--ink2);margin-top:7px}
+.tmeta{padding:11px 13px}
+.tmeta .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tmeta .kd{font-size:11.5px;color:var(--mut);margin-top:5px;display:flex;justify-content:space-between;
+  align-items:center;font-variant-numeric:tabular-nums}
+.kbadge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;
+  border-radius:5px;padding:2px 8px}
+.kbadge.site{background:var(--acc-soft);color:var(--acc)}
+.kbadge.image{background:var(--acc-soft);color:var(--acc)}
+.kbadge.report{background:var(--ok-soft);color:var(--ok)}
+.kbadge.video,.kbadge.audio{background:var(--warn-soft);color:var(--warn)}
+.kbadge.bundle,.kbadge.file,.kbadge.pdf{background:var(--thumb);color:var(--ink2)}
+.gempty{grid-column:1/-1;text-align:center;padding:70px 20px;color:var(--mut)}
+.gempty svg{width:36px;height:36px;margin-bottom:12px;opacity:.6}
 
-/* ── advisor ───────────────────────────────────────────────────── */
-.find{display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--line);font-size:13px}
+/* ── MÜHƏRRİK: telemetry demoted here ──────────────────────────── */
+.engbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+@media (max-width:900px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:16px 17px;box-shadow:var(--shadow)}
+.tile .k{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);font-weight:700}
+.tile .v{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:6px}
+.tile .s{font-size:12px;color:var(--mut);margin-top:2px}
+.tile.warn .v{color:var(--warn)}
+section.card{margin-bottom:18px}
+.find{display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--line);font-size:13.5px}
 .find:last-child{border-bottom:0}
-.lvl{font-size:10.5px;font-weight:700;border-radius:6px;padding:3px 9px;height:fit-content;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-.lvl.risk{background:rgba(248,113,113,.13);color:var(--bad)}
-.lvl.watch{background:rgba(251,191,36,.13);color:var(--warn)}
-.lvl.info{background:rgba(56,189,248,.13);color:var(--acc)}
-.find .sug{color:var(--acc);font-size:12.5px;margin-top:4px}
+.lvl{font-size:10.5px;font-weight:700;border-radius:6px;padding:3px 9px;height:fit-content;
+  white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.lvl.risk{background:var(--bad-soft);color:var(--bad)}
+.lvl.watch{background:var(--warn-soft);color:var(--warn)}
+.lvl.info{background:var(--acc-soft);color:var(--acc)}
 .find .d{color:var(--ink2)}
-
-/* ── jobs table ────────────────────────────────────────────────── */
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{color:var(--mut);text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
-  padding:7px 9px;border-bottom:1px solid var(--line2)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{color:var(--mut);text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;
+  letter-spacing:.8px;padding:7px 9px;border-bottom:1px solid var(--line2)}
 td{padding:9px;border-bottom:1px solid var(--line);vertical-align:top}
-tbody tr{transition:background .12s}
-tbody tr:hover{background:rgba(148,163,184,.05)}
 tbody tr:last-child td{border-bottom:0}
-.st{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;white-space:nowrap}
+.st{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 11px;
+  font-size:11.5px;font-weight:600;white-space:nowrap}
 .st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.st.done{background:rgba(52,211,153,.11);color:var(--ok)}
-.st.queued{background:rgba(56,189,248,.11);color:var(--acc)}
-.st.running{background:rgba(167,139,250,.13);color:var(--vio)}
-.st.error{background:rgba(248,113,113,.12);color:var(--bad)}
-.st.awaiting_approval{background:rgba(251,191,36,.12);color:var(--warn)}
-.st.rejected{background:rgba(248,113,113,.09);color:#e08b8b}
-details summary{cursor:pointer;color:var(--acc);font-size:12px;font-weight:600}
-details summary:hover{text-decoration:underline}
-pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-height:300px;overflow:auto;
-  background:var(--bg0);border:1px solid var(--line);border-radius:9px;padding:11px}
-
-/* ── events timeline ───────────────────────────────────────────── */
-.ev{display:flex;gap:10px;font-size:12.5px;color:var(--ink2);padding:7px 0;border-bottom:1px dashed var(--line);align-items:baseline}
+.st.done{background:var(--ok-soft);color:var(--ok)}
+.st.queued,.st.running{background:var(--acc-soft);color:var(--acc)}
+.st.error,.st.rejected{background:var(--bad-soft);color:var(--bad)}
+.st.awaiting_approval{background:var(--warn-soft);color:var(--warn)}
+details summary{cursor:pointer;color:var(--acc);font-size:12.5px;font-weight:600}
+pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-height:300px;
+  overflow:auto;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:11px}
+.ev{display:flex;gap:10px;font-size:13px;color:var(--ink2);padding:8px 0;
+  border-bottom:1px dashed var(--line);align-items:baseline}
 .ev:last-child{border-bottom:0}
 .ev .lamp{width:7px;height:7px;border-radius:50%;background:var(--acc);flex:none;transform:translateY(-1px)}
 .ev time{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--mut);flex:none}
 .ev b{color:var(--ink)}
 
 /* ── modal & toast ─────────────────────────────────────────────── */
-.modal{position:fixed;inset:0;background:rgba(4,7,12,.88);backdrop-filter:blur(4px);
+.modal{position:fixed;inset:0;background:rgba(22,20,14,.55);backdrop-filter:blur(4px);
   display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
+:root[data-theme="dark"] .modal{background:rgba(2,4,8,.75)}
 .modal.on{display:flex}
-.mbox{background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r-lg);
-  width:min(1150px,96vw);height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.mbox{background:var(--card);border:1px solid var(--line2);border-radius:var(--r-lg);
+  width:min(1150px,96vw);height:90vh;display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 30px 80px rgba(10,8,4,.35)}
 .mbar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
 .mbar .nm{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mbar a{text-decoration:none}
-.mbody{flex:1;overflow:auto;background:#0a0e14}
+.mbody{flex:1;overflow:auto;background:var(--card2)}
 .mbody iframe{width:100%;height:100%;border:0;background:#fff}
 .mbody img{max-width:100%;display:block;margin:0 auto}
-.mbody pre.md{padding:26px;white-space:pre-wrap;color:var(--ink);font:14px/1.65 system-ui;max-height:none;margin:0;background:none;border:0}
 #toasts{position:fixed;right:18px;bottom:18px;z-index:70;display:flex;flex-direction:column;gap:8px}
-.toast{background:var(--bg2);border:1px solid var(--line2);border-left:3px solid var(--ok);border-radius:10px;
-  padding:11px 15px;font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.5);max-width:340px;animation:slidein .2s ease-out}
+.toast{background:var(--card);border:1px solid var(--line2);border-left:3px solid var(--ok);
+  border-radius:10px;padding:11px 15px;font-size:13px;box-shadow:var(--shadow);max-width:340px;
+  animation:slidein .2s ease-out}
 .toast.err{border-left-color:var(--bad)}
 @keyframes slidein{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
-
-/* ── markdown inside bubbles & report modal ────────────────────── */
-.bubble b,.mdoc b{font-weight:700}
-.bubble code,.mdoc code{background:var(--bg3);border:1px solid var(--line);border-radius:5px;
-  padding:1px 5px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
-.bubble .mh{display:inline-block;font-weight:700;color:var(--acc)}
-.mdoc .mh{display:inline-block;font-weight:700;font-size:17px;color:var(--ink)}
-.bubble .mli,.mdoc .mli{color:var(--acc);font-weight:700}
-.bubble pre.mcb,.mdoc pre.mcb{background:var(--bg0);border:1px solid var(--line);border-radius:8px;
-  padding:9px 11px;margin:4px 0;font-size:12px;overflow-x:auto;white-space:pre-wrap;color:var(--ink2)}
-.bubble a,.mdoc a{color:var(--acc)}
-.mdoc{padding:26px;white-space:pre-wrap;color:var(--ink);font:14px/1.65 system-ui;word-break:break-word}
-.bubble{position:relative}
-.bubble .cpy{position:absolute;top:-9px;right:8px;background:var(--bg3);border:1px solid var(--line2);
-  color:var(--ink2);border-radius:7px;padding:2px 8px;font-size:10.5px;opacity:0;transition:opacity .15s}
-.bubble:hover .cpy{opacity:1}
-.bubble .more{display:block;color:var(--acc);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px}
-
-/* ── mic — voice input (az-AZ) ─────────────────────────────────── */
-.composer .micb{width:48px;height:48px;border-radius:13px;flex:none;display:grid;place-items:center;
-  background:var(--bg2);border:1px solid var(--line);color:var(--ink2)}
-.composer .micb:hover{border-color:var(--line2);color:var(--ink)}
-.composer .micb svg{width:19px;height:19px}
-.composer .micb.rec{background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.5);color:var(--bad);
-  animation:recpulse 1.4s infinite}
-@keyframes recpulse{0%{box-shadow:0 0 0 0 rgba(248,113,113,.35)}70%{box-shadow:0 0 0 8px rgba(248,113,113,0)}100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}}
-
-/* ── gallery search + chip counts ──────────────────────────────── */
-.gsearch{background:var(--bg2);border:1px solid var(--line);border-radius:999px;color:var(--ink);
-  padding:6px 13px;font:inherit;font-size:12px;width:150px}
-.gsearch::placeholder{color:var(--mut)}
-.gsearch:focus{outline:2px solid var(--acc);outline-offset:1px}
-.chip .cnt{margin-left:6px;font-size:10px;opacity:.7;font-variant-numeric:tabular-nums}
+@media (max-width:760px){
+  .topbar{flex-wrap:wrap;gap:10px}.tabs{order:3;width:100%;justify-content:stretch}
+  .tab{flex:1;justify-content:center}.bt small{display:none}
+  main{padding:16px 14px 50px}.chatcard{height:auto;min-height:0}.chat{max-height:46vh}
+}
 </style></head><body>
 
 <header class="topbar">
-  <div class="mark">R</div>
-  <div class="tt">RAMIN OS <small>— İdarəetmə Mərkəzi</small></div>
-  <div class="live" id="liveDot"><span class="dot"></span><span id="liveTxt">canlı</span></div>
-  <span class="badge" id="git">git: …</span>
-  <span class="badge" id="cost">LLM bu gün: …</span>
+  <div class="brand">
+    <div class="mark">R</div>
+    <div class="bt">Ramin <em>Studio</em><small>İdarəetmə Mərkəzi</small></div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-t="studiya" onclick="showTab('studiya')">Studiya</button>
+    <button class="tab" data-t="neticeler" onclick="showTab('neticeler')">Nəticələr<span class="tcnt" id="tabCnt"></span></button>
+    <button class="tab" data-t="muherrik" onclick="showTab('muherrik')">Mühərrik</button>
+  </nav>
   <span class="sp"></span>
-  <button class="btn ghost" id="syncBtn" onclick="doSync()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg>
-    Engine sync</button>
-  <button class="btn ghost" onclick="refresh()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 3v6h6"/></svg>
-    Yenilə</button>
+  <div class="live" id="liveDot"><span class="dot"></span><span id="liveTxt">canlı</span></div>
+  <button class="ibtn" id="thBtn" onclick="flipTheme()" title="Tema">
+    <svg id="thIcMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    <svg id="thIcSun" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+  </button>
 </header>
 
-<div class="shell">
+<main>
 
-  <!-- sol: bir mikrofon -->
-  <div class="card chatcard">
-    <div class="sect" style="margin-bottom:10px">
-      <span class="ico">💬</span><h2>Söhbət — bir mikrofon</h2>
-      <span class="sp"></span>
-      <span class="muted" style="font-size:11px">bura · Telegram · Codex — bir yaddaş</span>
-    </div>
-    <div class="chat" id="chat"><div class="muted">yüklənir…</div></div>
-    <div class="composer">
-      <textarea id="task" placeholder="Danış… (məs.: KASKO üçün 3 kampaniya ideyası hazırla)"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitTask();}"></textarea>
-      <button class="micb" id="micBtn" onclick="toggleMic()" title="Səslə de (az-AZ)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-      </button>
-      <button class="send" onclick="submitTask()" title="Göndər (Enter)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>
-      </button>
-    </div>
-    <div id="msg"></div>
+<!-- ═══ STUDIYA — talk, approve, see the latest ═══ -->
+<section class="page" id="page-studiya">
+
+  <div class="approvalbar" id="approvalsWrap" style="display:none">
+    <h3>Təsdiq gözləyir — bayıra yönəlik əməllər</h3>
+    <div id="approvals"></div>
   </div>
 
-  <!-- sağ: canlı bədən -->
-  <div>
-    <div class="tiles" id="cards"></div>
-
-    <section class="card" id="approvalsWrap" style="display:none;border-color:rgba(251,191,36,.35)">
-      <div class="sect"><span class="ico">⏸</span><h2>Təsdiq gözləyənlər — bayıra yönəlik əməllər</h2></div>
-      <div id="approvals"></div>
-    </section>
-
-    <section class="card">
-      <div class="sect">
-        <span class="ico">🖥️</span><h2>Nəticələr — ön büro</h2>
-        <span class="sp"></span>
-        <input class="gsearch" id="gq" placeholder="axtar…" oninput="setQuery(this.value)">
-        <div class="chips" id="delChips"></div>
-        <button class="btn ghost" onclick="loadDeliverables()" title="Yenilə" style="padding:6px 10px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 3v6h6"/></svg>
+  <div class="stgrid">
+    <div class="card chatcard">
+      <h3>Söhbət — bir mikrofon
+        <span class="lnk" style="cursor:default;color:var(--mut)">bura · Telegram · Codex — bir yaddaş</span></h3>
+      <div class="chat" id="chat"><div class="muted">yüklənir…</div></div>
+      <div class="composer">
+        <textarea id="task" placeholder="Danış… (məs.: KASKO üçün 3 kampaniya ideyası hazırla)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitTask();}"></textarea>
+        <button class="micb" id="micBtn" onclick="toggleMic()" title="Səslə de (az-AZ)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        </button>
+        <button class="send" onclick="submitTask()" title="Göndər (Enter)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>
         </button>
       </div>
-      <div class="gallery" id="gallery"><div class="muted">yüklənir…</div></div>
-    </section>
+      <div id="msg"></div>
+    </div>
 
-    <section class="card">
-      <div class="sect"><span class="ico">🧭</span><h2>Məsləhətçi — növbəti ən yaxşı addımlar</h2>
-        <span class="sp"></span><span class="muted" style="font-size:11px">canlı fakt · LLM-siz</span></div>
-      <div id="advisor" class="muted">yüklənir…</div>
-    </section>
-
-    <section class="card">
-      <div class="sect"><span class="ico">🗂</span><h2>Son işlər</h2></div>
-      <div style="overflow-x:auto">
-      <table><thead><tr><th>#</th><th>Status</th><th>Mənbə</th><th>Tapşırıq</th><th>Vaxt</th><th>Nəticə</th></tr></thead>
-      <tbody id="jobs"></tbody></table>
+    <aside class="stside">
+      <div class="card pad">
+        <h3>Bu gün</h3>
+        <div id="today" class="muted">yüklənir…</div>
       </div>
-    </section>
-
-    <section class="card">
-      <div class="sect"><span class="ico">📡</span><h2>Son hadisələr</h2></div>
-      <div id="events" class="muted">yüklənir…</div>
-    </section>
+      <div class="card pad">
+        <h3>Son nəticələr <span class="lnk" onclick="showTab('neticeler')">hamısı →</span></h3>
+        <div id="recents" class="muted">yüklənir…</div>
+      </div>
+      <div class="card pad" id="hintCard" style="display:none">
+        <h3>Məsləhət</h3>
+        <div id="topHint"></div>
+      </div>
+    </aside>
   </div>
-</div>
+</section>
+
+<!-- ═══ NƏTİCƏLƏR — the content gallery, the real product ═══ -->
+<section class="page" id="page-neticeler">
+  <div class="gtools">
+    <input class="gsearch" id="gq" placeholder="ada və ya başlığa görə axtar…" oninput="setQuery(this.value)">
+    <div class="chips" id="delChips"></div>
+    <span class="sp"></span>
+    <button class="ibtn" onclick="loadDeliverables()" title="Yenilə">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 3v6h6"/></svg>
+    </button>
+  </div>
+  <div class="gallery" id="gallery"><div class="muted">yüklənir…</div></div>
+</section>
+
+<!-- ═══ MÜHƏRRİK — the engine room: telemetry lives here now ═══ -->
+<section class="page" id="page-muherrik">
+  <div class="engbar">
+    <span class="badge" id="git">git: …</span>
+    <span class="badge" id="cost">LLM bu gün: …</span>
+    <span class="sp"></span>
+    <button class="btn ghost" id="syncBtn" onclick="doSync()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg>
+      Engine sync</button>
+    <button class="btn ghost" onclick="refresh()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 3v6h6"/></svg>
+      Yenilə</button>
+  </div>
+  <div class="tiles" id="cards"></div>
+  <section class="card pad">
+    <h3>Məsləhətçi — növbəti ən yaxşı addımlar
+      <span class="lnk" style="cursor:default;color:var(--mut)">canlı fakt · LLM-siz</span></h3>
+    <div id="advisor" class="muted">yüklənir…</div>
+  </section>
+  <section class="card pad">
+    <h3>Son işlər</h3>
+    <div style="overflow-x:auto">
+    <table><thead><tr><th>#</th><th>Status</th><th>Mənbə</th><th>Tapşırıq</th><th>Vaxt</th><th>Nəticə</th></tr></thead>
+    <tbody id="jobs"></tbody></table>
+    </div>
+  </section>
+  <section class="card pad">
+    <h3>Son hadisələr</h3>
+    <div id="events" class="muted">yüklənir…</div>
+  </section>
+</section>
+
+</main>
 
 <div class="modal" id="modal" onclick="if(event.target.id==='modal')closeModal()">
   <div class="mbox">
@@ -635,15 +751,46 @@ function ago(ts){
   if(s<86400)return Math.floor(s/3600)+" saat əvvəl";
   return Math.floor(s/86400)+" gün əvvəl";
 }
+const ST_AZ={queued:"növbədə",running:"işləyir",done:"hazır",error:"xəta",
+  awaiting_approval:"təsdiq gözləyir",rejected:"imtina"};
+const KIND_AZ={site:"sayt",image:"şəkil",report:"hesabat",video:"video",audio:"audio",
+  bundle:"paket",pdf:"pdf",file:"fayl"};
+function _gicon(k){
+  const p={
+    site:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/>',
+    image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',
+    report:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M16 13H8M16 17H8"/>',
+    video:'<path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+    audio:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+    bundle:'<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7l8.7 5 8.7-5M12 22V12"/>',
+    pdf:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/>',
+    file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/>'
+  }[k]||"";
+  return `<svg class="gic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+}
 
-/* ── deliverables — the visual front office ── */
-let _deliverables=[],_delFilter="all",_delQuery="";
-const _IC={site:"🌐",image:"🖼️",report:"📄",video:"🎬",audio:"🎵",bundle:"📦",pdf:"📕",file:"📎"};
-const _FILTERS=[["all","hamısı"],["site","🌐 saytlar"],["image","🖼️ şəkillər"],["report","📄 hesabatlar"],["video","🎬 video"],["bundle","📦 paketlər"]];
+/* ── tabs & theme ── */
+function showTab(t){
+  document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id==="page-"+t));
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  try{localStorage.setItem("rs-tab",t);}catch(e){}
+}
+function applyTheme(t){
+  document.documentElement.dataset.theme=t;
+  try{localStorage.setItem("rs-theme",t);}catch(e){}
+  $("thIcSun").style.display=t==="dark"?"block":"none";
+  $("thIcMoon").style.display=t==="dark"?"none":"block";
+}
+function flipTheme(){applyTheme((document.documentElement.dataset.theme||"light")==="light"?"dark":"light");}
+
+/* ── deliverables — the content gallery ── */
+let _deliverables=[],_delFilter="all",_delQuery="",_pulse=null;
+const _FILTERS=[["all","hamısı"],["site","saytlar"],["image","şəkillər"],["report","hesabatlar"],["video","video"],["bundle","paketlər"]];
 function fmtSize(b){return b>1e6?(b/1e6).toFixed(1)+"MB":b>1e3?(b/1e3).toFixed(0)+"KB":b+"B"}
 function _visList(){
+  const q=_delQuery;
   return _deliverables.filter(d=>(_delFilter==="all"||d.kind===_delFilter)
-    &&(!_delQuery||d.name.toLowerCase().includes(_delQuery)));
+    &&(!q||(d.name+" "+(d.title||"")).toLowerCase().includes(q)));
 }
 function renderChips(){
   const n=k=>k==="all"?_deliverables.length:_deliverables.filter(d=>d.kind===k).length;
@@ -654,26 +801,42 @@ function setFilter(k){_delFilter=k;renderChips();renderDeliverables();}
 function setQuery(v){_delQuery=v.trim().toLowerCase();renderDeliverables();}
 async function loadDeliverables(){
   try{_deliverables=await j("/api/deliverables?limit=60");}catch(e){_deliverables=[];}
-  renderChips();renderDeliverables();
+  renderChips();renderDeliverables();renderRecents();renderToday();
 }
 function renderDeliverables(){
   const list=_visList();
-  if(!list.length){$("gallery").innerHTML=`<div class="muted">${_delQuery?"axtarışa uyğun nəticə yoxdur.":"hələ nəticə yoxdur — bir tapşırıq ver, burada görünəcək."}</div>`;return;}
+  if(!list.length){
+    $("gallery").innerHTML=`<div class="gempty">${_gicon("image")}<div>${_delQuery?"Axtarışa uyğun nəticə yoxdur.":"Hələ nəticə yoxdur — Studiyada bir tapşırıq ver, hazır olanda burada görünəcək."}</div></div>`;
+    return;
+  }
   $("gallery").innerHTML=list.map((d,i)=>{
     let thumb;
     if(d.kind==="image") thumb=`<img src="${d.url}" loading="lazy">`;
     else if(d.kind==="site") thumb=`<iframe src="${d.url}" scrolling="no" loading="lazy" tabindex="-1"></iframe>`;
-    else thumb=`<div class="ic">${_IC[d.kind]||"📎"}</div>`;
-    return `<div class="gtile" onclick="openDeliverable(${i})" title="${esc(d.name)}">
+    else if(d.kind==="report"&&(d.title||d.snippet))
+      thumb=`<div class="rprev"><b>${esc(d.title||d.name)}</b><p>${esc(d.snippet||"")}</p></div>`;
+    else thumb=_gicon(d.kind);
+    const hasPrev=d.kind==="report"&&(d.title||d.snippet);
+    return `<div class="gtile" onclick="openDeliverable(${i})" title="${esc(d.title||d.name)}">
       <div class="thumb">${thumb}</div>
-      <div class="tmeta"><div class="nm">${esc(d.name)}</div>
-        <div class="kd"><span class="kbadge ${d.kind}">${d.kind}</span><span>${fmtSize(d.size)} · ${ago(d.mtime)}</span></div>
+      <div class="tmeta">${hasPrev?"":`<div class="nm">${esc(d.title||d.name)}</div>`}
+        <div class="kd"><span class="kbadge ${d.kind}">${KIND_AZ[d.kind]||d.kind}</span><span>${fmtSize(d.size)} · ${ago(d.mtime)}</span></div>
       </div></div>`;
   }).join("");
 }
-async function openDeliverable(i){
-  const d=_visList()[i]; if(!d)return;
-  $("mNm").textContent=d.name; $("mOpen").href=d.url; $("mDl").href=d.url;
+function renderRecents(){
+  $("tabCnt").textContent=_deliverables.length||"";
+  const rs=_deliverables.slice(0,4);
+  $("recents").innerHTML=rs.map((d,i)=>`<div class="rrow" onclick="openRecent(${i})">
+    <span class="rthumb">${d.kind==="image"?`<img src="${d.url}" loading="lazy">`:_gicon(d.kind)}</span>
+    <span class="rtx"><span class="rt">${esc(d.title||d.name)}</span>
+    <span class="rs">${KIND_AZ[d.kind]||d.kind} · ${ago(d.mtime)}</span></span>
+  </div>`).join("")||`<div class="muted">hələ nəticə yoxdur</div>`;
+}
+function openRecent(i){const d=_deliverables[i];if(d)openD(d);}
+function openDeliverable(i){const d=_visList()[i];if(d)openD(d);}
+async function openD(d){
+  $("mNm").textContent=d.title||d.name; $("mOpen").href=d.url; $("mDl").href=d.url;
   const b=$("mBody");
   if(d.kind==="image") b.innerHTML=`<img src="${d.url}">`;
   else if(d.kind==="site"||d.kind==="pdf") b.innerHTML=`<iframe src="${d.url}"></iframe>`;
@@ -688,35 +851,49 @@ async function openDeliverable(i){
 function closeModal(){$("modal").classList.remove("on"); $("mBody").innerHTML="";}
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape")closeModal();
-  if(e.key==="/"&&!/INPUT|TEXTAREA/.test(e.target.tagName)){e.preventDefault();$("task").focus();}
+  if(e.key==="/"&&!/INPUT|TEXTAREA/.test(e.target.tagName)){e.preventDefault();showTab("studiya");$("task").focus();}
 });
 
-/* ── stat tiles ── */
-function tile(cls,ic,k,v,s){return `<div class="tile ${cls}">
-  <div class="h"><span class="tic">${ic}</span><span class="k">${k}</span></div>
-  <div class="v">${v}</div><div class="s">${s||""}</div></div>`}
+/* ── Studiya aside: today + top hint ── */
+function trow(label,val,hot){
+  return `<div class="trow${hot?" hot":""}"><span>${label}</span><span class="v">${val}</span></div>`;
+}
+function renderToday(){
+  const q=(_pulse&&_pulse.queue)||{};
+  const today=_deliverables.filter(d=>(Date.now()/1000-d.mtime)<86400).length;
+  $("today").innerHTML=
+    trow("hazır nəticə (son 24 saat)",today)+
+    trow("növbədə / işləyir",(q.queued??0)+" / "+(q.running??0))+
+    trow("təsdiq gözləyir",q.awaiting_approval??0,(q.awaiting_approval||0)>0);
+}
+
+/* ── engine room tiles ── */
+function tile(cls,k,v,s){return `<div class="tile ${cls||""}">
+  <div class="k">${k}</div><div class="v">${v}</div><div class="s">${s||""}</div></div>`}
 
 async function refresh(){
   let p;
   try{p=await j("/api/pulse");$("liveDot").classList.remove("err");$("liveTxt").textContent="canlı";}
   catch(e){$("liveDot").classList.add("err");$("liveTxt").textContent="əlaqə yoxdur";return;}
+  _pulse=p;
   const q=p.queue||{}, llm=p.llm||{}, env=p.env||{};
   const envOk=Object.values(env).filter(v=>String(v).startsWith("SET")).length;
   const envAll=Object.keys(env).length;
   $("git").innerHTML=`git: <b>${esc(p.git&&p.git.head||"?")}</b>${p.git&&p.git.dirty?" · dirty":""}`;
   $("cost").innerHTML=`LLM bu gün: <b>${llm.calls_today||0}</b> çağırış · <b>$${(llm.cost_usd_today||0).toFixed(3)}</b>`;
   $("cards").innerHTML =
-    tile("t-acc","📥","Növbədə", q.queued??"–","işləyir: "+(q.running??0))+
-    tile("t-ok","✅","Bitmiş", q.done??"–","xəta: "+(q.error??0))+
-    tile("t-warn","⏸","Təsdiq gözləyir", q.awaiting_approval??0,"riskli əməllər")+
-    tile("t-acc","🔑","Açarlar", `${envOk}/${envAll}`,"canlı .env refleksi")+
-    tile("t-vio","🧠","Yaddaş", (p.memory&&p.memory.turns)??"–","dialoq dövrləri")+
-    tile("t-vio","🗓","Cədvəllər",(p.schedules&&p.schedules.enabled)??"–","aktiv plan");
+    tile("","Növbədə", q.queued??"–","işləyir: "+(q.running??0))+
+    tile("","Hazır", q.done??"–","xəta: "+(q.error??0))+
+    tile((q.awaiting_approval||0)>0?"warn":"","Təsdiq gözləyir", q.awaiting_approval??0,"riskli əməllər")+
+    tile("","Açarlar", `${envOk}/${envAll}`,"canlı .env refleksi")+
+    tile("","Yaddaş", (p.memory&&p.memory.turns)??"–","dialoq dövrləri")+
+    tile("","Cədvəllər",(p.schedules&&p.schedules.enabled)??"–","aktiv plan");
+  renderToday();
 
   const jobs=await j("/api/jobs?limit=25");
   $("jobs").innerHTML=jobs.map(x=>`<tr>
     <td class="mono">${x.id}</td>
-    <td><span class="st ${x.status}">${x.status}</span></td>
+    <td><span class="st ${x.status}">${ST_AZ[x.status]||x.status}</span></td>
     <td class="muted">${esc(x.source)}</td>
     <td title="${esc(x.task)}">${esc(x.task.slice(0,90))}</td>
     <td class="muted" style="white-space:nowrap">${ago(x.created_at)||"—"}</td>
@@ -732,11 +909,19 @@ async function refresh(){
    </div>`).join("");
 
   const a=await j("/api/advisor");
-  $("advisor").innerHTML=(a.findings&&a.findings.length)
-    ? a.findings.map(f=>`<div class="find"><span class="lvl ${f.level}">${f.level}</span>
+  const finds=(a.findings||[]);
+  $("advisor").innerHTML=finds.length
+    ? finds.map(f=>`<div class="find"><span class="lvl ${f.level}">${f.level}</span>
         <div><div>${esc(f.title)} — <span class="d">${esc(f.detail)}</span></div>
         ${f.suggestion?`<div class="sug">→ ${esc(f.suggestion)}</div>`:""}</div></div>`).join("")
-    : `<div class="muted">Hər şey qaydasında — kritik risk görünmür ✅</div>`;
+    : `<div class="muted">Hər şey qaydasında — kritik risk görünmür ✓</div>`;
+  const top=finds.find(f=>f.level==="risk"||f.level==="watch");
+  if(top){
+    $("hintCard").style.display="block";
+    $("topHint").innerHTML=`<span class="lvl ${top.level}">${top.level==="risk"?"risk":"diqqət"}</span>
+      <div style="margin-top:8px;font-size:13.5px">${esc(top.title)}</div>
+      ${top.suggestion?`<div class="sug">→ ${esc(top.suggestion)}</div>`:""}`;
+  } else $("hintCard").style.display="none";
 
   const ev=await j("/api/events?n=15");
   $("events").innerHTML=ev.reverse().map(e=>{
@@ -777,7 +962,7 @@ function renderChat(){
   let html=_turns.map(t=>{
     let src=null, txt=t.content||"";
     if(t.role==="user"){
-      const m=txt.match(/^\[(\w+)\]\s*/); if(m){src=m[1];txt=txt.slice(m[0].length);}
+      const m=txt.match(/^\[([\w-]+)\]\s*/); if(m){src=m[1];txt=txt.slice(m[0].length);}
     }else{
       const m=txt.match(/^_\[chat:([^\]]*)\]_\s*/);
       if(m){src=(m[1].split(/[:/]/).pop()||"").slice(0,30);txt=txt.slice(m[0].length);}
@@ -792,7 +977,7 @@ async function loadChat(){
   try{const c=await j("/api/chat?n=40");_turns=c.turns||[];renderChat();}catch(e){}
 }
 async function watchJob(id){
-  _watchJob=id; loadChat();
+  _watchJob=id; renderChat();
   for(let i=0;i<120;i++){
     await new Promise(r=>setTimeout(r,2500));
     try{
@@ -807,10 +992,18 @@ async function watchJob(id){
 async function submitTask(){
   const t=$("task").value.trim(); if(!t)return;
   const r=await j("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task:t})});
-  $("msg").textContent=r.id?`📥 Job #${r.id} növbəyə salındı`:(r.error||"xəta");
+  $("msg").textContent=r.id?`Job #${r.id} növbəyə salındı`:(r.error||"xəta");
   setTimeout(()=>{$("msg").textContent="";},6000);
   $("task").value="";
   if(r.id){ $("chat").innerHTML+=bubble("user",t,"panel",false); $("chat").scrollTop=$("chat").scrollHeight; watchJob(r.id); }
+  refresh();
+}
+
+async function doSync(){
+  const b=$("syncBtn"); b.disabled=true;
+  const r=await j("/api/sync",{method:"POST"});
+  b.disabled=false;
+  toast(r.summary||"sync bitdi",!r.ok);
   refresh();
 }
 
@@ -837,15 +1030,13 @@ function toggleMic(){
   catch(e){toast("mikrofon başlamadı",true);}
 }
 
-async function doSync(){
-  const b=$("syncBtn"); b.disabled=true;
-  const r=await j("/api/sync",{method:"POST"});
-  b.disabled=false;
-  toast(r.summary||"sync bitdi",!r.ok);
-  refresh();
-}
-
-renderChips();
+const _qs=new URLSearchParams(location.search);
+let _theme="light";
+try{_theme=localStorage.getItem("rs-theme")||"light";}catch(e){}
+applyTheme(_qs.get("theme")||_theme);
+let _tab="studiya";
+try{_tab=localStorage.getItem("rs-tab")||"studiya";}catch(e){}
+showTab(_qs.get("tab")||_tab);
 refresh();
 loadChat();
 loadDeliverables();
