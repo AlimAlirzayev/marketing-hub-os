@@ -28,7 +28,7 @@ import os
 import sys
 import time
 
-from . import envfile, keyscan
+from . import cookies as cookiejar, envfile, keyscan, profile as profiles
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
@@ -45,6 +45,7 @@ RECIPES: dict[str, dict] = {
         ],
         "login_markers": ("/auth", "/login", "auth.rapidapi"),
         "ready_marker": "/developer",
+        "session_domain": "rapidapi.com",  # whose cookies mark a logged-in profile
     },
 }
 
@@ -92,6 +93,23 @@ def _is_login(url: str, recipe: dict) -> bool:
     return any(m in url for m in recipe["login_markers"])
 
 
+def _mid_auth(url: str, recipe: dict) -> bool:
+    """True while the human may be actively typing credentials somewhere —
+    the agent must NOT navigate the page out from under them (incl. external
+    identity providers like Google OAuth)."""
+    return _is_login(url, recipe) or "accounts." in url or "/sso" in url
+
+
+def _needs_login(url: str, recipe: dict) -> bool:
+    """Login detection can't trust URL markers alone: RapidAPI renders its
+    login screen without an /auth or /login URL. Treat 'not on the dashboard'
+    (ready_marker absent) as not-logged-in too."""
+    if _is_login(url, recipe):
+        return True
+    ready = recipe.get("ready_marker")
+    return bool(ready) and ready not in url
+
+
 def acquire(
     provider: str = "rapidapi",
     *,
@@ -102,6 +120,8 @@ def acquire(
     profile_directory: str | None = None,
     subscribe_url: str | None = None,
     login_timeout: int = 240,
+    reveal_timeout: int = 300,
+    borrow_session: bool = True,
 ) -> dict:
     """Acquire a provider key and write it to env_path. Returns a status dict."""
     recipe = RECIPES.get(provider)
@@ -115,6 +135,27 @@ def acquire(
                 "error": f"playwright yoxdur ({exc}); quraşdır: .venv/Scripts/python -m pip install playwright"}
 
     channel = _channel(browser)
+
+    # THE SESSION RULE (2026-07-11): doit never authenticates. An automation-
+    # driven browser is refused by Google's OAuth ("this browser or app may not
+    # be secure") and CAPTCHA is a human's job by design — so logging in from
+    # here can't be made to work, no matter how good the code is. Instead we
+    # INHERIT the session the operator already has: find the browser profile
+    # whose cookie jar carries the provider's domain, snapshot its session files
+    # into a scratch dir (their live browser stays open), and drive that.
+    borrowed = None
+    if not user_data_dir and borrow_session:
+        found = profiles.find_profile(recipe.get("session_domain", ""), channel)
+        if found:
+            root, prof, hits = found
+            dest = os.path.join(HERE, f".session-{channel}")
+            try:
+                user_data_dir = profiles.snapshot(root, prof, dest)
+                borrowed = f"{prof} ({hits} cookie)"
+                _log(f"sessiya götürüldü: {channel} profili «{prof}» — login lazım deyil")
+            except Exception as exc:  # noqa: BLE001 — fall back to own profile
+                _log(f"sessiya surəti alınmadı ({exc}); öz profilimlə davam edirəm")
+
     profile_dir = user_data_dir or os.path.join(HERE, f".profile-{channel}")
     os.makedirs(profile_dir, exist_ok=True)
     args = []
@@ -122,7 +163,8 @@ def acquire(
         args.append(f"--profile-directory={profile_directory}")
 
     captures: list[str] = []
-    result: dict = {"ok": False, "provider": provider, "browser": channel, "env": env_path}
+    result: dict = {"ok": False, "provider": provider, "browser": channel,
+                    "env": env_path, "session": borrowed or "own profile"}
 
     _log(f"{channel} açılır (profil: {profile_dir}) — sessiyan istifadə olunur")
     with sync_playwright() as p:
@@ -155,17 +197,35 @@ def acquire(
             ctx.close()
             return {**result, "error": f"dashboard açıla bilmədi: {str(exc)[:160]}"}
 
-        # --- ensure a logged-in session ---
-        if _is_login(page.url, recipe):
+        # --- ensure a logged-in session (fully hands-off: no ENTER, no TTY) ---
+        if _needs_login(page.url, recipe):
             if headless:
                 ctx.close()
                 return {**result, "error": "sessiya login deyil. --headless olmadan bir dəfə işə sal və daxil ol "
                                            "(və ya real profilini --user-data-dir ilə göstər)"}
-            _log("Görünən pəncərədə RapidAPI hesabına daxil ol (Google/email + lazım gəlsə CAPTCHA). Gözləyirəm...")
+            _log("Görünən pəncərədə RapidAPI hesabına daxil ol (Google/email + lazım gəlsə CAPTCHA). "
+                 "Gözləyirəm — login bitəndə özüm davam edəcəm...")
             deadline = time.time() + login_timeout
-            while time.time() < deadline and _is_login(page.url, recipe):
+            last_probe = 0.0
+            while time.time() < deadline:
+                try:
+                    url = page.url
+                except Exception:  # noqa: BLE001 — window closed mid-login
+                    ctx.close()
+                    return {**result, "error": "brauzer pəncərəsi bağlandı — yenidən işə sal"}
+                if not _needs_login(url, recipe):
+                    break
+                # After login the site may drop the user on a marketing page, not
+                # the dashboard. Periodically re-aim at the dashboard — but never
+                # while the human might be typing credentials.
+                if not _mid_auth(url, recipe) and time.time() - last_probe > 12:
+                    last_probe = time.time()
+                    try:
+                        page.goto(recipe["dashboard"], wait_until="domcontentloaded", timeout=30000)
+                    except Exception:  # noqa: BLE001
+                        pass
                 time.sleep(2)
-            if _is_login(page.url, recipe):
+            if _needs_login(page.url, recipe):
                 ctx.close()
                 return {**result, "error": "login vaxtı bitdi — yenidən cəhd et"}
             _log("Login tamamlandı, sessiya yadda saxlanıldı.")
@@ -185,15 +245,33 @@ def acquire(
             if key:
                 break
 
-        # human-in-the-loop fallback: open visibly, let the user reveal the key, re-scan
+        # human-in-the-loop fallback, hands-off: keep the window open and keep
+        # scanning. The moment the key becomes visible anywhere (the user opens
+        # Apps / reveals it, or the account's default app finishes creating),
+        # the agent picks it up — no ENTER, no terminal, works with no TTY.
         if not key and not headless:
-            _log("Açar avtomatik tapılmadı. Görünən pəncərədə açar səhifəni aç (Apps → açar görünsün), "
-                 "sonra bu terminalda ENTER bas — qalanını mən edəcəm.")
-            try:
-                input()
-            except EOFError:
-                pass
-            key = _scan_page(page, captures)
+            _log("Açar avtomatik tapılmadı. Pəncərədə açar səhifəsini aç (Apps → açar görünsün) — "
+                 "mən dövri skan edirəm, görünən kimi götürəcəm.")
+            deadline = time.time() + reveal_timeout
+            last_cycle = 0.0
+            while not key and time.time() < deadline:
+                time.sleep(5)
+                try:
+                    key = _scan_page(page, captures)
+                except Exception:  # noqa: BLE001 — window closed mid-scan
+                    break
+                # every ~45s also re-walk the known key pages ourselves
+                if not key and time.time() - last_cycle > 45:
+                    last_cycle = time.time()
+                    for url in recipe["scan_urls"]:
+                        try:
+                            page.goto(url, wait_until="networkidle", timeout=30000)
+                            page.wait_for_timeout(1200)
+                            key = _scan_page(page, captures)
+                        except Exception:  # noqa: BLE001
+                            break
+                        if key:
+                            break
 
         if subscribe_url:
             try:
@@ -217,6 +295,84 @@ def acquire(
     result.update({"ok": True, "env_var": recipe["env_var"], "action": action,
                    "key_preview": key[:6] + "…" + key[-4:]})
     return result
+
+
+def acquire_with_session(
+    provider: str = "rapidapi",
+    *,
+    channel: str = "chrome",
+    env_path: str = DEFAULT_ENV,
+    headless: bool = True,
+) -> dict:
+    """THE autonomous path: carry the operator's own cookies into a clean
+    headless browser, read the key off their dashboard, write it to .env.
+
+    No login, no CAPTCHA, no visible window, no human keystroke — because it
+    never authenticates: the session already exists in the operator's browser
+    (see doit/cookies.py for why every other route is a dead end).
+    """
+    recipe = RECIPES.get(provider)
+    if not recipe:
+        return {"ok": False, "provider": provider, "error": f"tanınmayan provider: {provider}"}
+    domain = recipe.get("session_domain")
+    if not domain:
+        return {"ok": False, "provider": provider, "error": "recipe-də session_domain yoxdur"}
+
+    result: dict = {"ok": False, "provider": provider, "browser": f"{channel}-session",
+                    "env": env_path}
+    found = profiles.find_profile(domain, channel)
+    if not found:
+        return {**result, "error": f"{channel} profillərində {domain} sessiyası yoxdur — "
+                                   "həmin brauzerdə bir dəfə hesaba daxil ol"}
+    root, prof, hits = found
+    try:
+        jar = cookiejar.for_domain(os.path.join(root, prof), domain, channel)
+    except cookiejar.CookieError as exc:
+        return {**result, "error": str(exc)}
+    _log(f"sessiya götürüldü: «{prof}» profili, {len(jar)} cookie — login lazım deyil")
+
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:  # noqa: BLE001
+        return {**result, "error": f"playwright yoxdur ({exc})"}
+
+    captures: list[str] = []
+    key = ""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=headless)
+        ctx = browser.new_context()
+        ctx.add_cookies(jar)
+
+        def _sniff(resp):
+            try:
+                ct = resp.headers.get("content-type", "")
+                if any(t in ct for t in ("json", "javascript", "text")):
+                    captures.extend(keyscan.find_rapidapi_keys(resp.text()))
+            except Exception:  # noqa: BLE001
+                pass
+
+        ctx.on("response", _sniff)
+        page = ctx.new_page()
+        for url in recipe["scan_urls"]:
+            try:
+                page.goto(url, wait_until="networkidle", timeout=45000)
+                page.wait_for_timeout(2500)
+            except Exception:  # noqa: BLE001
+                continue
+            if _is_login(page.url, recipe):
+                browser.close()
+                return {**result, "error": "sessiya köhnəlib — brauzerdə yenidən daxil ol"}
+            key = _scan_page(page, captures)
+            if key:
+                break
+        browser.close()
+
+    if not key:
+        return {**result, "error": "açar tapılmadı — RapidAPI hesabında ən azı bir "
+                                   "application olduğundan əmin ol"}
+    action = envfile.upsert(env_path, recipe["env_var"], key)
+    return {**result, "ok": True, "env_var": recipe["env_var"], "action": action,
+            "key_preview": key[:6] + "…" + key[-4:], "key": key}
 
 
 def verify_rapidapi() -> str:
