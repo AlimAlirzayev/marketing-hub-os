@@ -37,6 +37,11 @@ _SYNC = ROOT / "scripts" / "sync_engine.py"
 
 app = FastAPI(title="RAMIN OS — İdarəetmə Mərkəzi")
 
+# Live command center (node-map cockpit) — GET /map + GET /api/flow. Kept in its
+# own module so it rides this same localhost tunnel without touching the panel UI.
+from . import commandcenter  # noqa: E402
+commandcenter.register(app)
+
 
 # --------------------------------------------------------------------------
 # API — deterministic reads of the live body + the operator's few writes
