@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import sys
 import threading
 import time
@@ -100,6 +101,32 @@ def status() -> JSONResponse:
         results = pool.map(
             lambda s: (s["key"], _alive(s["port"], s.get("health", "/api/health"))), cards)
     return JSONResponse(dict(results))
+
+
+def _tcp_up(host: str, port: int) -> bool:
+    # External worlds are not ours to HTTP-probe (some are raw TCP: postgres,
+    # redis) — a connect() answers "is anybody home" for all of them alike.
+    try:
+        with socket.create_connection((host, port), timeout=0.8):
+            return True
+    except OSError:
+        return False
+
+
+@app.get("/api/external")
+def external() -> JSONResponse:
+    """The other worlds on this machine (services.json "external"): visible
+    from the front door with a live status dot, but never merged into the
+    Marketing OS world — CONTROL-MAP keeps the worlds separate on purpose."""
+    with open(REGISTRY, encoding="utf-8") as f:
+        entries = json.load(f).get("external", [])
+    def probe(e: dict) -> dict:
+        out = dict(e)
+        out["up"] = (_tcp_up(e.get("host", "127.0.0.1"), e["port"])
+                     if e.get("port") else None)
+        return out
+    with ThreadPoolExecutor(max_workers=max(len(entries), 1)) as pool:
+        return JSONResponse(list(pool.map(probe, entries)))
 
 
 @app.get("/api/audit")

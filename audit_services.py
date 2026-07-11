@@ -44,21 +44,26 @@ def load_registry() -> tuple[list[dict], tuple[int, int]]:
 
 
 def listening_ports(lo: int, hi: int) -> set[int]:
-    """Ports actually LISTENING right now (via netstat)."""
+    """Ports actually LISTENING right now. Windows netstat says LISTENING,
+    Linux (ss) says LISTEN — the audit was blind on the VPS until it spoke
+    both dialects, so try netstat first and fall back to ss."""
     found: set[int] = set()
-    try:
-        out = subprocess.run(["netstat", "-ano", "-p", "tcp"],
-                             capture_output=True, text=True, timeout=15).stdout
-    except Exception:
-        out = ""
-    for line in out.splitlines():
-        if "LISTENING" not in line:
+    for cmd, marker in ((["netstat", "-ano", "-p", "tcp"], "LISTENING"),
+                        (["ss", "-tln"], "LISTEN")):
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=15).stdout
+        except Exception:
             continue
-        m = re.search(r":(\d{4,5})\b", line)
-        if m:
-            p = int(m.group(1))
-            if lo <= p <= hi:
-                found.add(p)
+        for line in out.splitlines():
+            if marker not in line:
+                continue
+            m = re.search(r":(\d{4,5})\b", line)
+            if m:
+                p = int(m.group(1))
+                if lo <= p <= hi:
+                    found.add(p)
+        if found:
+            break
     return found
 
 
@@ -88,6 +93,13 @@ def audit_data() -> dict:
     /api/audit consume this — so console and UI can never disagree."""
     services, (lo, hi) = load_registry()
     registered = {s["port"] for s in services}
+    # external worlds (services.json "external") are known, not drift — the
+    # front door shows them separately; drift = truly UNKNOWN ports only.
+    # audit_ignore_ports = reviewed non-services (see _comment_audit_ignore).
+    with open(REGISTRY, encoding="utf-8") as f:
+        extra = json.load(f)
+    registered |= {e["port"] for e in extra.get("external", []) if e.get("port")}
+    registered |= set(extra.get("audit_ignore_ports", []))
     listening = listening_ports(lo, hi)
     referenced = referenced_ports(lo, hi)
 

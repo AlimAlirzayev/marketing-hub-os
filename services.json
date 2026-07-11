@@ -218,5 +218,194 @@
       "cat": "Kontent",
       "hub_show": true
     }
+  ],
+  "_comment_external": "Other worlds on this machine, curated so the front door can SEE everything (status dots) without merging the worlds. ui = has a browser UI; tunnel = Mac launcher forwards this port; retired = kept only until formal shutdown (2026-05 audit).",
+  "external": [
+    {
+      "key": "published-sites",
+      "name": "Nəşr olunmuş saytlar",
+      "desc": "publish_site nəticələri (statik server)",
+      "world": "Marketing OS (daxili)",
+      "host": "172.17.0.1",
+      "port": 8767,
+      "ui": true,
+      "tunnel": true
+    },
+    {
+      "key": "supervisor",
+      "name": "Supervisor",
+      "desc": "Telegram worker + planlayıcı (port yalnız tək-instans kilididir)",
+      "world": "Marketing OS (daxili)",
+      "port": 18999,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "jarvis",
+      "name": "Jarvis Command Center",
+      "desc": "Səsli idarəetmə paneli (/opt/jarvis-os)",
+      "world": "Səs & Jarvis",
+      "host": "172.17.0.1",
+      "port": 11442,
+      "ui": true,
+      "tunnel": true
+    },
+    {
+      "key": "whisper-stt",
+      "name": "Whisper STT",
+      "desc": "Səs→mətn serveri (/opt/whisper-stt)",
+      "world": "Səs & Jarvis",
+      "port": 8787,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "ollama",
+      "name": "Ollama",
+      "desc": "Lokal LLM serveri",
+      "world": "AI infra",
+      "port": 11434,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "opencode",
+      "name": "OpenCode",
+      "desc": "Council üzvü (stack-opencode)",
+      "world": "AI infra",
+      "port": 4096,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "ccr",
+      "name": "Claude Code Router",
+      "desc": "Model marşrutlayıcısı (ccr)",
+      "world": "Dev infra",
+      "port": 3456,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "code-server",
+      "name": "code-server",
+      "desc": "Brauzerdə VS Code",
+      "world": "Dev infra",
+      "host": "172.17.0.1",
+      "port": 8443,
+      "ui": true,
+      "tunnel": false
+    },
+    {
+      "key": "nanoclaw",
+      "name": "Nanoclaw",
+      "desc": "Fleet-ops agenti (/opt/fleet-ops)",
+      "world": "Fleet-ops",
+      "port": 3000,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "n8n",
+      "name": "n8n",
+      "desc": "Workflow avtomatlaşdırma (köhnə stack)",
+      "world": "Köhnə stack",
+      "port": 5678,
+      "ui": true,
+      "tunnel": true,
+      "retired": true
+    },
+    {
+      "key": "stack-dashboard",
+      "name": "Stack Dashboard",
+      "desc": "Köhnə agent sisteminin paneli",
+      "world": "Köhnə stack",
+      "port": 11438,
+      "ui": true,
+      "tunnel": false,
+      "retired": true
+    },
+    {
+      "key": "stack-router",
+      "name": "Smart Router",
+      "desc": "Köhnə stack marşrutlayıcısı",
+      "world": "Köhnə stack",
+      "port": 11435,
+      "ui": false,
+      "tunnel": false,
+      "retired": true
+    },
+    {
+      "key": "stack-queue",
+      "name": "Task Queue",
+      "desc": "Köhnə stack növbəsi",
+      "world": "Köhnə stack",
+      "port": 11436,
+      "ui": false,
+      "tunnel": false,
+      "retired": true
+    },
+    {
+      "key": "stack-admin",
+      "name": "Admin API",
+      "desc": "Köhnə stack admin API",
+      "world": "Köhnə stack",
+      "port": 11437,
+      "ui": false,
+      "tunnel": false,
+      "retired": true
+    },
+    {
+      "key": "postgres",
+      "name": "Postgres",
+      "desc": "ramin-postgres bazası",
+      "world": "Bazalar",
+      "port": 5432,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "redis",
+      "name": "Redis",
+      "desc": "ramin-redis keşi",
+      "world": "Bazalar",
+      "port": 6379,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "qdrant",
+      "name": "Qdrant",
+      "desc": "Vektor bazası",
+      "world": "Bazalar",
+      "port": 6333,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "research-lab",
+      "name": "Research Lab",
+      "desc": "Trend laboratoriyası — cron, hər 3 gündə (/opt/research-lab)",
+      "world": "Tədqiqat",
+      "port": null,
+      "ui": false,
+      "tunnel": false
+    },
+    {
+      "key": "onecli",
+      "name": "OneCLI",
+      "desc": "Ayrıca layihə (konteyner)",
+      "world": "Digər",
+      "host": "172.17.0.1",
+      "port": 10254,
+      "ui": false,
+      "tunnel": false
+    }
+  ],
+  "_comment_audit_ignore": "Reviewed 2026-07-11, consciously NOT services: 8080 = brain/embeddings.py default local-embed endpoint (optional backend, not deployed); 8199 = mediagen suno-bark fallback URL (optional); 8815 = tests/test_cx_hf_sentiment.py fixture constant.",
+  "audit_ignore_ports": [
+    8080,
+    8199,
+    8815
   ]
 }
