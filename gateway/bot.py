@@ -405,10 +405,10 @@ def _handle_message(msg: dict) -> None:
     job_id = mic.speak(text, source="telegram", chat_id=str(chat_id))
     # Conversational turns get a silent "typing…" indicator — the reply IS the
     # acknowledgment (the owner hated the "Queued as job #N" service message).
-    # Real work (tools/browser/research) can run for minutes, so it keeps an
-    # explicit receipt; mode detection reuses the executor's own heuristic.
-    from .executor import _choose_mode
-    if _choose_mode(text) == "plain":
+    # Real work (tools/browser/research/fan-out) can run for minutes, so it
+    # keeps an explicit receipt; detection reuses the executor's own heuristics.
+    from .executor import _choose_mode, _wants_fanout
+    if _choose_mode(text) == "plain" and not _wants_fanout(text):
         try:
             telegram.send_chat_action(chat_id, "typing")
         except Exception:

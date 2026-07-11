@@ -305,6 +305,110 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
     return text, f"chat:{used.provider}:{used.model}"
 
 
+# --- specialist fan-out --------------------------------------------------
+# The one adoptable idea from the 2026-07-10 multi-agent reel research (job 40):
+# a strategy-shaped deliverable gets MORE from three cheap specialist passes run
+# in PARALLEL — each returning a strict-JSON perspective — merged by one bundler
+# into a single document, than from one generalist pass. Scope is deliberately
+# narrow: it only upgrades the PLAIN path; chat turns and tools/browser/research
+# routing are untouched, and any failure falls back to _converse.
+
+_FANOUT_CUES = (
+    "plan", "strategiya", "strateji", "strategy", "təklif", "teklif",
+    "proposal", "brief", "konsepsiya", "concept", "positioning",
+    "mövqeləndirmə", "ideya ver", "ideyalar",
+)
+_FANOUT_MIN_WORDS = 5  # a bare "planın nədir?" stays conversational
+
+_SPECIALISTS = (
+    ("marketing",
+     "You are a senior marketing strategist for {brand}. Judge the task purely "
+     "from the marketing angle: audience, channels, hooks, message, and "
+     "budget-free growth tactics for the Azerbaijani market."),
+    ("product",
+     "You are the product/domain specialist for {brand}. Judge the task from "
+     "the offer side: what we actually sell, customer objections, trust and "
+     "compliance constraints, concrete offer improvements."),
+    ("analyst",
+     "You are a pragmatic business analyst for {brand}. Judge the task from "
+     "the execution side: priorities, measurable KPIs, risks, and what to do "
+     "first with near-zero budget."),
+)
+
+_SPECIALIST_PROMPT = (
+    "TASK: {task}\n\n"
+    "Answer ONLY from your specialist angle, in Azerbaijani. Return STRICT "
+    'JSON: {{"key_points": [...], "recommendations": [...], "risks": [...]}} '
+    "— 3-5 short, concrete items per list. No prose outside the JSON."
+)
+
+
+def _wants_fanout(task: str) -> bool:
+    low = (task or "").lower()
+    if len(low.split()) < _FANOUT_MIN_WORDS:
+        return False
+    return any(cue in low for cue in _FANOUT_CUES)
+
+
+def _fanout_specialist(role: str, persona: str, task: str) -> dict:
+    """One branch: persona + task -> schema-validated dict (the LLM seam)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from llm_router import complete_json
+    from brand import BRAND
+    data, model = complete_json(
+        _SPECIALIST_PROMPT.format(task=task),
+        system=persona.format(brand=BRAND.name),
+        tier="cheap",
+        temperature=0.5,
+    )
+    out = {"role": role, "model": model}
+    for key in ("key_points", "recommendations", "risks"):
+        vals = data.get(key) or []
+        out[key] = [str(v).strip() for v in vals if str(v).strip()][:5]
+    return out
+
+
+def _fanout_deliver(task: str, thread: str) -> tuple[str, str]:
+    """Fan the task out to the specialists in parallel, bundle into ONE
+    deliverable. Partial branch failures are tolerated; raises only when every
+    branch fails (the caller then falls back to _converse)."""
+    import json as _json
+    from concurrent.futures import ThreadPoolExecutor
+
+    branches, misses = [], []
+    with ThreadPoolExecutor(max_workers=len(_SPECIALISTS)) as pool:
+        futures = {pool.submit(_fanout_specialist, role, persona, task): role
+                   for role, persona in _SPECIALISTS}
+        for fut, role in futures.items():
+            try:
+                branches.append(fut.result(timeout=120))
+            except Exception as exc:
+                misses.append(role)
+                sense.emit("llm", f"fanout branch {role} failed: {exc}")
+    if not branches:
+        raise RuntimeError("all fan-out branches failed")
+
+    digest = _json.dumps(
+        [{k: b[k] for k in ("role", "key_points", "recommendations", "risks")}
+         for b in branches],
+        ensure_ascii=False, indent=1)
+    bundle_prompt = (
+        f"TASK: {task}\n\nSPECIALIST BRANCHES (JSON):\n{digest}\n\n"
+        "Merge these perspectives into ONE finished deliverable in Azerbaijani "
+        "Markdown: a short framing, the unified plan in clear sections, then "
+        "'Risklər' and a prioritized 'İlk addımlar' checklist. Resolve "
+        "conflicts between branches yourself; never mention the specialists "
+        "or this process."
+    )
+    choice = route(task)
+    sys_prompt = knowledge.augment_system(_SYSTEM, task, thread)
+    text, used = llm.complete(choice, bundle_prompt, system=sys_prompt)
+    label = f"fanout:{len(branches)}x->{used.model}"
+    if misses:
+        label += f" (down: {','.join(misses)})"
+    return text, label
+
+
 def _council_enabled() -> bool:
     # OFF by default: the operator wants the single conversational brain (one
     # microphone), not a multi-CLI council vote. Opt back in with
@@ -492,8 +596,17 @@ def execute(job: Job) -> dict:
         else:
             # The DEFAULT "one microphone" path: a single conversational brain
             # with the full shared history — like talking to the operator's
-            # teammate, not a council.
-            text, label = _converse(job.task, thread)
+            # teammate, not a council. Strategy-shaped deliverables first try
+            # the specialist fan-out; any failure falls back to conversation.
+            text = label = None
+            if _wants_fanout(job.task):
+                try:
+                    text, label = _fanout_deliver(job.task, thread)
+                    mode = "fanout"
+                except Exception as exc:
+                    sense.emit("llm", f"fanout fell back to converse: {exc}")
+            if text is None:
+                text, label = _converse(job.task, thread)
 
         sense.emit("llm", label, {"job": job.id, "mode": mode})
         artifact = _save_artifact(job.id, text)
