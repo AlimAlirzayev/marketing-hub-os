@@ -409,6 +409,135 @@ def _fanout_deliver(task: str, thread: str) -> tuple[str, str]:
     return text, label
 
 
+# --- structured content path ----------------------------------------------
+# Adoptable idea #2 from the job-40 reel research: a social-post ask should
+# yield a SCHEMA, not prose. The schema's headline/subhead/body line-lists are
+# shaped to feed social-studio/compose_for_brief.py mechanically, so a text
+# deliverable can later become a rendered brand post without re-prompting.
+# Same narrow scope as fan-out: only upgrades the PLAIN path ("xəbər..." asks
+# still go to research, "kampaniya/yarat..." still go to tools), and any
+# failure falls back to _converse.
+
+_CONTENT_CUES = (
+    "post", "postu", "postuna", "caption", "linkedin", "instagram",
+    "facebook", "sosial media", "social media", "reklam mətni", "reklam metni",
+)
+_CONTENT_MIN_WORDS = 3
+
+_CONTENT_SCHEMA_PROMPT = (
+    "TASK: {task}\n\n"
+    "Produce ONE ready-to-publish social post in Azerbaijani for this task. "
+    "Return STRICT JSON only:\n"
+    '{{"platform": "linkedin|instagram|facebook|story",\n'
+    '  "top_tag": "2-4 word kicker",\n'
+    '  "headline": ["1-2 short lines"],\n'
+    '  "subhead": ["0-2 short lines"],\n'
+    '  "body": ["2-5 caption lines/paragraphs"],\n'
+    '  "hashtags": ["3-7 tags without #"],\n'
+    '  "cta": "one action line",\n'
+    '  "image_prompt": "English photographic background prompt matching the '
+    'brand photo style; no logos, no text in image"}}\n'
+    "No prose outside the JSON."
+)
+
+_brand_voice_cache: str | None = None
+
+
+def _brand_voice() -> str:
+    """Condensed brand voice for the content system prompt — the brand_kit's
+    brand.md is the single source of truth, so posts stay brand-locked even on
+    the free-model path. Missing kit (global brand) degrades gracefully."""
+    global _brand_voice_cache
+    if _brand_voice_cache is None:
+        text = ""
+        try:
+            from brand import BRAND
+            kit = Path(__file__).resolve().parent.parent / BRAND.brand_kit / "brand.md"
+            if kit.exists():
+                text = kit.read_text(encoding="utf-8")[:1800]
+        except Exception:
+            text = ""
+        _brand_voice_cache = text
+    return _brand_voice_cache
+
+
+def _wants_content(task: str) -> bool:
+    low = (task or "").lower()
+    if len(low.split()) < _CONTENT_MIN_WORDS:
+        return False
+    return any(cue in low for cue in _CONTENT_CUES)
+
+
+def _content_generate(task: str) -> tuple[dict, str]:
+    """The LLM seam: task -> raw schema dict + model id (stubbed in tests)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from llm_router import complete_json
+    from brand import BRAND
+    system = (
+        f"You are the social content studio of {BRAND.name}. Write in natural, "
+        "warm, trust-led Azerbaijani — no corporate filler, no emoji spam. "
+        "Follow the brand voice below strictly.\n\n" + _brand_voice()
+    )
+    return complete_json(
+        _CONTENT_SCHEMA_PROMPT.format(task=task),
+        system=system, tier="cheap", temperature=0.6,
+    )
+
+
+def _as_lines(val) -> list[str]:
+    if isinstance(val, str):
+        val = [val]
+    return [str(v).strip() for v in (val or []) if str(v).strip()]
+
+
+def _render_post(data: dict) -> str:
+    """Human preview of the structured post for chat delivery."""
+    platform = str(data.get("platform") or "post").strip()
+    parts = [f"📱 **{platform.capitalize()} postu**"]
+    if data.get("top_tag"):
+        parts.append(f"_{str(data['top_tag']).strip()}_")
+    if data.get("headline"):
+        parts.append("**" + "\n".join(_as_lines(data["headline"])) + "**")
+    if data.get("subhead"):
+        parts.append("\n".join(_as_lines(data["subhead"])))
+    if data.get("body"):
+        parts.append("\n\n".join(_as_lines(data["body"])))
+    if data.get("cta"):
+        parts.append(f"👉 {str(data['cta']).strip()}")
+    tags = _as_lines(data.get("hashtags"))
+    if tags:
+        parts.append(" ".join("#" + t.lstrip("#") for t in tags))
+    if data.get("image_prompt"):
+        parts.append(
+            f"🖼 Şəkil promptu (hazır): {str(data['image_prompt']).strip()}\n"
+            "İstəsən yaz: «şəkil yarat: <prompt>» — arxa fonu düzəldim."
+        )
+    return "\n\n".join(parts)
+
+
+def _content_deliver(task: str, job_id: int) -> tuple[str, str, str | None]:
+    """Structured content path: schema JSON -> (preview text, label, json path).
+    The JSON artifact is the machine half — compose_for_brief-shaped — kept
+    next to the job's .md artifact."""
+    import json as _json
+    data, model = _content_generate(task)
+    if not (_as_lines(data.get("headline")) or _as_lines(data.get("body"))):
+        raise ValueError("content schema came back empty")
+    for key in ("headline", "subhead", "body", "hashtags"):
+        data[key] = _as_lines(data.get(key))
+    json_path: str | None = None
+    try:
+        _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        p = _OUTPUT_DIR / f"job-{job_id}-post.json"
+        p.write_text(_json.dumps(data, ensure_ascii=False, indent=1),
+                     encoding="utf-8")
+        json_path = str(p)
+    except Exception:  # the preview must survive an artifact write failure
+        json_path = None
+    platform = str(data.get("platform") or "post").strip()
+    return _render_post(data), f"content:{platform}->{model}", json_path
+
+
 def _council_enabled() -> bool:
     # OFF by default: the operator wants the single conversational brain (one
     # microphone), not a multi-CLI council vote. Opt back in with
@@ -529,6 +658,7 @@ def execute(job: Job) -> dict:
 
         mode = _choose_mode(job.task)
         bundle = None  # workspace zip, set in tools mode; delivered as a file
+        extra_artifacts: list[str] = []  # e.g. the content lane's post JSON
 
         if mode == "tools":
             from google import genai
@@ -596,8 +726,9 @@ def execute(job: Job) -> dict:
         else:
             # The DEFAULT "one microphone" path: a single conversational brain
             # with the full shared history — like talking to the operator's
-            # teammate, not a council. Strategy-shaped deliverables first try
-            # the specialist fan-out; any failure falls back to conversation.
+            # teammate, not a council. Deliverable-shaped tasks first try a
+            # structured lane (strategy -> fan-out, social post -> content
+            # schema); any failure falls back to conversation.
             text = label = None
             if _wants_fanout(job.task):
                 try:
@@ -605,13 +736,22 @@ def execute(job: Job) -> dict:
                     mode = "fanout"
                 except Exception as exc:
                     sense.emit("llm", f"fanout fell back to converse: {exc}")
+            elif _wants_content(job.task):
+                try:
+                    text, label, json_path = _content_deliver(job.task, job.id)
+                    mode = "content"
+                    if json_path:
+                        extra_artifacts.append(json_path)
+                except Exception as exc:
+                    sense.emit("llm", f"content path fell back to converse: {exc}")
             if text is None:
                 text, label = _converse(job.task, thread)
 
         sense.emit("llm", label, {"job": job.id, "mode": mode})
         artifact = _save_artifact(job.id, text)
         return {"result": f"_[{label}]_\n\n{text}",
-                "artifacts": [artifact] + ([bundle] if bundle else [])}
+                "artifacts": [artifact] + ([bundle] if bundle else [])
+                             + extra_artifacts}
     except Exception as e:
         error_msg = str(e)
         if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:

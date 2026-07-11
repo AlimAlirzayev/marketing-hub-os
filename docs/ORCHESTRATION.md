@@ -190,6 +190,7 @@ disconnected side tools when an existing module can be reinforced").
 | Any raw model completion inside code | **`llm_router.complete()`** | Free-first + fallback + log |
 | AZ price / image / video / audio / publish | the owning **studio** first | Reach for our own tools, not generic calls |
 | Strategy/plan/proposal deliverable (plain path) | **specialist fan-out** (`gateway.executor._fanout_deliver`) | 3 cheap specialist passes in parallel (marketing / product / analyst, strict-JSON) + one bundler beat one generalist pass; falls back to `_converse` on any failure |
+| Social-post ask (plain path) | **structured content lane** (`gateway.executor._content_deliver`) | Brand-voiced schema JSON (compose_for_brief-shaped) + human preview + `output/jobs/job-N-post.json` artifact, so a text post can become a rendered brand post without re-prompting; falls back to `_converse` |
 
 Decision discipline: **task difficulty routing is human-decided, not magic.**
 No tool auto-escalates to a paid model. We choose the plane; the router chooses
