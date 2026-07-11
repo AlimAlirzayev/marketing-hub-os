@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Marketing OS</title>
 <style>
-/* ── Studio design tokens (shared language with gateway/panel.py v4) ── */
+/* ── Studio design tokens (one language: hub · panel · komanda mərkəzi) ── */
 :root{
   --bg:#f4f3f0; --card:#ffffff; --card2:#f8f7f4; --thumb:#edece8;
   --ink:#1b1d23; --ink2:#4d5361; --mut:#8b8f9a;
@@ -31,37 +31,57 @@ body{height:100vh;overflow:hidden;font:14.5px/1.55 system-ui,-apple-system,"Sego
   background:var(--bg);color:var(--ink);transition:background .2s,color .2s}
 button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+a{color:var(--acc)}
 .app{display:flex;height:100vh}
+.sp{flex:1}
 
 /* ── sidebar ───────────────────────────────────────────────────── */
-aside{width:296px;flex:none;display:flex;flex-direction:column;
+aside{width:280px;flex:none;display:flex;flex-direction:column;
   background:var(--card);border-right:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:11px;padding:17px 18px;border-bottom:1px solid var(--line)}
-.brand .mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
-  background:var(--btn);color:var(--btnink);font-weight:800;font-size:17px;
+.brand{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.brand .mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;
+  background:var(--btn);color:var(--btnink);font-weight:800;font-size:16px;
   font-family:Georgia,"Times New Roman",serif}
-.brand .nm{font-weight:700;line-height:1.25}
+.brand .nm{font-weight:700;line-height:1.25;font-size:14.5px}
 .brand .nm em{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:500;color:var(--acc)}
-.brand .sub{font-size:11px;color:var(--mut)}
-nav{flex:1;overflow-y:auto;padding:14px 12px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
-.cat{padding:0 10px;margin:16px 0 6px;font-size:10px;font-weight:700;letter-spacing:1.4px;
+.brand .sub{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.7px}
+nav{flex:1;overflow-y:auto;padding:12px 10px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.cat{padding:0 10px;margin:15px 0 6px;font-size:10px;font-weight:700;letter-spacing:1.4px;
   text-transform:uppercase;color:var(--mut)}
-.cat:first-child{margin-top:0}
-.nav-item{width:100%;text-align:left;display:flex;align-items:center;gap:11px;
-  padding:9px 10px;border-radius:11px;transition:background .13s;border:1px solid transparent}
+.cat:first-child{margin-top:2px}
+.nav-item{width:100%;text-align:left;display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:10px;transition:background .13s;border:1px solid transparent}
 .nav-item:hover{background:var(--card2)}
 .nav-item.active{background:var(--acc-soft);border-color:var(--acc-line)}
 .nav-item.active .n{color:var(--acc)}
-.nav-item .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex:none;
+.nav-item .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none;
   background:var(--card2);border:1px solid var(--line)}
+.nav-item.active .ic{background:var(--card);border-color:var(--acc-line)}
 .nav-item .tx{min-width:0;flex:1}
 .nav-item .n{display:block;font-size:13px;font-weight:600;line-height:1.3;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nav-item .d{display:block;font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-item.hero{background:var(--btn);border-color:var(--btn)}
+.nav-item.hero .n,.nav-item.hero .d{color:var(--btnink)}
+.nav-item.hero .d{opacity:.7}
+.nav-item.hero .ic{background:rgba(255,255,255,.13);border-color:transparent}
+.nav-item.hero:hover{opacity:.9;background:var(--btn)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--mut);flex:none;transition:background .3s}
-.dot.up{background:var(--ok)}
-.dot.down{background:var(--bad)}
-.dot.na{background:var(--line2)}
+.dot.up{background:var(--ok)} .dot.down{background:var(--bad)} .dot.na{background:var(--line2)}
+.badge{font-size:10px;font-weight:700;border-radius:999px;padding:2px 7px;
+  background:var(--warn-soft);color:var(--warn)}
+
+/* collapsible drawer (Arxiv / Digər dünyalar) */
+.drawer{width:100%;display:flex;align-items:center;gap:8px;padding:7px 10px;margin-top:14px;
+  border-radius:9px;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;
+  color:var(--mut)}
+.drawer:hover{background:var(--card2);color:var(--ink)}
+.drawer .cnt{font-size:10px;letter-spacing:0;background:var(--card2);border:1px solid var(--line);
+  border-radius:999px;padding:1px 7px}
+.drawer .chev{transition:transform .18s}
+.drawer.open .chev{transform:rotate(90deg)}
+.drawerbody{display:none;padding-bottom:4px}
+.drawerbody.open{display:block}
 .wrow{width:100%;text-align:left;display:flex;align-items:center;gap:9px;padding:6px 10px;
   border-radius:9px;font-size:12.5px;color:var(--ink2);border:1px solid transparent}
 .wrow:hover{background:var(--card2);color:var(--ink)}
@@ -69,40 +89,82 @@ nav{flex:1;overflow-y:auto;padding:14px 12px;scrollbar-width:thin;scrollbar-colo
 .wrow .wn{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wrow .rt{font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--warn);
   background:var(--warn-soft);border-radius:4px;padding:1px 5px}
-.foot{padding:11px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;
-  font-size:11.5px;color:var(--mut)}
-.foot .sp{flex:1}
+.foot{padding:10px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;
+  font-size:11px;color:var(--mut)}
 .ibtn{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
   border:1px solid var(--line);background:var(--card2);color:var(--ink2)}
 .ibtn:hover{color:var(--ink);border-color:var(--line2)}
 .ibtn svg{width:14px;height:14px}
 
-/* ── main stage ────────────────────────────────────────────────── */
+/* ── main: THIN chrome. The tool owns its own header, so the shell must
+      not repeat it — one slim breadcrumb bar, nothing more. ──────── */
 main{flex:1;display:flex;flex-direction:column;min-width:0}
-.topbar{height:58px;flex:none;display:flex;align-items:center;gap:12px;padding:0 18px;
-  background:var(--card);border-bottom:1px solid var(--line)}
-.topbar .cic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;
-  background:var(--card2);border:1px solid var(--line)}
-.topbar .nm{font-weight:650;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.topbar .d{font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.st-live{font-size:12px;white-space:nowrap}
-.st-live.up{color:var(--ok)} .st-live.down{color:var(--bad)} .st-live.wait{color:var(--mut)}
-.openbtn{font-size:13px;font-weight:600;background:var(--btn);color:var(--btnink);
-  border-radius:10px;padding:8px 14px;text-decoration:none;white-space:nowrap}
-.openbtn:hover{opacity:.88}
-.stage{flex:1;position:relative;background:var(--bg)}
+.bar{height:38px;flex:none;display:flex;align-items:center;gap:9px;padding:0 14px;
+  background:var(--card2);border-bottom:1px solid var(--line);font-size:12px;color:var(--mut)}
+.bar .crumb{color:var(--ink);font-weight:600}
+.bar .sep{opacity:.5}
+.bar .st{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.bar a{font-size:12px;font-weight:600;color:var(--ink2);text-decoration:none;
+  border:1px solid var(--line);border-radius:8px;padding:3px 10px;background:var(--card)}
+.bar a:hover{color:var(--ink);border-color:var(--line2)}
+.stage{flex:1;position:relative;background:var(--bg);overflow:hidden}
 .stage iframe{width:100%;height:100%;border:0;background:#fff}
-.center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px}
-.center .big{font-size:44px;margin-bottom:12px}
+.pane{position:absolute;inset:0;overflow:auto;padding:28px;display:none}
+.pane.on{display:block}
+.center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;display:none}
+.center.on{display:grid}
+.center .big{font-size:42px;margin-bottom:12px}
 .center .t{font-weight:650;margin-bottom:5px}
 .center .s{font-size:13px;color:var(--mut);max-width:440px}
 
-/* ── external-world info card ──────────────────────────────────── */
-#ext{position:absolute;inset:0;overflow:auto;padding:26px;background:var(--bg);display:none}
-.xcard{max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:16px;
+/* ── EV — the briefing that opens the front door ───────────────── */
+.ev{max-width:1080px;margin:0 auto}
+.ev h1{font-size:26px;font-weight:700;letter-spacing:-.2px}
+.ev h1 em{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:500;color:var(--acc)}
+.ev .lede{color:var(--ink2);margin-top:6px;font-size:14.5px}
+.sec{margin-top:26px;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;
+  color:var(--mut);display:flex;align-items:center;gap:9px}
+.sec .lnk{margin-left:auto;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;
+  color:var(--acc);cursor:pointer}
+.tiles{display:grid;gap:13px;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));margin-top:11px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px 16px;
+  box-shadow:var(--shadow);text-align:left;transition:border-color .15s}
+button.tile{cursor:pointer;width:100%}
+button.tile:hover{border-color:var(--acc-line)}
+.tile .k{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);font-weight:700}
+.tile .v{font-size:27px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:7px}
+.tile .s{font-size:11.5px;color:var(--mut);margin-top:3px}
+.tile.warn{border-color:var(--warn);background:var(--warn-soft)}
+.tile.warn .v,.tile.warn .k{color:var(--warn)}
+.tile.bad{border-color:var(--bad);background:var(--bad-soft)}
+.tile.bad .v,.tile.bad .k{color:var(--bad)}
+.hint{display:flex;gap:11px;align-items:flex-start;background:var(--card);border:1px solid var(--line);
+  border-radius:13px;padding:13px 15px;margin-top:9px;box-shadow:var(--shadow);font-size:13.5px}
+.lvl{font-size:10px;font-weight:700;border-radius:6px;padding:3px 8px;flex:none;
+  text-transform:uppercase;letter-spacing:.5px}
+.lvl.risk{background:var(--bad-soft);color:var(--bad)}
+.lvl.watch{background:var(--warn-soft);color:var(--warn)}
+.hint .d{color:var(--ink2);font-size:12.5px}
+.hint .sug{color:var(--acc);font-size:12.5px;margin-top:3px}
+.grid{display:grid;gap:13px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));margin-top:11px}
+.dtile{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;
+  box-shadow:var(--shadow);cursor:pointer;text-align:left;transition:transform .15s,border-color .15s}
+.dtile:hover{transform:translateY(-2px);border-color:var(--acc-line)}
+.dthumb{height:96px;background:var(--thumb);display:flex;align-items:center;justify-content:center;
+  overflow:hidden;border-bottom:1px solid var(--line);padding:11px 12px}
+.dthumb img{width:100%;height:100%;object-fit:cover;margin:-11px -12px;max-width:none}
+.dthumb b{font-size:12.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;
+  -webkit-box-orient:vertical;overflow:hidden;width:100%}
+.dthumb .ic{font-size:26px;opacity:.5}
+.dmeta{padding:9px 11px;font-size:11px;color:var(--mut);display:flex;justify-content:space-between;gap:8px}
+.dmeta .kb{font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.5px;color:var(--acc)}
+.empty{color:var(--mut);font-size:13px;margin-top:10px}
+
+/* ── external / archive info card ──────────────────────────────── */
+.xcard{max-width:580px;background:var(--card);border:1px solid var(--line);border-radius:16px;
   padding:24px;box-shadow:var(--shadow)}
 .xcard h2{font-size:19px;margin-bottom:2px}
-.xcard .world{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.xcard .world{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;font-weight:700}
 .xcard .desc{margin-top:12px;color:var(--ink2)}
 .xrow{display:flex;gap:10px;margin-top:14px;font-size:13px;align-items:center;flex-wrap:wrap}
 .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--ink2);
@@ -112,13 +174,12 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .pill.err{background:var(--bad-soft);color:var(--bad)}
 .pill.na{background:var(--card2);color:var(--mut)}
 .xnote{margin-top:16px;font-size:12.5px;color:var(--warn);background:var(--warn-soft);
-  border:1px solid var(--warn);border-radius:10px;padding:10px 13px}
+  border:1px solid var(--warn);border-radius:10px;padding:11px 13px;line-height:1.6}
 .xopen{display:inline-flex;margin-top:18px;font-size:13px;font-weight:600;background:var(--btn);
   color:var(--btnink);border-radius:10px;padding:9px 15px;text-decoration:none}
 
-/* ── health view ───────────────────────────────────────────────── */
-#health{position:absolute;inset:0;overflow:auto;padding:26px;background:var(--bg);display:none}
-.hwrap{max-width:820px}
+/* ── health ────────────────────────────────────────────────────── */
+.hwrap{max-width:860px}
 .hcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;
   margin-top:14px;box-shadow:var(--shadow)}
 .hcard h4{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
@@ -137,6 +198,8 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .ghostbtn{margin-top:16px;font-size:13px;font-weight:600;background:var(--card);
   border:1px solid var(--line);border-radius:10px;padding:8px 14px;color:var(--ink)}
 .ghostbtn:hover{border-color:var(--line2)}
+.muted{color:var(--mut)}
+@media (max-width:820px){aside{width:72px}.brand .tx,.nav-item .tx,.wrow .wn,.drawer span:not(.chev){display:none}}
 </style>
 </head>
 <body>
@@ -152,57 +215,73 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
     </div>
     <nav id="nav"></nav>
     <div class="foot">
-      <span id="foot-note">bütün xidmətlər lokal</span>
+      <span id="foot-note">hamısı lokal · tunel</span>
       <span class="sp"></span>
       <button class="ibtn" id="theme" title="Tema">
         <svg id="thIcMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
         <svg id="thIcSun" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
-      <button class="ibtn" id="refresh" title="Statusu yenilə">
+      <button class="ibtn" id="refresh" title="Yenilə">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 3v6h6"/></svg>
       </button>
     </div>
   </aside>
 
   <main>
-    <div class="topbar">
-      <div class="cic" id="cur-icon">📊</div>
-      <div style="min-width:0">
-        <div class="nm" id="cur-name">—</div>
-        <div class="d" id="cur-desc"></div>
-      </div>
-      <div style="flex:1"></div>
-      <span class="st-live wait" id="cur-status">yoxlanılır…</span>
-      <a id="cur-open" href="#" target="_blank" class="openbtn">Yeni pəncərədə ↗</a>
+    <div class="bar">
+      <span class="crumb" id="crumb">Ev</span>
+      <span class="sep" id="crumb2"></span>
+      <span class="sp"></span>
+      <span class="st" id="barstatus"></span>
+      <a id="barOpen" href="#" target="_blank" style="display:none">Yeni pəncərədə ↗</a>
     </div>
     <div class="stage">
-      <div id="offline" class="center" style="display:none">
+      <iframe id="frame" src="about:blank" style="display:none"></iframe>
+      <div id="offline" class="center">
         <div>
           <div class="big">😴</div>
           <div class="t">Bu xidmət hazırda işləmir</div>
-          <div class="s">START_MARKETING_OS faylını işə sal — bütün xidmətlər birlikdə qalxır.</div>
+          <div class="s">Serverdə servis dayanıb — Sistem Sağlamlığına bax.</div>
         </div>
       </div>
-      <iframe id="frame" src="about:blank"></iframe>
-      <div id="ext"></div>
-      <div id="health"></div>
+      <div id="notunnel" class="center">
+        <div>
+          <div class="big">🔌</div>
+          <div class="t">Bu alətin tuneli bağlıdır</div>
+          <div class="s">Serverdə işləyir, amma bu Mac-dən portu görmür.
+            Desktop-dakı <b>🎛 İdarəetmə Mərkəzi</b> launcher-inə bir dəfə kliklə —
+            çatışmayan portları özü açır, sonra bu səhifəni yenilə.</div>
+        </div>
+      </div>
+      <div id="ev" class="pane"></div>
+      <div id="ext" class="pane"></div>
+      <div id="health" class="pane"></div>
     </div>
   </main>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let SERVICES = [], EXTERNAL = [], statusMap = {}, current = null;
 
-/* theme — same localStorage key as the panel, so both fronts flip together */
+function ago(ts){
+  if(!ts) return '';
+  const s = (Date.now()/1000 - ts);
+  if(s < 60) return 'indicə';
+  if(s < 3600) return Math.floor(s/60) + ' dəq əvvəl';
+  if(s < 86400) return Math.floor(s/3600) + ' saat əvvəl';
+  return Math.floor(s/86400) + ' gün əvvəl';
+}
+const KIND_AZ = {site:'sayt',image:'şəkil',report:'hesabat',video:'video',audio:'audio',bundle:'paket',pdf:'pdf',file:'fayl'};
+const KIND_IC = {site:'🌐',image:'🖼',report:'📄',video:'🎬',audio:'🎵',bundle:'📦',pdf:'📕',file:'📎'};
+
 function applyTheme(t){
   document.documentElement.dataset.theme = t;
   try{ localStorage.setItem('rs-theme', t); }catch(e){}
   $('thIcSun').style.display = t === 'dark' ? 'block' : 'none';
   $('thIcMoon').style.display = t === 'dark' ? 'none' : 'block';
-  // the panel lives on another port = another localStorage origin, so the
-  // theme travels by URL (?theme=), not by storage — reload it on flip
-  if(current && current.key === 'panel') select(current);
+  if(current) select(current);   // panel reads the theme from its URL
 }
 $('theme').onclick = () =>
   applyTheme((document.documentElement.dataset.theme || 'light') === 'light' ? 'dark' : 'light');
@@ -217,8 +296,8 @@ async function init(){
   renderNav();
   await refreshStatus();
   const want = new URLSearchParams(location.search).get('open');
-  const first = SERVICES.find(s => s.key === want) || SERVICES[0];
-  if(first) select(first);
+  const s = SERVICES.find(x => x.key === want);
+  s ? select(s) : showEv();
   setInterval(refreshStatus, 10000);
   setInterval(refreshExternal, 30000);
 }
@@ -227,216 +306,321 @@ async function loadBrand(){
   try{
     const b = await (await fetch('/api/brand')).json();
     const sys = b.system_name || 'Marketing OS';
-    $('b-name').innerHTML = sys.replace(/ OS$/, ' <em>OS</em>');
-    $('b-sub').textContent = (b.name ? b.name + ' · ' : '') + 'vahid giriş qapısı';
+    $('b-name').innerHTML = esc(sys).replace(/ OS$/, ' <em>OS</em>');
+    $('b-sub').textContent = b.name || 'vahid giriş qapısı';
     $('b-mark').textContent = (sys[0] || 'M').toUpperCase();
     document.title = sys;
   }catch(e){}
 }
 
+/* ── nav: ordered by JOB, legacy + other worlds behind drawers ── */
 function renderNav(){
-  const cats = {};
-  SERVICES.forEach(s => { (cats[s.cat] = cats[s.cat] || []).push(s); });
-  let html = Object.entries(cats).map(([cat, items]) => `
-    <div class="cat">${cat}</div>
-    ${items.map(s => `
-      <button data-key="${s.key}" class="nav-item">
+  const live = SERVICES.filter(s => !s.legacy);
+  const legacy = SERVICES.filter(s => s.legacy);
+  let html = `
+    <button data-key="_ev" class="nav-item">
+      <span class="ic">🏠</span>
+      <span class="tx"><span class="n">Ev</span><span class="d">Bu gün nə oldu — brifinq</span></span>
+    </button>`;
+  let cat = null;
+  live.forEach(s => {
+    if(s.cat !== cat){ cat = s.cat; html += `<div class="cat">${esc(cat)}</div>`; }
+    const hero = s.key === 'panel' ? ' hero' : '';
+    html += `
+      <button data-key="${s.key}" class="nav-item${hero}">
         <span class="ic">${s.icon}</span>
-        <span class="tx">
-          <span class="n">${s.name}</span>
-          <span class="d">${s.desc}</span>
-        </span>
+        <span class="tx"><span class="n">${esc(s.name)}</span><span class="d">${esc(s.desc)}</span></span>
         <span class="dot" data-dot="${s.key}"></span>
-      </button>`).join('')}`).join('');
+      </button>`;
+  });
   html += `
     <div class="cat">Nəzarət</div>
     <button data-key="_health" class="nav-item">
       <span class="ic">🩺</span>
-      <span class="tx">
-        <span class="n">Sistem Sağlamlığı</span>
-        <span class="d">Reyestr ↔ reallıq audit</span>
-      </span>
+      <span class="tx"><span class="n">Sistem Sağlamlığı</span><span class="d">Reyestr ↔ reallıq audit</span></span>
+      <span class="badge" id="auditBadge" style="display:none">!</span>
     </button>`;
+
+  const chev = '<svg class="chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>';
+  if(legacy.length){
+    html += `
+      <button class="drawer" data-drawer="dArc">${chev}<span>Arxiv</span><span class="sp"></span><span class="cnt">${legacy.length}</span></button>
+      <div class="drawerbody" id="dArc">
+        ${legacy.map(s => `<button data-key="${s.key}" class="wrow">
+          <span class="dot" data-dot="${s.key}"></span>
+          <span class="wn">${esc(s.name)}</span><span class="rt">KLASSİK</span></button>`).join('')}
+      </div>`;
+  }
   if(EXTERNAL.length){
-    html += `<div class="cat">Digər dünyalar</div>`;
-    html += EXTERNAL.map(e => `
-      <button data-ext="${e.key}" class="wrow">
-        <span class="dot na" data-xdot="${e.key}"></span>
-        <span class="wn">${e.name}</span>
-        ${e.retired ? '<span class="rt">KÖHNƏ</span>' : ''}
-      </button>`).join('');
+    html += `
+      <button class="drawer" data-drawer="dExt">${chev}<span>Digər dünyalar</span><span class="sp"></span><span class="cnt">${EXTERNAL.length}</span></button>
+      <div class="drawerbody" id="dExt">
+        ${EXTERNAL.map(e => `<button data-ext="${e.key}" class="wrow">
+          <span class="dot na" data-xdot="${e.key}"></span>
+          <span class="wn">${esc(e.name)}</span>
+          ${e.retired ? '<span class="rt">KÖHNƏ</span>' : ''}</button>`).join('')}
+      </div>`;
   }
   $('nav').innerHTML = html;
-  $('nav').querySelectorAll('.nav-item').forEach(b =>
+
+  $('nav').querySelectorAll('.drawer').forEach(b => b.onclick = () => {
+    b.classList.toggle('open');
+    $(b.dataset.drawer).classList.toggle('open');
+  });
+  $('nav').querySelectorAll('.nav-item,.wrow').forEach(b => {
+    if(!b.dataset.key) return;
     b.onclick = () => {
-      if (b.dataset.key === '_health') return showHealth(b);
+      if(b.dataset.key === '_ev') return showEv();
+      if(b.dataset.key === '_health') return showHealth();
       select(SERVICES.find(s => s.key === b.dataset.key));
-    });
-  $('nav').querySelectorAll('.wrow').forEach(b =>
-    b.onclick = () => showExternal(EXTERNAL.find(e => e.key === b.dataset.ext), b));
+    };
+  });
+  $('nav').querySelectorAll('[data-ext]').forEach(b =>
+    b.onclick = () => showExternal(EXTERNAL.find(e => e.key === b.dataset.ext)));
   paintExternalDots();
 }
 
-function clearStage(){
-  ['offline','ext','health'].forEach(id => $(id).style.display = 'none');
-  $('frame').style.visibility = 'hidden';
-  $('nav').querySelectorAll('.nav-item,.wrow').forEach(b => b.classList.remove('active'));
+function stage(which, key){
+  ['ev','ext','health'].forEach(id => $(id).classList.toggle('on', id === which));
+  $('offline').classList.toggle('on', which === 'offline');
+  $('notunnel').classList.toggle('on', which === 'notunnel');
+  $('frame').style.display = which === 'tool' ? 'block' : 'none';
+  $('nav').querySelectorAll('.nav-item,.wrow').forEach(b =>
+    b.classList.toggle('active', (b.dataset.key || b.dataset.ext) === key));
 }
 
-function select(s){
+/* The hub probes services SERVER-side, so a green dot only means "alive on the
+   VPS". If the SSH tunnel for that port is down, the browser still can't reach
+   it and an iframe would render as a broken page with no explanation. So probe
+   from HERE too, and say plainly what to do. */
+const _reach = {};
+async function reachable(port){
+  if(_reach[port] !== undefined) return _reach[port];
+  try{
+    await fetch(`http://127.0.0.1:${port}/`, {mode:'no-cors', signal: AbortSignal.timeout(2500)});
+    _reach[port] = true;
+  }catch(e){ _reach[port] = false; }
+  return _reach[port];
+}
+
+/* ── EV — the briefing ── */
+async function showEv(){
+  current = null;
+  stage('ev', '_ev');
+  $('crumb').textContent = 'Ev';
+  $('crumb2').textContent = '';
+  $('barstatus').textContent = '';
+  $('barOpen').style.display = 'none';
+  const box = $('ev');
+  if(!box.dataset.loaded) box.innerHTML = '<div class="muted">yüklənir…</div>';
+  let o;
+  try{ o = await (await fetch('/api/overview')).json(); }
+  catch(e){ box.innerHTML = '<div class="muted">brifinq alınmadı</div>'; return; }
+  box.dataset.loaded = '1';
+
+  const q = o.queue || {}, t = o.tools || {};
+  const wait = q.awaiting_approval || 0;
+  const hour = new Date().getHours();
+  const greet = hour < 5 ? 'Gecən xeyir' : hour < 12 ? 'Sabahın xeyir' : hour < 18 ? 'Salam' : 'Axşamın xeyir';
+  const line = wait ? `${wait} iş sənin təsdiqini gözləyir.`
+    : o.fresh ? `Son 24 saatda ${o.fresh} nəticə hazırladım.`
+    : 'Yeni nəticə yoxdur — bir tapşırıq versən, işə başlayaram.';
+
+  const panel = SERVICES.find(s => s.key === 'panel');
+  const tiles = `
+    <button class="tile${wait ? ' warn' : ''}" onclick="goPanel()">
+      <div class="k">Təsdiq gözləyir</div><div class="v">${wait}</div>
+      <div class="s">${wait ? 'aç və qərar ver →' : 'riskli əməl yoxdur'}</div></button>
+    <button class="tile" onclick="goPanel('neticeler')">
+      <div class="k">Yeni nəticə (24s)</div><div class="v">${o.fresh || 0}</div>
+      <div class="s">qalereyaya keç →</div></button>
+    <div class="tile"><div class="k">Növbədə / işləyir</div>
+      <div class="v">${q.queued ?? 0} / ${q.running ?? 0}</div>
+      <div class="s">bitmiş: ${q.done ?? 0} · xəta: ${q.error ?? 0}</div></div>
+    <button class="tile${t.up < t.total ? ' bad' : ''}" onclick="showHealth()">
+      <div class="k">Alətlər</div><div class="v">${t.up ?? '–'}<span style="font-size:14px;color:var(--mut)"> / ${t.total ?? '–'}</span></div>
+      <div class="s">${o.audit_ok ? 'audit təmiz ✓' : 'audit: drift var!'}</div></button>
+    <div class="tile"><div class="k">LLM bu gün</div>
+      <div class="v">$${((o.llm || {}).cost_usd_today || 0).toFixed(3)}</div>
+      <div class="s">${(o.llm || {}).calls_today || 0} çağırış · pulsuz beyin</div></div>`;
+
+  const hints = (o.findings || []).map(f => `
+    <div class="hint"><span class="lvl ${f.level}">${f.level === 'risk' ? 'risk' : 'diqqət'}</span>
+      <div><div>${esc(f.title)}</div><div class="d">${esc(f.detail)}</div>
+      ${f.suggestion ? `<div class="sug">→ ${esc(f.suggestion)}</div>` : ''}</div></div>`).join('');
+
+  const dels = (o.deliverables || []).map(d => {
+    const thumb = d.kind === 'image' ? `<img src="http://127.0.0.1:${panel ? panel.port : 8890}${d.url}" loading="lazy">`
+      : d.title ? `<b>${esc(d.title)}</b>` : `<span class="ic">${KIND_IC[d.kind] || '📎'}</span>`;
+    return `<button class="dtile" onclick="goPanel('neticeler')">
+      <div class="dthumb">${thumb}</div>
+      <div class="dmeta"><span class="kb">${KIND_AZ[d.kind] || d.kind}</span><span>${ago(d.mtime)}</span></div>
+    </button>`;
+  }).join('');
+
+  box.innerHTML = `
+    <div class="ev">
+      <h1>${greet}, <em>Alim</em></h1>
+      <div class="lede">${esc(line)}</div>
+      <div class="sec">Bu gün</div>
+      <div class="tiles">${tiles}</div>
+      ${hints ? `<div class="sec">Diqqət tələb edir</div>${hints}` : ''}
+      <div class="sec">Son nəticələr <span class="lnk" onclick="goPanel('neticeler')">hamısı →</span></div>
+      ${dels ? `<div class="grid">${dels}</div>` : `<div class="empty">Hələ nəticə yoxdur — İdarəetmə Mərkəzində bir tapşırıq ver.</div>`}
+    </div>`;
+}
+function goPanel(tab){
+  const p = SERVICES.find(s => s.key === 'panel');
+  if(p) select(p, tab);
+}
+function openLegacy(key){ select(SERVICES.find(s => s.key === key), null, true); }
+
+function select(s, tab, force){
+  if(!s) return;
+  // An archived tool never opens silently: say WHY it is archived first, then
+  // let the operator open it on purpose. Honesty beats a clean click.
+  if(s.legacy && !force){
+    current = null;
+    stage('ext', s.key);
+    $('crumb').textContent = 'Arxiv';
+    $('crumb2').innerHTML = ` <span class="sep">/</span> <b style="color:var(--ink)">${esc(s.name)}</b>`;
+    $('barstatus').textContent = '';
+    $('barOpen').style.display = 'none';
+    $('ext').innerHTML = `<div class="xcard">
+        <div class="world">Arxiv · klassik</div><h2>${esc(s.name)}</h2>
+        <div class="desc">${esc(s.desc)}</div>
+        <div class="xnote">${esc(s.legacy_note || 'Köhnə sistem.')}</div>
+        <button class="xopen" onclick="openLegacy('${s.key}')">Yenə də aç</button>
+      </div>`;
+    return;
+  }
   current = s;
-  clearStage();
-  $('cur-open').style.display = '';
-  const btn = $('nav').querySelector(`[data-key="${s.key}"]`);
-  if(btn) btn.classList.add('active');
-  $('cur-icon').textContent = s.icon;
-  $('cur-name').textContent = s.name;
-  $('cur-desc').textContent = s.desc;
+  $('crumb').textContent = s.legacy ? 'Arxiv' : (s.cat || '');
+  $('crumb2').innerHTML = ` <span class="sep">/</span> <b style="color:var(--ink)">${esc(s.name)}</b>`;
   let url = `http://127.0.0.1:${s.port}${s.path || ''}`;
-  if(s.key === 'panel')
-    url += (url.includes('?') ? '&' : '?') + 'theme=' + (document.documentElement.dataset.theme || 'light');
-  $('cur-open').href = url;
-  const up = statusMap[s.key];
-  $('offline').style.display = (up === false) ? 'grid' : 'none';
-  $('frame').style.visibility = (up === false) ? 'hidden' : 'visible';
-  if(up !== false) $('frame').src = url;
-  paintCurStatus();
+  if(s.key === 'panel'){
+    const qp = ['theme=' + (document.documentElement.dataset.theme || 'light')];
+    if(tab) qp.push('tab=' + tab);
+    url += (url.includes('?') ? '&' : '?') + qp.join('&');
+  }
+  $('barOpen').href = url;
+  $('barOpen').style.display = '';
+  paintBarStatus();
+
+  if(statusMap[s.key] === false){ stage('offline', s.key); return; }
+  stage('tool', s.key);
+  $('frame').src = url;
+  reachable(s.port).then(ok => {
+    if(current === s && !ok) stage('notunnel', s.key);
+  });
 }
 
-function showExternal(e, btn){
+function showExternal(e){
   if(!e) return;
   current = null;
-  clearStage();
-  btn.classList.add('active');
-  $('cur-icon').textContent = '🌐';
-  $('cur-name').textContent = e.name;
-  $('cur-desc').textContent = e.world;
-  $('cur-status').textContent = '';
-  $('cur-open').style.display = 'none';
+  stage('ext', e.key);
+  $('crumb').textContent = 'Digər dünyalar';
+  $('crumb2').innerHTML = ` <span class="sep">/</span> <b style="color:var(--ink)">${esc(e.name)}</b>`;
+  $('barstatus').textContent = '';
+  $('barOpen').style.display = 'none';
   const st = e.up === true ? '<span class="pill ok">● işləyir</span>'
-           : e.up === false ? '<span class="pill err">● cavab vermir</span>'
-           : '<span class="pill na">cron / portsuz</span>';
+    : e.up === false ? '<span class="pill err">● cavab vermir</span>'
+    : '<span class="pill na">cron / portsuz</span>';
   const addr = e.port ? `<span class="mono">${e.host || '127.0.0.1'}:${e.port}</span>` : '';
   const openBtn = (e.ui && e.up)
     ? `<a class="xopen" href="http://127.0.0.1:${e.port}" target="_blank">Aç ↗${e.tunnel ? '' : ' (yalnız serverdə)'}</a>` : '';
   const retired = e.retired
     ? `<div class="xnote">⚠ Köhnə stack — 2026-05 auditində təqaüdə göndərilib. Yeni iş bura bağlanmamalıdır.</div>` : '';
-  $('ext').innerHTML = `
-    <div class="xcard">
-      <div class="world">${e.world}</div>
-      <h2>${e.name}</h2>
-      <div class="desc">${e.desc}</div>
-      <div class="xrow">${st}${addr}</div>
-      ${retired}${openBtn}
+  $('ext').innerHTML = `<div class="xcard">
+      <div class="world">${esc(e.world)}</div><h2>${esc(e.name)}</h2>
+      <div class="desc">${esc(e.desc)}</div>
+      <div class="xrow">${st}${addr}</div>${retired}${openBtn}
     </div>`;
-  $('ext').style.display = 'block';
 }
 
-function paintCurStatus(){
-  if(!current) return;
+function paintBarStatus(){
+  const el = $('barstatus');
+  if(!current){ el.textContent = ''; return; }
   const up = statusMap[current.key];
-  const el = $('cur-status');
-  if(up === true){ el.textContent = '● işləyir'; el.className = 'st-live up'; }
-  else if(up === false){ el.textContent = '● dayanıb'; el.className = 'st-live down'; }
-  else { el.textContent = 'yoxlanılır…'; el.className = 'st-live wait'; }
+  el.innerHTML = up === true ? '<span class="dot up"></span> işləyir'
+    : up === false ? '<span class="dot down"></span> dayanıb'
+    : '<span class="dot na"></span> yoxlanılır…';
 }
-
 function paintExternalDots(){
   EXTERNAL.forEach(e => {
-    const dot = document.querySelector(`[data-xdot="${e.key}"]`);
-    if(dot) dot.className = 'dot ' + (e.up === true ? 'up' : e.up === false ? 'down' : 'na');
+    const d = document.querySelector(`[data-xdot="${e.key}"]`);
+    if(d) d.className = 'dot ' + (e.up === true ? 'up' : e.up === false ? 'down' : 'na');
   });
 }
-
 async function refreshStatus(){
-  try { statusMap = await (await fetch('/api/status')).json(); } catch(e){ return; }
+  try{ statusMap = await (await fetch('/api/status')).json(); }catch(e){ return; }
   SERVICES.forEach(s => {
-    const dot = document.querySelector(`[data-dot="${s.key}"]`);
-    if(dot) dot.className = 'dot ' + (statusMap[s.key] ? 'up' : 'down');
+    const d = document.querySelector(`[data-dot="${s.key}"]`);
+    if(d) d.className = 'dot ' + (statusMap[s.key] ? 'up' : 'down');
   });
-  paintCurStatus();
+  paintBarStatus();
   if(current && statusMap[current.key] && $('frame').src === 'about:blank') select(current);
+  if($('ev').classList.contains('on')) showEv();
 }
-
 async function refreshExternal(){
-  try { EXTERNAL = await (await fetch('/api/external')).json(); } catch(e){ return; }
+  try{ EXTERNAL = await (await fetch('/api/external')).json(); }catch(e){ return; }
   paintExternalDots();
 }
 
-async function showHealth(btn){
+async function showHealth(){
   current = null;
-  clearStage();
-  btn.classList.add('active');
-  $('cur-icon').textContent = '🩺';
-  $('cur-name').textContent = 'Sistem Sağlamlığı';
-  $('cur-desc').textContent = 'Reyestr ↔ reallıq (services.json audit)';
-  $('cur-status').textContent = '';
-  $('cur-open').style.display = 'none';
+  stage('health', '_health');
+  $('crumb').textContent = 'Nəzarət';
+  $('crumb2').innerHTML = ' <span class="sep">/</span> <b style="color:var(--ink)">Sistem Sağlamlığı</b>';
+  $('barstatus').textContent = '';
+  $('barOpen').style.display = 'none';
   const h = $('health');
-  h.style.display = 'block';
-  h.innerHTML = '<div style="color:var(--mut)">Yoxlanılır…</div>';
+  h.innerHTML = '<div class="muted">Yoxlanılır…</div>';
 
   let a;
-  try { a = await (await fetch('/api/audit')).json(); }
+  try{ a = await (await fetch('/api/audit')).json(); }
   catch(e){ h.innerHTML = '<div style="color:var(--bad)">Audit alınmadı.</div>'; return; }
   await refreshExternal();
+  $('auditBadge').style.display = a.ok ? 'none' : '';
 
-  const okBadge = a.ok
-    ? '<span class="pill ok">✓ Reyestr reallıqla tam uyğundur</span>'
-    : '<span class="pill err">✗ Drift var — düzəliş lazımdır</span>';
-
+  const okBadge = a.ok ? '<span class="pill ok">✓ Reyestr reallıqla tam uyğundur</span>'
+                       : '<span class="pill err">✗ Drift var — düzəliş lazımdır</span>';
   const rows = a.services.map(s => `
-    <div class="hrow">
-      <span class="dot ${s.up ? 'up' : 'down'}"></span>
-      <span class="port">${s.port}</span>
-      <span class="key">${s.key}</span>
-      <span class="nm2">${s.name}</span>
+    <div class="hrow"><span class="dot ${s.up ? 'up' : 'down'}"></span>
+      <span class="port">${s.port}</span><span class="key">${esc(s.key)}</span>
+      <span class="nm2">${esc(s.name)}</span>
       <span style="font-size:12px;color:${s.up ? 'var(--ok)' : 'var(--bad)'}">${s.up ? 'işləyir' : 'dayanıb'}</span>
     </div>`).join('');
-
   const xrows = EXTERNAL.map(e => `
-    <div class="hrow">
-      <span class="dot ${e.up === true ? 'up' : e.up === false ? 'down' : 'na'}"></span>
-      <span class="port">${e.port || '—'}</span>
-      <span class="key">${e.key}</span>
-      <span class="nm2">${e.world} — ${e.desc}</span>
+    <div class="hrow"><span class="dot ${e.up === true ? 'up' : e.up === false ? 'down' : 'na'}"></span>
+      <span class="port">${e.port || '—'}</span><span class="key">${esc(e.key)}</span>
+      <span class="nm2">${esc(e.world)} — ${esc(e.desc)}</span>
       <span style="font-size:12px;color:${e.up === true ? 'var(--ok)' : e.up === false ? 'var(--bad)' : 'var(--mut)'}">
         ${e.up === true ? 'işləyir' : e.up === false ? 'cavab yoxdur' : '—'}</span>
     </div>`).join('');
-
-  const drift = a.drift.length ? `
-    <div class="warnbox">
-      <b>⚠ Reyestrdə olmayan portlar (boşluq!)</b><br>
-      ${a.drift.map(d => `✗ ${d.port} (${d.why.join(', ')}) → services.json-a əlavə et`).join('<br>')}
-    </div>` : '';
-
-  const md = a.missing_dir.length ? `
-    <div class="warnbox amber">
-      <b>⚠ Reyestrdə var, qovluq yox</b><br>
-      ${a.missing_dir.map(s => `✗ ${s.key} → ${s.dir}`).join('<br>')}
-    </div>` : '';
-
+  const drift = a.drift.length ? `<div class="warnbox"><b>⚠ Reyestrdə olmayan portlar</b><br>
+      ${a.drift.map(d => `✗ ${d.port} (${d.why.join(', ')}) → services.json-a əlavə et`).join('<br>')}</div>` : '';
+  const mdir = a.missing_dir.length ? `<div class="warnbox amber"><b>⚠ Reyestrdə var, qovluq yox</b><br>
+      ${a.missing_dir.map(s => `✗ ${s.key} → ${s.dir}`).join('<br>')}</div>` : '';
   const m = a.monitor || {};
   const mon = `<div class="monrow">🔄 Avto-monitor: ${m.enabled ? 'AKTİV — hər ' + m.interval_min + ' dəq' : 'söndürülüb'}
       · son yoxlama: ${m.last_run || '—'}${m.last_alert ? ' · son Telegram: ' + m.last_alert : ''} · drift olsa Telegram</div>`;
 
-  h.innerHTML = `
-    <div class="hwrap">
+  h.innerHTML = `<div class="hwrap">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <h2 style="font-size:17px">Sistem Sağlamlığı</h2>${okBadge}
-      </div>
+        <h2 style="font-size:17px">Sistem Sağlamlığı</h2>${okBadge}</div>
       <div style="font-size:12.5px;color:var(--mut);margin-top:6px">
         Reyestr: ${a.counts.registered} · dinləyən: ${a.counts.listening} · kodda istinad: ${a.counts.referenced}
         · aralıq ${a.counts.range[0]}–${a.counts.range[1]}</div>
       ${mon}
       <div class="hcard"><h4>Marketing OS — ${a.services.length} xidmət</h4>${rows}</div>
       <div class="hcard"><h4>Digər dünyalar — ${EXTERNAL.length} qeyd</h4>${xrows}</div>
-      ${drift}${md}
-      <button class="ghostbtn" onclick="showHealth(document.querySelector('[data-key=_health]'))">↻ Yenidən yoxla</button>
+      ${drift}${mdir}
+      <button class="ghostbtn" onclick="showHealth()">↻ Yenidən yoxla</button>
     </div>`;
 }
 
-$('refresh').onclick = () => { refreshStatus(); refreshExternal(); };
+$('refresh').onclick = () => { refreshStatus(); refreshExternal(); if($('ev').classList.contains('on')) showEv(); };
 init();
 </script>
 </body>

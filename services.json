@@ -34,7 +34,8 @@
       "health": "/api/health",
       "icon": "📊",
       "cat": "Analitika & Reklam",
-      "hub_show": true
+      "hub_show": true,
+      "order": 10
     },
     {
       "key": "capi",
@@ -49,7 +50,8 @@
       "health": "/api/health",
       "icon": "🎯",
       "cat": "Analitika & Reklam",
-      "hub_show": true
+      "hub_show": true,
+      "order": 12
     },
     {
       "key": "capi-gw",
@@ -65,7 +67,8 @@
       "path": "/demo",
       "icon": "🛡️",
       "cat": "Analitika & Reklam",
-      "hub_show": true
+      "hub_show": true,
+      "order": 13
     },
     {
       "key": "ga4",
@@ -80,7 +83,8 @@
       "health": "/api/health",
       "icon": "📈",
       "cat": "Analitika & Reklam",
-      "hub_show": true
+      "hub_show": true,
+      "order": 11
     },
     {
       "key": "influencer",
@@ -94,8 +98,9 @@
       "target": "server:app",
       "health": "/api/health",
       "icon": "⭐",
-      "cat": "Analitika & Reklam",
-      "hub_show": true
+      "cat": "Kəşfiyyat",
+      "hub_show": true,
+      "order": 41
     },
     {
       "key": "cx",
@@ -110,7 +115,8 @@
       "health": "/api/health",
       "icon": "💬",
       "cat": "Müştəri",
-      "hub_show": true
+      "hub_show": true,
+      "order": 30
     },
     {
       "key": "atelier",
@@ -125,7 +131,8 @@
       "health": "/api/health",
       "icon": "🎨",
       "cat": "Kontent",
-      "hub_show": true
+      "hub_show": true,
+      "order": 20
     },
     {
       "key": "price",
@@ -140,7 +147,8 @@
       "health": "/api/health",
       "icon": "🏷️",
       "cat": "Kəşfiyyat",
-      "hub_show": true
+      "hub_show": true,
+      "order": 40
     },
     {
       "key": "seo",
@@ -155,7 +163,8 @@
       "health": "/api/health",
       "icon": "🔍",
       "cat": "Kontent",
-      "hub_show": true
+      "hub_show": true,
+      "order": 21
     },
     {
       "key": "mediaforge",
@@ -170,12 +179,13 @@
       "health": "/api/health",
       "icon": "🎬",
       "cat": "Kontent",
-      "hub_show": true
+      "hub_show": true,
+      "order": 22
     },
     {
       "key": "panel",
       "name": "İdarəetmə Mərkəzi",
-      "desc": "Canlı nəbz + məsləhətçi + iş növbəsi + riskli-əməl təsdiqi (pulsuz beyin)",
+      "desc": "Söhbət · nəticələr · təsdiqlər — gündəlik iş masası",
       "port": 8890,
       "dir": "gateway",
       "venv": ".venv",
@@ -184,8 +194,9 @@
       "target": "gateway.panel:app",
       "health": "/api/health",
       "icon": "🎛️",
-      "cat": "Sistem",
-      "hub_show": true
+      "cat": "İş masası",
+      "hub_show": true,
+      "order": 0
     },
     {
       "key": "hq",
@@ -201,7 +212,9 @@
       "path": "/?embed=true",
       "icon": "🧠",
       "cat": "Sistem",
-      "hub_show": true
+      "hub_show": false,
+      "legacy": true,
+      "legacy_note": "Köhnə Streamlit monolit. 6 modulu (CX, Ads, Price, Influencer, Kreativ, Baş İqamətgah) müstəqil alətlərlə TƏKRARLANIR — və Price modulu saxta demo mətndir. Yalnız 3 şey unikaldır: Bilik Bazası (RAG), Gündəlik Hesabat, Agent Radar. Köçürmə planı: bunlar öz yerlərinə keçəndən sonra bu servis bağlanır."
     },
     {
       "key": "mediagen",
@@ -216,7 +229,8 @@
       "health": "/api/health",
       "icon": "🎨",
       "cat": "Kontent",
-      "hub_show": true
+      "hub_show": true,
+      "order": 23
     }
   ],
   "_comment_external": "Other worlds on this machine, curated so the front door can SEE everything (status dots) without merging the worlds. ui = has a browser UI; tunnel = Mac launcher forwards this port; retired = kept only until formal shutdown (2026-05 audit).",
@@ -407,5 +421,12 @@
     8080,
     8199,
     8815
+  ],
+  "cat_order": [
+    "İş masası",
+    "Analitika & Reklam",
+    "Kontent",
+    "Müştəri",
+    "Kəşfiyyat"
   ]
 }

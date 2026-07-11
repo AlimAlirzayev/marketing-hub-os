@@ -56,8 +56,14 @@ def _load_services() -> list[dict]:
 
 # Cards shown in the sidebar (everything except the hub itself).
 def _cards() -> list[dict]:
-    return [{k: s.get(k) for k in ("key", "name", "desc", "port", "icon", "cat", "path")}
-            for s in _load_services() if s.get("hub_show")]
+    # Front-line tools + the legacy monolith (shown apart, under Arxiv, so the
+    # sidebar stays a workspace and not a museum). Ordered by job, not by port.
+    keys = ("key", "name", "desc", "port", "icon", "cat", "path", "order",
+            "legacy", "legacy_note")
+    cards = [{k: s.get(k) for k in keys}
+             for s in _load_services() if s.get("hub_show") or s.get("legacy")]
+    # NB: `or 99` would send order=0 (the panel — the daily driver) to the end.
+    return sorted(cards, key=lambda s: 99 if s.get("order") is None else s["order"])
 
 
 @app.get("/")
@@ -96,11 +102,44 @@ def _alive(port: int, health: str) -> bool:
 
 @app.get("/api/status")
 def status() -> JSONResponse:
-    cards = [s for s in _load_services() if s.get("hub_show")]
+    cards = [s for s in _load_services() if s.get("hub_show") or s.get("legacy")]
     with ThreadPoolExecutor(max_workers=max(len(cards), 1)) as pool:
         results = pool.map(
             lambda s: (s["key"], _alive(s["port"], s.get("health", "/api/health"))), cards)
     return JSONResponse(dict(results))
+
+
+def _panel(path: str, default):
+    """Read the panel's own API server-side (no CORS, no browser round-trip).
+    The panel is the operator's brain; the hub just re-serves its facts."""
+    try:
+        port = next(s["port"] for s in _load_services() if s["key"] == "panel")
+        r = requests.get(f"http://127.0.0.1:{port}{path}", timeout=2.0)
+        return r.json() if r.ok else default
+    except Exception:
+        return default
+
+
+@app.get("/api/overview")
+def overview() -> JSONResponse:
+    """The front door opens on a BRIEFING, not on a random tool: what the
+    system did, what it needs from you, and whether anything is broken."""
+    pulse = _panel("/api/pulse", {})
+    deliverables = _panel("/api/deliverables?limit=60", [])
+    findings = (_panel("/api/advisor", {}) or {}).get("findings", [])
+    cards = [s for s in _load_services() if s.get("hub_show") or s.get("legacy")]
+    with ThreadPoolExecutor(max_workers=max(len(cards), 1)) as pool:
+        up = list(pool.map(lambda s: _alive(s["port"], s.get("health", "/api/health")), cards))
+    day_ago = time.time() - 86400
+    return JSONResponse({
+        "queue": pulse.get("queue", {}),
+        "llm": pulse.get("llm", {}),
+        "tools": {"up": sum(up), "total": len(cards)},
+        "fresh": sum(1 for d in deliverables if d.get("mtime", 0) > day_ago),
+        "deliverables": deliverables[:6],
+        "findings": [f for f in findings if f.get("level") in ("risk", "watch")][:3],
+        "audit_ok": audit_services.audit_data()["ok"],
+    })
 
 
 def _tcp_up(host: str, port: int) -> bool:
