@@ -200,8 +200,8 @@
     },
     {
       "key": "hq",
-      "name": "Baş İqamətgah (klassik)",
-      "desc": "Agent terminalı + korporativ bilik bazası",
+      "name": "Arxiv modulları",
+      "desc": "Gündəlik Hesabat · Agent Radar · Bilik Bazası (RAG)",
       "port": 8501,
       "dir": ".",
       "venv": ".venv",
@@ -210,11 +210,11 @@
       "target": "app.py",
       "health": "/",
       "path": "/?embed=true",
-      "icon": "🧠",
+      "icon": "🗄️",
       "cat": "Sistem",
       "hub_show": false,
       "legacy": true,
-      "legacy_note": "Köhnə Streamlit monolit. 6 modulu (CX, Ads, Price, Influencer, Kreativ, Baş İqamətgah) müstəqil alətlərlə TƏKRARLANIR — və Price modulu saxta demo mətndir. Yalnız 3 şey unikaldır: Bilik Bazası (RAG), Gündəlik Hesabat, Agent Radar. Köçürmə planı: bunlar öz yerlərinə keçəndən sonra bu servis bağlanır."
+      "legacy_note": "Köhnə Streamlit monolit — sistemin ilk portalı idi. 2026-07-11: 10 modulundan 7-si silindi, çünki canlı alətləri TƏKRARLAYIRDI (CX, Ads, Influencer, Kreativ, Agent Terminalı, Baş İqamətgah) — Price Hunter modulu isə tamamilə saxta demo mətni idi. Qalan 3 modul başqa yerdə YOXDUR: Gündəlik Hesabat, Agent Radar, Bilik Bazası (RAG). Plan: Gündəlik Hesabat → Hesabatlılıq (ads), Agent Radar → İdarəetmə Mərkəzi, RAG → öz servisi. Sonra bu servis bağlanır."
     },
     {
       "key": "mediagen",

@@ -1,1 +1,0 @@
-I am unable to access the website https://news.ycombinator.com. The `open_page` function is consistently returning an error, preventing me from gathering the requested information.

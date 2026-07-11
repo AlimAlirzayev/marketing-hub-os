@@ -162,6 +162,11 @@ def sync_now() -> JSONResponse:
 # --------------------------------------------------------------------------
 
 _DELIVERABLE_ROOTS = [ROOT / "output", ROOT / "workspace", ROOT / "published", ROOT / "data" / "seo"]
+# A conversation turn is not a work product. The executor files chat replies and
+# operational messages under output/replies; the gallery must never show them as
+# "nəticələr" — that is what turned this wall into chat noise. (Still SERVABLE
+# via /file, so a job's artifact link keeps working; just not listed.)
+_NOT_DELIVERABLE = {ROOT / "output" / "replies"}
 _PREVIEW_EXT = {
     ".html", ".htm", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",
     ".mp4", ".webm", ".mov", ".mp3", ".wav", ".ogg", ".md", ".pdf",
@@ -272,11 +277,14 @@ def deliverables(limit: int = 60) -> JSONResponse:
     def _site_of(p: Path) -> Path | None:
         return next((d for d in sites if d == p.parent or d in p.parents), None)
 
+    def _excluded(p: Path) -> bool:
+        return any(d == p.parent or d in p.parents for d in _NOT_DELIVERABLE)
+
     for root in _DELIVERABLE_ROOTS:
         if not root.exists():
             continue
         for p in root.rglob("*"):
-            if not p.is_file():
+            if not p.is_file() or _excluded(p):
                 continue
             site = _site_of(p)
             if site is not None:

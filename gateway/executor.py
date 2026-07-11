@@ -28,6 +28,7 @@ from orchestrator.router import classify, route
 load_env()
 
 _OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output" / "jobs"
+_REPLIES_DIR = Path(__file__).resolve().parent.parent / "output" / "replies"
 _WORKSPACE_ROOT = Path(__file__).resolve().parent.parent / "workspace"
 _WS_RE = re.compile(r"workspace:\s*([^\s)]+)")
 
@@ -198,9 +199,19 @@ def run_studio_automation(studio_name: str, script_name: str) -> str:
     except Exception as e:
         return f"Execution error: {str(e)}"
 
-def _save_artifact(job_id: int, text: str) -> str:
-    _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    path = _OUTPUT_DIR / f"job-{job_id}.md"
+def _save_artifact(job_id: int, text: str, *, reply: bool = False) -> str:
+    """Persist a job's text output.
+
+    A DELIVERABLE is something the system produced on request (a report, a
+    council result, a briefing) — it belongs in the front office gallery.
+    A conversation turn ("salam, necəsən?") or an operational message
+    (blocked-by-security, credential status) is NOT a deliverable; filing it as
+    one turned the gallery into a wall of chat noise. Those go to output/replies,
+    which the panel's gallery does not scan.
+    """
+    d = _REPLIES_DIR if reply else _OUTPUT_DIR
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / f"job-{job_id}.md"
     path.write_text(text, encoding="utf-8")
     return str(path)
 
@@ -604,7 +615,7 @@ def execute(job: Job) -> dict:
         )
         if not decision.allowed:
             text = security.format_blocked_message(decision)
-            artifact = _save_artifact(job.id, text)
+            artifact = _save_artifact(job.id, text, reply=True)
             return {"result": f"_[security:{decision.category}]_\n\n{text}", "artifacts": [artifact]}
 
         # Credential acquisition runs on its own governed rail (allowlist + operator
@@ -614,7 +625,7 @@ def execute(job: Job) -> dict:
         if cred_provider:
             from .tools import credentials
             text = credentials.acquire(cred_provider)
-            artifact = _save_artifact(job.id, text)
+            artifact = _save_artifact(job.id, text, reply=True)
             return {"result": f"_[credentials:{cred_provider}]_\n\n{text}", "artifacts": [artifact]}
 
         # System self-report rail: the proactive digest (live board + advisor's
@@ -748,7 +759,10 @@ def execute(job: Job) -> dict:
                 text, label = _converse(job.task, thread)
 
         sense.emit("llm", label, {"job": job.id, "mode": mode})
-        artifact = _save_artifact(job.id, text)
+        # A plain conversational turn is a chat message, not a work product.
+        # ("router:" is the same converse path under its older label.)
+        artifact = _save_artifact(
+            job.id, text, reply=label.startswith(("chat:", "router:")))
         return {"result": f"_[{label}]_\n\n{text}",
                 "artifacts": [artifact] + ([bundle] if bundle else [])
                              + extra_artifacts}
