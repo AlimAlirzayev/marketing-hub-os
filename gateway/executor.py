@@ -199,6 +199,28 @@ def run_studio_automation(studio_name: str, script_name: str) -> str:
     except Exception as e:
         return f"Execution error: {str(e)}"
 
+
+def scrape_url(url: str, render: bool = False) -> str:
+    """Pull clean readable text from a web page or PDF — the system's own
+    scraping hand, so a task that needs live page content is done in-house
+    (requests-first, auto-escalates to a real browser for JS pages), not by
+    guessing. Set render=True to force the browser. Returns title + text.
+
+    Args:
+        url: The page or .pdf URL to read.
+        render: Force the JS browser path (default False = auto).
+    """
+    from .tools import extract
+    r = extract.scrape(url, render=render or None)
+    if not r.get("ok"):
+        return f"Oxuna bilmədi: {r.get('error', 'naməlum')}"
+    head = f"[{r['method']}] {r.get('title', '')}".strip()
+    return f"{head}\n\n{r['text']}"
+
+
+scrape_url.__annotations__ = {"url": str, "render": bool, "return": str}
+
+
 def _save_artifact(job_id: int, text: str, *, reply: bool = False) -> str:
     """Persist a job's text output.
 
@@ -267,7 +289,7 @@ def _execute_direct(task: str) -> tuple[str, str]:
             config=types.GenerateContentConfig(
                 system_instruction=knowledge.augment_system(_SYSTEM, task),
                 temperature=0.2,
-                tools=[run_studio_automation, call_studio_api, list_studios, generate_media],
+                tools=[run_studio_automation, call_studio_api, list_studios, generate_media, scrape_url],
             )
         )
         resp = chat.send_message(task)
@@ -689,7 +711,7 @@ def execute(job: Job) -> dict:
                         _SYSTEM + _WORKSPACE_ADDENDUM, job.task, thread),
                     temperature=0.2,
                     tools=[run_studio_automation, call_studio_api, list_studios,
-                           generate_media, workspace_agent.run_command,
+                           generate_media, scrape_url, workspace_agent.run_command,
                            workspace_agent.write_file, workspace_agent.read_file,
                            workspace_agent.request_owner_approval,
                            workspace_agent.publish_site],
