@@ -332,7 +332,13 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
                 return text, f"chat:claude-code (sid={str(meta.get('session_id'))[:8]})"
         except Exception as exc:  # never let the premium brain break delivery
             sense.emit("llm", f"claude bridge fell back to free: {exc}")
-    choice = route(task)
+    # The one-microphone conversation is where quality matters most, so it runs
+    # on the SMART cascade (best free model first, Groq floor) rather than the
+    # cheap default — a real step up for nuanced Azerbaijani. We force it through
+    # llm.complete (the single model seam) with a smart-tier choice, so the
+    # router picks the smart cascade while the call site stays mockable/testable.
+    from orchestrator.router import ModelChoice
+    choice = ModelChoice(provider="gemini", model="gemini-2.5-pro", reason="chat-smart")
     sys_prompt = knowledge.augment_system(_CHAT_SYSTEM, task, thread)
     text, used = llm.complete(choice, task, system=sys_prompt)
     return text, f"chat:{used.provider}:{used.model}"

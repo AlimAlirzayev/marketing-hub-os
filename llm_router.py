@@ -72,6 +72,12 @@ def _smart() -> list[tuple[str, object]]:
         (gem, ("GEMINI_API_KEY", "GOOGLE_API_KEY")),
         (os.getenv("LLM_OPENROUTER_SMART") or "openrouter/anthropic/claude-3.7-sonnet", "OPENROUTER_API_KEY"),
         ("deepseek/deepseek-reasoner", "DEEPSEEK_API_KEY"),
+        # Resilience floor: the strongest ALWAYS-configured free model. Without
+        # it, a smart-tier call dies whenever the premium/Gemini providers are
+        # unconfigured or their key is dead — which is exactly today's state
+        # (Gemini keys invalid). Groq keeps the smart lane answering; if a valid
+        # Gemini/OpenRouter key returns, those take priority again automatically.
+        ("groq/llama-3.3-70b-versatile", "GROQ_API_KEY"),
     ]
 
 

@@ -15,7 +15,7 @@ import time
 import traceback
 
 from ._bootstrap import load_env
-from . import knowledge, mic, queue, sense, telegram
+from . import knowledge, mic, queue, sense, telegram, voice
 from .executor import execute
 
 load_env()
@@ -97,6 +97,19 @@ def run_once() -> bool:
             _notify(job, clean)
         else:
             _notify(job, f"✅ İş #{job.id} hazırdır:\n\n{clean}")
+        # Voice in -> voice out: a job that arrived as a voice note is answered
+        # with an Azerbaijani voice note too (the text is already delivered above,
+        # so a TTS failure never costs the reply). Only conversational turns are
+        # spoken; long work deliverables stay text.
+        if (voice.replies_enabled() and label and label.startswith("chat:")
+                and job.source == "telegram" and job.chat_id
+                and voice.take_voice_job(job.id)):
+            try:
+                audio = voice.synthesize(clean)
+                if audio:
+                    telegram.send_voice(job.chat_id, audio)
+            except Exception as exc:
+                print(f"[worker] voice reply failed for job {job.id}: {exc}")
         _deliver_files(job, out.get("artifacts"))
         # Record the exchange into the shared hierarchical memory (blackboard),
         # keyed by the conversation thread (Telegram chat). CLI jobs have no chat

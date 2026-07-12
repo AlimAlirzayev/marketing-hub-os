@@ -26,7 +26,7 @@ from pathlib import Path
 import requests
 
 from ._bootstrap import load_env
-from . import engine_sync, keyvault, mic, queue, sense, telegram
+from . import engine_sync, keyvault, mic, queue, sense, telegram, voice
 
 load_env()
 
@@ -172,16 +172,16 @@ def _transcribe(file_id: str) -> str | None:
         return None
     if not audio:
         return None
+    # One cascade lives in gateway.voice now: ElevenLabs Scribe (best Azerbaijani)
+    # -> Groq whisper-large-v3 -> Gemini. The legacy Gemini/whisper helpers below
+    # are kept only as an explicit last-ditch fallback if the module import fails.
+    text = voice.transcribe(audio)
+    if text:
+        return text
     try:
-        text = _transcribe_gemini(audio)
-        if text:
-            return text
+        return _transcribe_gemini(audio)
     except Exception as exc:
-        sense.emit("stt", f"gemini stt failed, falling back to whisper: {exc}")
-    try:
-        return _transcribe_whisper(audio)
-    except Exception as exc:
-        sense.emit("stt", f"whisper stt failed: {exc}")
+        sense.emit("stt", f"legacy gemini stt failed: {exc}")
         return None
 
 
@@ -403,6 +403,9 @@ def _handle_message(msg: dict) -> None:
         print(f"[bot] pre-task sync skipped: {exc}")
 
     job_id = mic.speak(text, source="telegram", chat_id=str(chat_id))
+    if was_voice:
+        # remember this turn came in by voice, so the worker answers by voice too
+        voice.mark_voice_job(job_id)
     # Conversational turns get a silent "typing…" indicator — the reply IS the
     # acknowledgment (the owner hated the "Queued as job #N" service message).
     # Real work (tools/browser/research/fan-out) can run for minutes, so it

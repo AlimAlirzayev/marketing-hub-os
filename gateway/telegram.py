@@ -84,6 +84,25 @@ def send_document(chat_id: str | int, file_path: str, caption: str = "") -> None
     resp.raise_for_status()
 
 
+def send_voice(chat_id: str | int, audio: bytes, *, caption: str = "") -> None:
+    """Send a voice note (the system talking back). OGG/Opus shows as a real
+    voice bubble; mp3 falls back to an audio file. Multipart upload."""
+    tok = _token()
+    if not tok:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN not set")
+    is_ogg = audio[:4] == b"OggS"
+    method = "sendVoice" if is_ogg else "sendAudio"
+    field = "voice" if is_ogg else "audio"
+    fname = "reply.ogg" if is_ogg else "reply.mp3"
+    mime = "audio/ogg" if is_ogg else "audio/mpeg"
+    data = {"chat_id": str(chat_id)}
+    if caption:
+        data["caption"] = caption[:1024]
+    url = _API.format(token=tok, method=method)
+    resp = requests.post(url, data=data, files={field: (fname, audio, mime)}, timeout=120)
+    resp.raise_for_status()
+
+
 def get_updates(offset: int | None = None) -> list[dict]:
     """Long-poll for new updates. Returns the raw 'result' list."""
     data = _call("getUpdates", offset=offset, timeout=_TIMEOUT)
