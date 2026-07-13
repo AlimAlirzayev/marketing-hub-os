@@ -669,6 +669,20 @@ def execute(job: Job) -> dict:
             sense.emit("job", f"#{job.id} briefing", {"task": job.task[:80]})
             return {"result": f"_[briefing]_\n\n{text}", "artifacts": [artifact]}
 
+        # Meta ads rail: the owner talks to his LIVE ad account in plain Azerbaijani
+        # ("Awareness kampaniyasını dayandır"). Reads answer at once. Anything that
+        # changes a campaign builds a plan from the CURRENT live state, shows it, and
+        # parks — it runs only on the approved re-run. This sits ahead of the generic
+        # checkpoint because it can show what actually changes, not just "risky task".
+        from . import ads_agent
+        if ads_agent.wants_ads(job.task):
+            out = ads_agent.handle(job)
+            if out is not None:
+                sense.emit("job", f"#{job.id} ads", {"task": job.task[:80]})
+                artifact = _save_artifact(job.id, out["result"], reply=True)
+                out["artifacts"] = list(out.get("artifacts") or []) + [artifact]
+                return out
+
         # The human checkpoint (charter: outward actions never run silently).
         # A publish/send/call/deploy task parks for operator approval; once the
         # operator /approve-s it, the job returns approved=1 and passes through.

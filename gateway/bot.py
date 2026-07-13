@@ -371,6 +371,33 @@ def _handle_message(msg: dict) -> None:
         telegram.send_message(chat_id, "Bu maşının açar vəziyyəti (maskalı):\n" + "\n".join(lines))
         return
 
+    # Plain-language approval. The owner should not have to type "/approve 3" — he
+    # answers the way a person answers. This IS the checkpoint, so it stays strict:
+    # owner only, an unambiguous yes/no word as the WHOLE message, and exactly one
+    # job parked. Zero parked -> it is just conversation and falls through; more than
+    # one -> we ask which, rather than guess at a live ad account.
+    _YES = {"hə", "he", "bəli", "beli", "təsdiq", "tesdiq", "təsdiqlə", "təsdiqləyirəm",
+            "təsdiq edirəm", "razıyam", "raziyam", "ok", "okey", "oldu", "yes", "davam"}
+    _NO = {"yox", "xeyr", "ləğv", "legv", "imtina", "etmə", "etme", "no", "dayan"}
+    _plain = text.strip().lower().rstrip(".!?")
+    if _is_owner(chat_id) and (_plain in _YES or _plain in _NO):
+        parked = queue.list_jobs(status="awaiting_approval", limit=5)
+        if len(parked) == 1:
+            j = parked[0]
+            if _plain in _YES:
+                queue.approve(j.id)
+                telegram.send_message(chat_id, f"✅ Təsdiqləndi — icra edirəm.")
+            else:
+                queue.reject(j.id)
+                telegram.send_message(chat_id, "🚫 Ləğv edildi — heç nəyə toxunmadım.")
+            return
+        if len(parked) > 1:
+            lines = ["Hansını nəzərdə tutursan?"]
+            lines += [f"#{j.id} — {j.task[:60]}" for j in parked]
+            lines.append("\nNömrə ilə de: /approve <nömrə>")
+            telegram.send_message(chat_id, "\n".join(lines))
+            return
+
     # The human checkpoint's other half: the operator decides a parked job's fate.
     parts = text.split()
     if parts[0] in ("/approve", "/reject") and len(parts) >= 2 and parts[1].isdigit():
