@@ -31,11 +31,42 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 _SESSION_FILE = ROOT / "data" / "claude_session.json"
+# Private (git-ignored) store of Claude subscription tokens — the operator runs
+# two accounts to survive the 5-hour usage cap; we rotate between them.
+_ACCOUNTS_FILE = ROOT / "data" / "private_context" / "claude_accounts.json"
 _TIMEOUT = int(os.getenv("CLAUDE_BRIDGE_TIMEOUT", "240"))
+# When an account hits its usage cap, rest it this long before trying it again
+# (Claude's window is ~5h). The other account carries the load meanwhile.
+_COOLDOWN_S = int(float(os.getenv("CLAUDE_LIMIT_COOLDOWN_HOURS", "5")) * 3600)
+# Signatures in a claude -p result that mean "this account is capped", not a
+# real failure — the cue to fail over to the next account.
+_LIMIT_CUES = ("usage limit", "limit reached", "rate limit", "rate_limit",
+               "quota", "exceeded your", "please try again later", "overloaded")
+
+
+def _load_accounts() -> dict:
+    try:
+        return json.loads(_ACCOUNTS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {"active": 0, "accounts": []}
+
+
+def _save_accounts(data: dict) -> None:
+    try:
+        _ACCOUNTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _ACCOUNTS_FILE.write_text(json.dumps(data), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _is_limit(text: str) -> bool:
+    low = (text or "").lower()
+    return any(cue in low for cue in _LIMIT_CUES)
 
 _FRAMING = (
     "You are answering the operator through a microphone (Telegram/panel/CLI), "
@@ -45,20 +76,35 @@ _FRAMING = (
 
 
 def is_available() -> bool:
-    """True only if the Claude CLI is installed AND actually authenticated —
-    checking install alone made every turn fire a `claude -p` that came back
-    'Not logged in', wasting a call before falling back. We now require real
-    credentials, so an un-logged-in box skips straight to the free brain."""
+    """True only if the Claude CLI is installed AND we hold real credentials —
+    a rotation token, an env token, or a login creds file. Checking install
+    alone made every turn fire a `claude -p` that came back 'Not logged in'."""
     if shutil.which("claude") is None:
         return False
+    if _load_accounts().get("accounts"):
+        return True
     if os.getenv("CLAUDE_CODE_OAUTH_TOKEN") or os.getenv("ANTHROPIC_API_KEY", "").startswith("sk-"):
         return True
-    # subscription login writes a credentials file under the home config dir
     for p in (Path.home() / ".claude" / ".credentials.json",
               Path.home() / ".config" / "claude" / ".credentials.json"):
         if p.exists():
             return True
     return False
+
+
+def _account_order() -> list[tuple[int, dict]]:
+    """Accounts to try this turn, best first: the persisted 'active' one, then
+    the rest, skipping any still cooling down after hitting its cap."""
+    data = _load_accounts()
+    accts = data.get("accounts", [])
+    if not accts:
+        return []
+    now = time.time()
+    active = data.get("active", 0)
+    order = list(range(active, len(accts))) + list(range(0, active))
+    ready = [(i, accts[i]) for i in order if accts[i].get("cooldown_until", 0) <= now]
+    # if ALL are cooling down, still try the soonest-to-reset (better than nothing)
+    return ready or [(order[0], accts[order[0]])]
 
 
 def _load_session(thread: str) -> str | None:
@@ -80,39 +126,77 @@ def _save_session(thread: str, session_id: str) -> None:
         pass
 
 
-def ask(prompt: str, *, thread: str = "main", cwd: Path | None = None,
-        timeout: int | None = None) -> tuple[str, dict]:
-    """Answer one turn with real headless Claude Code. Continues the thread's
-    session when there is one. Returns (text, meta). Raises on failure so the
-    caller can fall back to the free brain."""
-    if not is_available():
-        raise RuntimeError("claude CLI not found on PATH")
-
+def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
+              token: str | None) -> tuple[str, dict]:
+    """One `claude -p` turn against a specific account token (None = ambient
+    login). Returns (text, meta) on success; raises on any error. A usage-cap
+    result is surfaced as a RuntimeError whose message trips _is_limit()."""
     perm = os.getenv("CLAUDE_BRIDGE_PERMISSION_MODE", "default")
     cmd = ["claude", "-p", "--output-format", "json", "--permission-mode", perm]
     sid = _load_session(thread)
     if sid:
         cmd += ["--resume", sid]
-
-    full_prompt = f"{_FRAMING}\n\n{prompt}"
+    env = os.environ.copy()
+    if token:
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = token
     proc = subprocess.run(
-        cmd, input=full_prompt, cwd=str(cwd or ROOT),
-        capture_output=True, text=True, timeout=timeout or _TIMEOUT,
+        cmd, input=f"{_FRAMING}\n\n{prompt}", cwd=str(cwd or ROOT),
+        capture_output=True, text=True, timeout=timeout or _TIMEOUT, env=env,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"claude -p failed: {(proc.stderr or '').strip()[:200]}")
-
     data = json.loads(proc.stdout)
     text = (data.get("result") or "").strip()
     if not text or data.get("is_error"):
-        raise RuntimeError(f"claude -p returned no usable result: {str(data)[:200]}")
-
+        raise RuntimeError(f"claude -p error: {text or str(data)[:200]}")
     new_sid = data.get("session_id")
     if new_sid:
         _save_session(thread, new_sid)
-    meta = {
-        "session_id": new_sid,
-        "cost_usd": data.get("total_cost_usd"),
-        "num_turns": data.get("num_turns"),
-    }
-    return text, meta
+    return text, {"session_id": new_sid, "cost_usd": data.get("total_cost_usd"),
+                  "num_turns": data.get("num_turns")}
+
+
+def ask(prompt: str, *, thread: str = "main", cwd: Path | None = None,
+        timeout: int | None = None) -> tuple[str, dict]:
+    """Answer one turn with real headless Claude Code, rotating across the
+    operator's Claude accounts: when one hits its usage cap we rest it and fail
+    over to the next, so the brain keeps working past a single account's 5-hour
+    limit. Returns (text, meta); raises only if EVERY account is capped/failing
+    (the caller then falls back to the free brain)."""
+    if not is_available():
+        raise RuntimeError("claude bridge not authenticated")
+
+    order = _account_order()
+    if not order:  # single ambient login (env token or creds file), no rotation
+        return _run_once(prompt, thread, cwd, timeout, None)
+
+    data = _load_accounts()
+    accts = data["accounts"]
+    last_exc: Exception | None = None
+    for idx, acct in order:
+        try:
+            text, meta = _run_once(prompt, thread, cwd, timeout, acct.get("token"))
+            data["active"] = idx  # stick with the account that just worked
+            _save_accounts(data)
+            meta["account"] = acct.get("name")
+            return text, meta
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            if _is_limit(str(exc)):
+                accts[idx]["cooldown_until"] = time.time() + _COOLDOWN_S
+                _save_accounts(data)
+                continue  # capped -> try the next account
+            raise  # a non-limit failure shouldn't burn the other account
+    raise RuntimeError(f"all Claude accounts capped/failing: {last_exc}")
+
+
+def account_status() -> list[dict]:
+    """Masked per-account view for the panel/advisor (never exposes a token)."""
+    now = time.time()
+    out = []
+    for a in _load_accounts().get("accounts", []):
+        cd = a.get("cooldown_until", 0)
+        out.append({"name": a.get("name", "?"),
+                    "resting": cd > now,
+                    "resumes_in_min": max(0, round((cd - now) / 60)) if cd > now else 0})
+    return out
