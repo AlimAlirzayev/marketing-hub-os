@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sertifikat Mentoru - RAMIN OS</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f4f6f8;color:#111827;font-family:"Segoe UI",system-ui,Arial,sans-serif}
+  button,input,select,textarea{font:inherit}
+  .app{display:grid;grid-template-columns:320px 1fr;min-height:100vh}
+  .side{background:#111827;color:#f8fafc;padding:18px;display:flex;flex-direction:column;gap:16px}
+  .brand{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .mark{width:38px;height:38px;border-radius:8px;background:#e31e24;display:grid;place-items:center;font-weight:800}
+  .brand h1{font-size:18px;margin:0;font-weight:800}
+  .brand p{margin:3px 0 0;color:#94a3b8;font-size:12px}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  label{font-size:12px;color:#cbd5e1;font-weight:700}
+  input,select,textarea{border:1px solid #334155;background:#0f172a;color:#fff;border-radius:8px;padding:10px 11px;outline:none}
+  textarea{min-height:74px;resize:vertical}
+  input:focus,select:focus,textarea:focus{border-color:#38bdf8}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1px solid #334155;background:#0f172a;color:#cbd5e1;border-radius:8px;padding:7px 9px;font-size:12px;cursor:pointer}
+  .chip.active{background:#0f766e;border-color:#14b8a6;color:#fff}
+  .primary,.secondary,.ghost{border:0;border-radius:8px;padding:11px 13px;font-weight:800;cursor:pointer}
+  .primary{background:#e31e24;color:#fff;width:100%}
+  .primary:disabled{opacity:.6;cursor:wait}
+  .secondary{background:#111827;color:#fff}
+  .ghost{background:#e5e7eb;color:#111827}
+  .main{min-width:0}
+  .top{height:58px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:14px;padding:0 22px;position:sticky;top:0;z-index:3}
+  .top h2{font-size:18px;margin:0}
+  .status{margin-left:auto;font-size:12px;color:#64748b}
+  .tabs{display:flex;gap:8px;padding:18px 22px 0;background:#fff;border-bottom:1px solid #e5e7eb;overflow-x:auto}
+  .tab{border:0;background:transparent;border-bottom:3px solid transparent;padding:11px 6px 12px;color:#64748b;font-weight:800;cursor:pointer;white-space:nowrap}
+  .tab.active{color:#111827;border-bottom-color:#e31e24}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px}
+  .summary{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-bottom:14px}
+  .band,.panel,.cert,.week,.approval,.proof,.question,.hit,.stat{background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+  .band{padding:18px;min-height:148px}
+  .band h3,.panel h3{margin:0 0 10px;font-size:16px}
+  .big{font-size:28px;font-weight:900;margin:0 0 8px;color:#111827}
+  .muted{color:#64748b;font-size:13px}
+  .notes{display:grid;gap:8px}
+  .note{border-left:4px solid #0f766e;background:#ecfdf5;padding:9px 10px;border-radius:6px;color:#134e4a;font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:12px}
+  .cert{padding:14px;display:flex;flex-direction:column;gap:10px;min-height:235px}
+  .cert h4{margin:0;font-size:15px;line-height:1.25}
+  .meta{display:flex;gap:6px;flex-wrap:wrap}
+  .badge{border-radius:6px;padding:4px 7px;font-size:11px;font-weight:800;background:#eef2ff;color:#3730a3}
+  .badge.red{background:#fee2e2;color:#991b1b}.badge.green{background:#dcfce7;color:#166534}.badge.amber{background:#fef3c7;color:#92400e}.badge.blue{background:#dbeafe;color:#1d4ed8}
+  .score{display:flex;align-items:center;gap:8px}
+  .scorebar{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;flex:1}
+  .scorebar span{display:block;height:100%;background:#0f766e}
+  .source{margin-top:auto;color:#1d4ed8;text-decoration:none;font-weight:800;font-size:13px}
+  .view{display:none}.view.active{display:block}
+  .timeline{display:grid;gap:10px}
+  .week{display:grid;grid-template-columns:78px 1fr 220px;gap:14px;padding:14px;align-items:start}
+  .weekno{background:#111827;color:#fff;border-radius:8px;text-align:center;padding:10px;font-weight:900}
+  .week h4{margin:0 0 6px;font-size:15px}
+  .topic{display:inline-block;background:#f1f5f9;color:#334155;border-radius:6px;padding:4px 7px;font-size:12px;margin:0 5px 5px 0}
+  .checkpoint{font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .panel{padding:16px}
+  .approval,.proof{padding:14px;margin-bottom:10px}
+  .approval strong,.proof strong{display:block;margin-bottom:5px}
+  .approval.done{border-color:#86efac;background:#f0fdf4}
+  .approval button{margin-top:8px}
+  .mockbar{display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+  .mockbar select{background:#fff;color:#111827;border-color:#cbd5e1;min-width:260px}
+  .question{padding:16px;margin-bottom:12px}
+  .question h4{margin:0 0 10px}
+  .choice{display:block;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin:8px 0;cursor:pointer}
+  .choice input{width:auto;margin-right:8px}
+  .result{border-radius:8px;padding:14px;margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0}
+  .statgrid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+  .stat{padding:13px}
+  .stat b{display:block;font-size:22px;margin-bottom:2px}
+  .hit{padding:12px;margin-bottom:10px}
+  .hit strong{display:block;margin-bottom:4px}
+  .hit .src{font-size:12px;color:#64748b;margin-bottom:6px}
+  .sourcecheck{display:grid;grid-template-columns:130px 1fr 120px;gap:10px;align-items:start;padding:10px;border-bottom:1px solid #e5e7eb}
+  .sourcecheck:last-child{border-bottom:0}
+  .verdict{display:inline-block;border-radius:6px;padding:4px 7px;font-size:11px;font-weight:800}
+  .verdict.verified{background:#dcfce7;color:#166534}
+  .verdict.reachable_official{background:#dbeafe;color:#1d4ed8}
+  .verdict.needs_review{background:#fef3c7;color:#92400e}
+  .verdict.failed{background:#fee2e2;color:#991b1b}
+  .journeyhead{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+  .journeyhead select{background:#fff;color:#111827;border-color:#cbd5e1;min-width:270px}
+  .meter{height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin:10px 0}
+  .meter span{display:block;height:100%;background:#0f766e}
+  .stagegrid{display:grid;grid-template-columns:repeat(4,minmax(190px,1fr));gap:10px}
+  .stage{border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fff;min-height:118px}
+  .stage.done{border-color:#86efac;background:#f0fdf4}
+  .stage.current{border-color:#93c5fd;background:#eff6ff}
+  .stage.blocked{border-color:#fca5a5;background:#fef2f2}
+  .stage.locked{opacity:.62}
+  .stage b{display:block;margin-bottom:5px}
+  .stage .pill{display:inline-block;border-radius:6px;padding:3px 7px;font-size:11px;font-weight:800;background:#e5e7eb;color:#334155;margin-bottom:8px}
+  .stage.done .pill{background:#dcfce7;color:#166534}
+  .stage.current .pill{background:#dbeafe;color:#1d4ed8}
+  .stage.blocked .pill{background:#fee2e2;color:#991b1b}
+  .actionrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .actionrow button{width:auto}
+  .blocker{border-left:4px solid #ef4444;background:#fef2f2;color:#991b1b;padding:9px 10px;border-radius:6px;margin-bottom:7px;font-size:13px}
+  .journeyitem{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border-bottom:1px solid #e5e7eb;padding:9px 0}
+  .journeyitem:last-child{border-bottom:0}
+  .askrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;margin-bottom:12px}
+  .askrow input{background:#fff;color:#111827;border-color:#cbd5e1}
+  .answer{white-space:pre-wrap;line-height:1.45}
+  .error{display:none;margin:14px 0;padding:12px;border-radius:8px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+  @media(max-width:980px){
+    .app{grid-template-columns:1fr}
+    .side{position:relative}
+    .summary,.split{grid-template-columns:1fr}
+    .grid,.statgrid{grid-template-columns:repeat(2,minmax(180px,1fr))}
+    .week{grid-template-columns:1fr}
+    .askrow{grid-template-columns:1fr}
+    .sourcecheck{grid-template-columns:1fr}
+    .stagegrid{grid-template-columns:repeat(2,minmax(180px,1fr))}
+    .journeyhead{grid-template-columns:1fr}
+  }
+  @media(max-width:560px){
+    .wrap{padding:14px}
+    .grid{grid-template-columns:1fr}
+    .stagegrid{grid-template-columns:1fr}
+    .top{padding:0 14px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="mark">R</div>
+      <div><h1>Sertifikat Mentoru</h1><p>RAMIN OS / exam-prep only</p></div>
+    </div>
+
+    <div>
+      <div class="field">
+        <label for="role">Rol</label>
+        <input id="role" value="Marketing specialist">
+      </div>
+      <div class="field">
+        <label for="level">Səviyyə</label>
+        <select id="level">
+          <option value="foundation">Foundation</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="hours">Həftəlik saat</label>
+        <input id="hours" type="number" min="2" max="30" value="6">
+      </div>
+      <div class="field">
+        <label for="deadline">Deadline, həftə</label>
+        <input id="deadline" type="number" min="2" max="24" placeholder="avtomatik">
+      </div>
+      <div class="field">
+        <label for="budget">Büdcə</label>
+        <select id="budget">
+          <option value="free_first">Free first</option>
+          <option value="no_paid">No paid exams</option>
+          <option value="paid_ok">Paid is okay</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fokus</label>
+        <div class="chips" id="focusChips"></div>
+      </div>
+      <div class="field">
+        <label for="goals">Hədəf</label>
+        <textarea id="goals">PR, brand, performance, GA4 və Meta üzrə güclü profil qurmaq</textarea>
+      </div>
+      <button class="primary" id="planBtn">Plan qur</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <h2>Marketing Certification Coach</h2>
+      <span class="status" id="health">yoxlanılır...</span>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-view="roadmap">Roadmap</button>
+      <button class="tab" data-view="journey">Journey</button>
+      <button class="tab" data-view="stack">Stack</button>
+      <button class="tab" data-view="mock">Mock test</button>
+      <button class="tab" data-view="knowledge">Bilik bazası</button>
+      <button class="tab" data-view="approval">Təsdiq xətti</button>
+    </div>
+    <div class="wrap">
+      <div class="error" id="error"></div>
+
+      <section class="view active" id="roadmap">
+        <div class="summary">
+          <div class="band">
+            <div class="muted">Növbəti ən güclü addım</div>
+            <p class="big" id="nextTitle">...</p>
+            <div class="muted" id="nextDetail"></div>
+          </div>
+          <div class="band">
+            <h3>Mentor qeydləri</h3>
+            <div class="notes" id="mentorNotes"></div>
+          </div>
+        </div>
+        <div class="timeline" id="timeline"></div>
+      </section>
+
+      <section class="view" id="journey">
+        <div class="summary">
+          <div class="band">
+            <div class="journeyhead">
+              <div>
+                <div class="muted">Active certification journey</div>
+                <p class="big" id="journeyTitle">No active journey</p>
+                <div class="muted" id="journeyNext">Start a journey to turn the roadmap into gated execution.</div>
+              </div>
+              <div>
+                <select id="journeyCert"></select>
+                <button class="primary" id="startJourneyBtn" style="margin-top:8px">Start journey</button>
+              </div>
+            </div>
+            <div class="meter"><span id="journeyMeter" style="width:0%"></span></div>
+            <div class="muted" id="journeyScore">Readiness: 0%</div>
+          </div>
+          <div class="band">
+            <h3>Journey memory</h3>
+            <div id="journeyList" class="muted">No journeys yet.</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Pipeline</h3>
+          <div class="stagegrid" id="journeyStages"></div>
+        </div>
+
+        <div class="split" style="margin-top:14px">
+          <div class="panel">
+            <h3>Readiness gates</h3>
+            <div id="journeyChecks"></div>
+          </div>
+          <div class="panel">
+            <h3>Next controls</h3>
+            <div id="journeyActions"></div>
+            <div id="journeyBlockers" style="margin-top:12px"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="stack">
+        <div class="grid" id="certGrid"></div>
+      </section>
+
+      <section class="view" id="mock">
+        <div class="panel">
+          <div class="mockbar">
+            <select id="mockCert"></select>
+            <select id="mockCount">
+              <option value="6">6 sual</option>
+              <option value="10">10 sual</option>
+            </select>
+            <button class="secondary" id="mockBtn">Testi başlat</button>
+            <button class="ghost" id="gradeBtn">Yoxla</button>
+          </div>
+          <div class="muted" id="mockPolicy">Original practice only. No live exam content.</div>
+          <div id="questions"></div>
+          <div id="gradeResult"></div>
+        </div>
+      </section>
+
+      <section class="view" id="knowledge">
+        <div class="statgrid" id="knowledgeStats"></div>
+        <div class="split">
+          <div class="panel">
+            <h3>Grounding / vektor axtarış</h3>
+            <div class="askrow">
+              <input id="knowledgeQuery" value="Meta media buying üçün niyə bu sertifikat lazımdır?">
+              <button class="secondary" id="searchBtn">Axtar</button>
+              <button class="ghost" id="reindexBtn">Reindex</button>
+            </div>
+            <div id="knowledgeHits"></div>
+          </div>
+          <div class="panel">
+            <h3>RAG mentor sualı</h3>
+            <div class="askrow">
+              <input id="askQuestion" value="Mənim profilim üçün ilk 3 sertifikat niyə seçildi?">
+              <button class="secondary" id="askBtn">Soruş</button>
+              <label style="display:flex;align-items:center;gap:6px;color:#334155"><input id="useLlm" type="checkbox" checked style="width:auto"> LLM</label>
+            </div>
+            <div class="result answer" id="askAnswer">Sual verəndə cavab burada görünəcək.</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <h3>Plan evidence pack</h3>
+          <div id="planEvidence"></div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+            <h3 style="margin:0">Rəsmi mənbə verifier</h3>
+            <button class="secondary" id="verifySourcesBtn">Mənbələri yoxla</button>
+          </div>
+          <div class="muted" id="sourceSummary" style="margin:8px 0">Cache oxunur...</div>
+          <div id="sourceChecks"></div>
+        </div>
+      </section>
+
+      <section class="view" id="approval">
+        <div class="split">
+          <div class="panel">
+            <h3>Təsdiq xətti</h3>
+            <div id="approvals"></div>
+          </div>
+          <div class="panel">
+            <h3>Proof board</h3>
+            <div id="proofBoard"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const FOCUS = ["performance","analytics","meta_ads","google_ads","measurement","content","seo","b2b","linkedin_ads","tiktok_ads","strategy","growth","social","brand"];
+let selectedFocus = new Set(["performance","analytics","meta_ads","google_ads","brand"]);
+let catalog = null;
+let plan = null;
+let currentMock = null;
+let knowledgeInfo = null;
+let sourceInfo = null;
+let journeys = [];
+let activeJourney = null;
+
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+  }[c]));
+}
+
+function showError(msg){
+  const box = $("error");
+  box.textContent = msg;
+  box.style.display = "block";
+}
+
+function clearError(){ $("error").style.display = "none"; }
+
+function renderFocus(){
+  $("focusChips").innerHTML = FOCUS.map(f => `<button type="button" class="chip ${selectedFocus.has(f) ? "active" : ""}" data-focus="${f}">${f.replace("_"," ")}</button>`).join("");
+  document.querySelectorAll("[data-focus]").forEach(btn => btn.onclick = () => {
+    const key = btn.dataset.focus;
+    selectedFocus.has(key) ? selectedFocus.delete(key) : selectedFocus.add(key);
+    renderFocus();
+  });
+}
+
+function profile(){
+  const deadline = $("deadline").value.trim();
+  return {
+    role: $("role").value.trim() || "Marketing specialist",
+    level: $("level").value,
+    weekly_hours: Number($("hours").value || 6),
+    deadline_weeks: deadline ? Number(deadline) : null,
+    budget: $("budget").value,
+    focus_tags: Array.from(selectedFocus),
+    goals: $("goals").value.trim()
+  };
+}
+
+async function load(){
+  renderFocus();
+  try{
+    const h = await (await fetch("/api/health")).json();
+    knowledgeInfo = h.knowledge;
+    sourceInfo = h.sources || null;
+    $("health").textContent = `online · v${h.version} · ${h.certifications} sertifikat · ${h.knowledge?.knowledge_chunks || 0} chunk`;
+    catalog = await (await fetch("/api/catalog")).json();
+    await buildPlan();
+  }catch(e){
+    $("health").textContent = "offline";
+    showError("Backend cavab vermir: " + e.message);
+  }
+}
+
+async function buildPlan(){
+  clearError();
+  $("planBtn").disabled = true;
+  try{
+    const res = await fetch("/api/plan", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(profile())});
+    plan = await res.json();
+    renderPlan();
+  }catch(e){
+    showError("Plan qurulmadı: " + e.message);
+  }finally{
+    $("planBtn").disabled = false;
+  }
+}
+
+function renderPlan(){
+  if(!plan) return;
+  $("nextTitle").textContent = plan.recommended_stack[0]?.title || "Sertifikat seçilmədi";
+  $("nextDetail").textContent = plan.next_action?.detail || "";
+  $("mentorNotes").innerHTML = plan.mentor_notes.map(n => `<div class="note">${esc(n)}</div>`).join("");
+  renderTimeline();
+  renderStack();
+  renderApprovals();
+  renderProof();
+  renderMockSelect();
+  renderJourneyCertSelect();
+  refreshJourneys(false);
+  renderKnowledge();
+}
+
+function renderTimeline(){
+  $("timeline").innerHTML = plan.weekly_plan.map(w => `
+    <div class="week">
+      <div class="weekno">Həftə<br>${w.week}</div>
+      <div>
+        <h4>${esc(w.primary_cert)}</h4>
+        <div class="muted">${esc(w.phase)} · ${w.hours} saat</div>
+        <div style="margin:9px 0">${w.focus_topics.map(t => `<span class="topic">${esc(t)}</span>`).join("")}</div>
+        <div>${esc(w.mentor_drill)}</div>
+        <div class="muted" style="margin-top:7px"><b>Deliverable:</b> ${esc(w.deliverable)}</div>
+      </div>
+      <div class="checkpoint">${esc(w.checkpoint)}</div>
+    </div>`).join("");
+}
+
+function costBadge(cert){
+  if(cert.cost === "free") return `<span class="badge green">free</span>`;
+  if(cert.cost === "paid") return `<span class="badge red">paid</span>`;
+  return `<span class="badge amber">exam fee</span>`;
+}
+
+function renderStack(){
+  $("certGrid").innerHTML = plan.recommended_stack.map(cert => `
+    <article class="cert">
+      <div class="meta">
+        <span class="badge blue">${esc(cert.provider)}</span>
+        ${costBadge(cert)}
+        ${cert.proctored ? `<span class="badge red">proctored</span>` : `<span class="badge green">self-paced</span>`}
+      </div>
+      <h4>${esc(cert.title)}</h4>
+      <div class="score"><b>${cert.score}</b><div class="scorebar"><span style="width:${cert.score}%"></span></div></div>
+      <div class="muted">${esc(cert.why)}</div>
+      <div class="muted">${cert.estimated_hours} saat · difficulty ${cert.difficulty}/5 · ${esc(cert.track)}</div>
+      <a class="source" target="_blank" rel="noreferrer" href="${esc(cert.source_url)}">Rəsmi mənbə</a>
+    </article>`).join("");
+}
+
+function approvalsState(){
+  try{return JSON.parse(localStorage.getItem("certcoach_approvals") || "{}");}
+  catch{return {};}
+}
+
+function setApproval(id){
+  const s = approvalsState();
+  s[id] = !s[id];
+  localStorage.setItem("certcoach_approvals", JSON.stringify(s));
+  renderApprovals();
+}
+
+function renderApprovals(){
+  const state = approvalsState();
+  $("approvals").innerHTML = plan.approval_rail.map(a => `
+    <div class="approval ${state[a.id] ? "done" : ""}">
+      <strong>${esc(a.label)}</strong>
+      <div class="muted">${esc(a.risk)}</div>
+      <div>${esc(a.agent_rule)}</div>
+      <button class="${state[a.id] ? "ghost" : "secondary"}" onclick="setApproval('${esc(a.id)}')">${state[a.id] ? "Qeyd sil" : "Hazır kimi qeyd et"}</button>
+    </div>`).join("");
+}
+
+function renderProof(){
+  $("proofBoard").innerHTML = plan.proof_board.map(p => `
+    <div class="proof">
+      <strong>${esc(p.title)}</strong>
+      <div>${esc(p.proof)}</div>
+      <div class="muted" style="margin-top:7px">${esc(p.mentor_move)}</div>
+    </div>`).join("");
+}
+
+function renderMockSelect(){
+  const options = (plan?.recommended_stack || catalog?.certifications || []).map(c => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join("");
+  $("mockCert").innerHTML = options;
+}
+
+function renderJourneyCertSelect(){
+  const options = (plan?.recommended_stack || catalog?.certifications || []).map(c => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join("");
+  $("journeyCert").innerHTML = options;
+}
+
+async function refreshJourneys(selectLatest=false){
+  try{
+    const data = await (await fetch("/api/journeys")).json();
+    journeys = data.journeys || [];
+    renderJourneyList();
+    if(selectLatest && journeys[0]){
+      await loadJourney(journeys[0].journey_id);
+    }else if(!activeJourney && journeys[0]){
+      await loadJourney(journeys[0].journey_id);
+    }else{
+      renderJourney();
+    }
+  }catch(e){
+    $("journeyList").textContent = "Journey memory oxunmadi: " + e.message;
+  }
+}
+
+function renderJourneyList(){
+  if(!journeys.length){
+    $("journeyList").innerHTML = `<div class="muted">No journeys yet.</div>`;
+    return;
+  }
+  $("journeyList").innerHTML = journeys.slice(0,6).map(j => `
+    <div class="journeyitem">
+      <div>
+        <strong>${esc(j.cert_title)}</strong>
+        <div class="muted">${esc(j.current_stage?.title || "-")} · ${esc(j.readiness_score)}%</div>
+      </div>
+      <button class="ghost" onclick="loadJourney('${esc(j.journey_id)}')">Open</button>
+    </div>`).join("");
+}
+
+async function startJourney(){
+  clearError();
+  const certId = $("journeyCert").value || plan?.recommended_stack?.[0]?.id;
+  try{
+    const res = await fetch("/api/journeys", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({
+      cert_id: certId,
+      profile: profile()
+    })});
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    activeJourney = data;
+    renderJourney();
+    await refreshJourneys(false);
+  }catch(e){
+    showError("Journey baslamadi: " + e.message);
+  }
+}
+
+async function loadJourney(journeyId){
+  clearError();
+  try{
+    const data = await (await fetch("/api/journeys/" + encodeURIComponent(journeyId))).json();
+    if(data.error) throw new Error(data.error);
+    activeJourney = data;
+    renderJourney();
+  }catch(e){
+    showError("Journey acilmadi: " + e.message);
+  }
+}
+
+function renderJourney(){
+  if(!activeJourney){
+    $("journeyTitle").textContent = "No active journey";
+    $("journeyNext").textContent = "Start a journey to turn the roadmap into gated execution.";
+    $("journeyMeter").style.width = "0%";
+    $("journeyScore").textContent = "Readiness: 0%";
+    $("journeyStages").innerHTML = "";
+    $("journeyChecks").innerHTML = `<div class="muted">Start a journey first.</div>`;
+    $("journeyActions").innerHTML = "";
+    $("journeyBlockers").innerHTML = "";
+    return;
+  }
+  const s = activeJourney.summary || {};
+  const next = activeJourney.next_action || {};
+  const readiness = activeJourney.readiness || {};
+  $("journeyTitle").textContent = s.cert_title || "Certification journey";
+  $("journeyNext").textContent = `${next.label || "Next action"}: ${next.detail || ""}`;
+  $("journeyMeter").style.width = `${Math.max(0, Math.min(100, readiness.score || 0))}%`;
+  $("journeyScore").textContent = `Readiness: ${readiness.score || 0}% / ${readiness.target_score || 85}% · ${readiness.prep_ready ? "prep ready" : "in progress"}`;
+  $("journeyStages").innerHTML = (activeJourney.stages || []).map(stage => `
+    <div class="stage ${esc(stage.status)}">
+      <span class="pill">${esc(stage.status)}</span>
+      <b>${esc(stage.title)}</b>
+      <div class="muted">${esc(stage.description)}</div>
+    </div>`).join("");
+  $("journeyChecks").innerHTML = (readiness.checks || []).map(c => `
+    <div class="hit">
+      <strong>${c.ok ? "OK" : "BLOCK"} · ${esc(c.label)}</strong>
+      <div class="muted">${esc(c.detail || "")} · weight ${esc(c.weight)}</div>
+    </div>`).join("");
+  renderJourneyActions();
+  $("journeyBlockers").innerHTML = (readiness.blocked_reasons || []).length
+    ? readiness.blocked_reasons.map(b => `<div class="blocker">${esc(b)}</div>`).join("")
+    : `<div class="note">All prep gates are clear. Official exam steps still stay human-only.</div>`;
+}
+
+function renderJourneyActions(){
+  const next = activeJourney?.next_action || {};
+  const actions = activeJourney?.available_actions || [];
+  const nextButton = next.action ? `<button class="secondary" onclick="journeyAction('${esc(next.action)}')">${esc(next.label || "Next")}</button>` : "";
+  const actionButtons = actions.map(a => `<button class="ghost" onclick="journeyAction('${esc(a.id)}')">${esc(a.label)}</button>`).join("");
+  $("journeyActions").innerHTML = `
+    <div class="result">
+      <b>${esc(next.label || "Next action")}</b>
+      <div class="muted" style="margin-top:5px">${esc(next.detail || "")}</div>
+      <div class="actionrow">${nextButton}${actionButtons}</div>
+    </div>`;
+}
+
+async function journeyAction(action){
+  if(!activeJourney && action !== "run_source_verifier") return;
+  if(action === "take_mock"){
+    document.querySelector('[data-view="mock"]').click();
+    return;
+  }
+  if(action === "run_source_verifier"){
+    await verifySources();
+    if(activeJourney) await loadJourney(activeJourney.summary.journey_id);
+    return;
+  }
+  const payload = {};
+  if(action === "baseline_submitted"){
+    const score = window.prompt("Baseline score (0-100)", "0");
+    if(score === null) return;
+    payload.score = Number(score || 0);
+    payload.source = "manual";
+  }
+  if(action === "portfolio_completed"){
+    const summary = window.prompt("Portfolio proof summary", activeJourney.certification?.portfolio_task || "");
+    if(summary === null) return;
+    payload.summary = summary;
+  }
+  if(action === "human_approval_granted"){
+    const note = window.prompt("Approval note", "I approve official handoff; I will handle login/payment/booking/exam myself.");
+    if(note === null) return;
+    payload.note = note;
+  }
+  if(action === "certificate_captured"){
+    const note = window.prompt("Certificate/result note", "");
+    if(note === null) return;
+    payload.note = note;
+  }
+  try{
+    const id = activeJourney.summary.journey_id;
+    const res = await fetch(`/api/journeys/${encodeURIComponent(id)}/action`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action, payload})});
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    activeJourney = data;
+    renderJourney();
+    await refreshJourneys(false);
+  }catch(e){
+    showError("Journey action alinmadi: " + e.message);
+  }
+}
+
+async function loadMock(){
+  clearError();
+  $("gradeResult").innerHTML = "";
+  const certId = $("mockCert").value;
+  const count = Number($("mockCount").value || 6);
+  try{
+    const res = await fetch("/api/mock", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({cert_id:certId,count})});
+    currentMock = await res.json();
+    if(currentMock.error) throw new Error(currentMock.error);
+    renderQuestions();
+  }catch(e){
+    showError("Mock test alınmadı: " + e.message);
+  }
+}
+
+function renderQuestions(){
+  $("mockPolicy").textContent = currentMock.policy;
+  $("questions").innerHTML = currentMock.questions.map((q, i) => `
+    <div class="question">
+      <h4>${i + 1}. ${esc(q.prompt)}</h4>
+      ${q.choices.map((c, idx) => `
+        <label class="choice"><input type="radio" name="${esc(q.id)}" value="${idx}">${esc(c)}</label>`).join("")}
+    </div>`).join("");
+}
+
+async function gradeMock(){
+  if(!currentMock){ await loadMock(); if(!currentMock) return; }
+  const answers = {};
+  currentMock.questions.forEach(q => {
+    const checked = document.querySelector(`input[name="${CSS.escape(q.id)}"]:checked`);
+    if(checked) answers[q.id] = Number(checked.value);
+  });
+  try{
+    const body = {cert_id:currentMock.cert_id, answers, count:currentMock.count};
+    if(activeJourney?.summary?.cert_id === currentMock.cert_id){
+      body.journey_id = activeJourney.summary.journey_id;
+    }
+    const res = await fetch("/api/grade", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    const grade = await res.json();
+    if(grade.error) throw new Error(grade.error);
+    if(grade.journey){
+      activeJourney = grade.journey;
+      renderJourney();
+      await refreshJourneys(false);
+    }
+    $("gradeResult").innerHTML = `
+      <div class="result">
+        <b>Score: ${grade.score}%</b> · ${grade.correct}/${grade.total} · ${esc(grade.verdict)}
+        <div style="margin-top:8px">${grade.review.map(r => `<div>${r.correct ? "✓" : "×"} ${esc(r.id)}: ${esc(r.rationale)}</div>`).join("")}</div>
+      </div>`;
+    await refreshKnowledge();
+  }catch(e){
+    showError("Yoxlama alınmadı: " + e.message);
+  }
+}
+
+async function refreshKnowledge(){
+  try{
+    const data = await (await fetch("/api/knowledge")).json();
+    knowledgeInfo = data.stats;
+    sourceInfo = data.sources;
+    renderKnowledgeStats(data.stats, data.learner_memory);
+    renderSources(data.sources);
+  }catch(e){}
+}
+
+function renderKnowledge(){
+  if(!plan) return;
+  renderKnowledgeStats(plan.knowledge?.status || knowledgeInfo || {}, plan.knowledge?.learner_memory || {});
+  renderEvidence(plan.knowledge?.evidence || []);
+  $("knowledgeHits").innerHTML = (plan.knowledge?.evidence || []).slice(0,4).map(hitHtml).join("");
+  loadSources();
+}
+
+function renderKnowledgeStats(stats, memory){
+  const sem = stats.semantic_rerank || {};
+  $("knowledgeStats").innerHTML = `
+    <div class="stat"><b>${stats.knowledge_chunks ?? "0"}</b><div class="muted">knowledge chunks</div></div>
+    <div class="stat"><b>${stats.index_documents ?? "0"}</b><div class="muted">vector index docs</div></div>
+    <div class="stat"><b>${stats.learner_memory_records ?? memory.records ?? "0"}</b><div class="muted">learner memory</div></div>
+    <div class="stat"><b>${sem.enabled ? "on" : "off"}</b><div class="muted">semantic rerank · ${esc(sem.provider || "local")}</div></div>`;
+}
+
+function hitHtml(h){
+  return `<div class="hit">
+    <strong>${esc(h.title)}</strong>
+    <div class="src">${esc(h.kind)} · ${esc(h.source)} · score ${h.score}${h.semantic_score ? " · sem " + h.semantic_score : ""}</div>
+    <div>${esc(h.snippet || h.text || "")}</div>
+    ${h.url ? `<a class="source" target="_blank" rel="noreferrer" href="${esc(h.url)}">Rəsmi mənbə</a>` : ""}
+  </div>`;
+}
+
+function renderEvidence(hits){
+  $("planEvidence").innerHTML = hits.length ? hits.map(hitHtml).join("") : `<div class="muted">Bu plan üçün evidence hələ yoxdur.</div>`;
+}
+
+async function searchKnowledge(){
+  clearError();
+  const q = $("knowledgeQuery").value.trim();
+  if(!q) return;
+  $("knowledgeHits").innerHTML = `<div class="muted">Axtarılır...</div>`;
+  try{
+    const data = await (await fetch("/api/search?q=" + encodeURIComponent(q) + "&k=8")).json();
+    $("knowledgeHits").innerHTML = data.hits.length ? data.hits.map(hitHtml).join("") : `<div class="muted">Nəticə tapılmadı.</div>`;
+  }catch(e){
+    showError("Axtarış alınmadı: " + e.message);
+  }
+}
+
+async function askCoach(){
+  clearError();
+  const question = $("askQuestion").value.trim();
+  if(!question) return;
+  $("askAnswer").textContent = "Düşünür...";
+  try{
+    const res = await fetch("/api/ask", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({
+      question,
+      profile: profile(),
+      use_llm: $("useLlm").checked
+    })});
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    $("askAnswer").textContent = `${data.answer}\n\nmode: ${data.mode}`;
+    $("knowledgeHits").innerHTML = (data.evidence || []).map(hitHtml).join("");
+  }catch(e){
+    showError("RAG cavabı alınmadı: " + e.message);
+  }
+}
+
+async function reindexKnowledge(){
+  clearError();
+  $("knowledgeHits").innerHTML = `<div class="muted">Index yenilənir...</div>`;
+  try{
+    const data = await (await fetch("/api/knowledge/reindex", {method:"POST"})).json();
+    await refreshKnowledge();
+    $("knowledgeHits").innerHTML = `<div class="result">Index yeniləndi: ${data.documents} sənəd · ${esc(data.built_at)}</div>`;
+  }catch(e){
+    showError("Reindex alınmadı: " + e.message);
+  }
+}
+
+async function loadSources(){
+  try{
+    const data = await (await fetch("/api/sources")).json();
+    sourceInfo = data;
+    renderSources(data);
+  }catch(e){
+    $("sourceSummary").textContent = "Source cache oxunmadı: " + e.message;
+  }
+}
+
+function renderSources(data){
+  if(!data){
+    $("sourceSummary").textContent = "Source verifier cache yoxdur.";
+    $("sourceChecks").innerHTML = "";
+    return;
+  }
+  const s = data.summary || {};
+  $("sourceSummary").textContent =
+    `son yoxlama: ${s.checked_at || "yoxdur"} · total ${s.total || 0} · verified ${s.verified || 0} · reachable ${s.reachable_official || 0} · review ${s.needs_review || 0} · failed ${s.failed || 0}${data.stale ? " · stale" : ""}`;
+  const checks = data.checks || [];
+  $("sourceChecks").innerHTML = checks.length ? checks.map(c => `
+    <div class="sourcecheck">
+      <span class="verdict ${esc(c.verdict)}">${esc(c.verdict)}</span>
+      <div>
+        <strong>${esc(c.title)}</strong>
+        <div class="src">${esc(c.provider)} · ${esc(c.host)} · HTTP ${esc(c.status_code || "-")}</div>
+        <div class="muted">${esc(c.note || "")}</div>
+        <div class="muted">matched: ${(c.matched_terms || []).map(esc).join(", ") || "-"}</div>
+      </div>
+      <a class="source" target="_blank" rel="noreferrer" href="${esc(c.url)}">Aç</a>
+    </div>`).join("") : `<div class="muted">Hələ source yoxlaması aparılmayıb.</div>`;
+}
+
+async function verifySources(){
+  clearError();
+  $("sourceSummary").textContent = "Rəsmi mənbələr yoxlanılır...";
+  $("sourceChecks").innerHTML = "";
+  try{
+    const data = await (await fetch("/api/sources/verify", {method:"POST"})).json();
+    sourceInfo = data;
+    renderSources(data);
+    await refreshKnowledge();
+    if(activeJourney) await loadJourney(activeJourney.summary.journey_id);
+  }catch(e){
+    showError("Mənbə yoxlaması alınmadı: " + e.message);
+  }
+}
+
+document.querySelectorAll(".tab").forEach(tab => tab.onclick = () => {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === tab.dataset.view));
+});
+
+$("planBtn").onclick = buildPlan;
+$("startJourneyBtn").onclick = startJourney;
+$("mockBtn").onclick = loadMock;
+$("gradeBtn").onclick = gradeMock;
+$("searchBtn").onclick = searchKnowledge;
+$("askBtn").onclick = askCoach;
+$("reindexBtn").onclick = reindexKnowledge;
+$("verifySourcesBtn").onclick = verifySources;
+load();
+</script>
+</body>
+</html>
