@@ -41,12 +41,20 @@ ENV_FILE = ROOT / ".env"
 
 # Every entry here is a finding the research lab surfaced and we turned into capability.
 REGISTRY: dict[str, dict[str, str]] = {
+    # VERIFIED 2026-07-13: the official Meta MCP is CLIENT-ONLY. Its dynamic client
+    # registration endpoint refuses everyone ("Dynamic registration is not available
+    # for this client"), and its OAuth advertises no client_credentials grant — so only
+    # allowlisted clients (Claude, ChatGPT) can ever hold a token for it. Our SERVER
+    # therefore cannot drive it, and does not need to: we already hold a Meta token with
+    # ads_management/ads_read/business_management, and server-side Meta goes through the
+    # Graph API instead (ads-studio/connectors/meta.py read + meta_write.py write).
+    # Keep this entry for the Mac/desktop Claude connector only.
     "meta": {
         "url": "https://mcp.facebook.com/ads",
         "token_env": "META_ADS_TOKEN",
-        "label": "Meta Ads (Facebook/Instagram) — official MCP, open beta 2026-04-29",
-        "token_how": "Business Manager → System users → Generate token "
-                     "(scopes: ads_management, ads_read, business_management)",
+        "label": "Meta Ads — official MCP (CLIENT-ONLY: Claude/ChatGPT; server uses Graph API)",
+        "token_how": "Not obtainable server-side (registration closed). Use the Graph "
+                     "path: ads-studio/connectors/meta_write.py",
     },
     "tiktok": {
         "url": "https://mcp.tiktok.com/ads",
