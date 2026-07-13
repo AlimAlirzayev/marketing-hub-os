@@ -89,7 +89,7 @@ def generate_frames(pkg: dict[str, Any], folder: Path, *, variants: int = 2,
     total_cost = 0.0
     try:
         ws = flora.default_workspace_id()
-        proj = flora.ensure_project(ws, f"MediaForge — {pkg['brief']['campaign']['name']}"[:60])
+        proj = flora.ensure_project(ws, f"Media Studio — {pkg['brief']['campaign']['name']}"[:60])
         project_id = proj["project_id"]
 
         runs: list[dict[str, Any]] = []
@@ -224,18 +224,36 @@ def render_contact_sheet(pkg: dict[str, Any], plan: dict[str, Any]) -> str:
  button{{background:#E31E24;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;margin-left:10px}}
 </style></head><body>
 <h1>🎬 Keyframe seçimi — {html.escape(slug)}</h1>
-<p style="color:#a9a9b2">Hər beat üçün ən yaxşı kadrı seç. Aşağıdakı əmr avtomatik yenilənir — kopyala və terminalda işə sal.</p>
+<p style="color:#a9a9b2">Hər beat üçün ən yaxşı kadrı seç. Seçim Studio API-yə yazılır.</p>
 {''.join(rows)}
-<div id="cmd"><span id="cmdText"></span><button onclick="navigator.clipboard.writeText(document.getElementById('cmdText').innerText)">Kopyala</button></div>
+<div id="cmd"><span id="cmdText"></span><button onclick="savePicks()">Yadda saxla</button><span id="saveStatus" style="margin-left:12px;color:#a9a9b2"></span></div>
 <script>
-function upd(){{
+function currentPicks(){{
   const picks = [];
   document.querySelectorAll('section').forEach((s, i) => {{
     const c = s.querySelector('input:checked');
     if (c) picks.push((i + 1) + '=' + c.value);
   }});
-  document.getElementById('cmdText').innerText =
-    'python -m mediaforge.generate {slug} --pick ' + picks.join(',') + ' --animatic';
+  return picks;
+}}
+function upd(){{
+  document.getElementById('cmdText').innerText = 'Seçim: ' + currentPicks().join(', ');
+}}
+async function savePicks(){{
+  const status = document.getElementById('saveStatus');
+  status.innerText = 'Yazılır...';
+  try {{
+    const res = await fetch('/api/generate/{slug}/run', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{stage: 'pick', picks: currentPicks().join(',')}})
+    }});
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'save error');
+    status.innerText = 'Yadda saxlandı. Studio-da Animatic düyməsini bas.';
+  }} catch (e) {{
+    status.innerText = 'Xəta: ' + e.message;
+  }}
 }}
 upd();
 </script>

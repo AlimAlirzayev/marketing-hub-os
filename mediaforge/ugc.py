@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from . import knowledge, pipeline
+from . import knowledge, pipeline, resources
 
 
 PACK_FILES = {
@@ -26,6 +26,7 @@ PACK_FILES = {
     "unit_economics": "unit-economics.md",
     "landing": "landing-wireframe.md",
     "qa": "qa-checklist.md",
+    "resources": "resources-readiness.md",
     "handoff": "publish-dry-run.md",
     "manifest": "ugc-pack.json",
 }
@@ -108,6 +109,7 @@ def build_ugc_pack(package: dict[str, Any], pack_dir: Path) -> dict[str, Any]:
         "economics": _unit_economics(package),
         "landing": _landing_wireframe(brief, persona),
         "qa": _qa_checklist(brief),
+        "resources": resources.build_status(package),
         "handoff": _handoff(brief, package),
     }
 
@@ -119,6 +121,7 @@ def build_ugc_pack(package: dict[str, Any], pack_dir: Path) -> dict[str, Any]:
         "unit_economics": _render_unit_economics,
         "landing": _render_landing,
         "qa": _render_qa,
+        "resources": _render_resources,
         "handoff": _render_handoff,
     }
     written: dict[str, str] = {}
@@ -140,6 +143,7 @@ def build_ugc_pack(package: dict[str, Any], pack_dir: Path) -> dict[str, Any]:
         "voice": data["voice"],
         "video": data["video"],
         "economics": data["economics"],
+        "resources": data["resources"],
         "next_human_gate": (
             "Approve the persona, script, voice route, and FLORA cost before any "
             "real generation or external order/payment flow."
@@ -489,6 +493,10 @@ def _render_qa(data: dict[str, Any], package: dict[str, Any]) -> str:
 
 {items}
 """
+
+
+def _render_resources(data: dict[str, Any], package: dict[str, Any]) -> str:
+    return resources.render_status_report(data["resources"])
 
 
 def _render_handoff(data: dict[str, Any], package: dict[str, Any]) -> str:

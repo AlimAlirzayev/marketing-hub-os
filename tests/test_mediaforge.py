@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mediaforge import director, knowledge, models, pipeline, ugc
+from mediaforge import director, knowledge, models, pipeline, resources, runs, ugc
 
 
 class ParseTests(unittest.TestCase):
@@ -175,6 +175,9 @@ class UgcPackTests(unittest.TestCase):
         self.assertEqual(manifest["status"], "draft_only")
         self.assertIn("voice", manifest)
         self.assertIn("video", manifest)
+        self.assertIn("resources", manifest)
+        self.assertFalse(manifest["resources"]["readiness"]["credential_presence_checked"])
+        self.assertIn("doruk_like_single_film", manifest["resources"]["commands"])
 
     def test_ugc_video_prompt_keeps_text_and_spend_gated(self):
         pkg = ugc.create("kling ilə 8 saniyəlik KASKO UGC reels", use_llm=False)
@@ -189,6 +192,95 @@ class UgcPackTests(unittest.TestCase):
         self.assertIn("final copy is added later", prompt)
         self.assertIn("spends credits only when the human intentionally confirms", prompt)
         self.assertIn("formula_only_no_payment", economics)
+
+
+class ResourceReadinessTests(unittest.TestCase):
+    def test_resource_audit_does_not_inspect_credentials(self):
+        status = resources.build_status(now=1_800_000_000)
+        readiness = status["readiness"]
+
+        self.assertFalse(readiness["credential_presence_checked"])
+        self.assertFalse(readiness["oauth_token_cache_checked"])
+        self.assertFalse(readiness["live_provider_pinged"])
+        self.assertIn("intentionally not inspected", readiness["note"])
+        self.assertIn("flora_real_video", [c["key"] for c in status["capabilities"]])
+
+    def test_resource_status_for_package_lists_confirm_gated_commands(self):
+        out = director.direct("seedance 2.5 ilə 10s səyahət sığortası promo", use_llm=False)
+        pkg = {
+            "slug": "t",
+            "request": out["request"],
+            "concept": out["concept"],
+            "brief": out["brief"],
+            "resolution": out["resolution"],
+            "meta": out["meta"],
+        }
+        status = resources.build_status(pkg, now=1_800_000_000)
+
+        self.assertEqual(status["commands"]["plan"], "python -m mediaforge.generate t")
+        self.assertIn("--film --confirm", status["commands"]["doruk_like_single_film"])
+        self.assertIn("--frames --confirm", status["commands"]["first_paid_probe"])
+        self.assertFalse(status["live_result_guaranteed"])
+        report = resources.render_status_report(status)
+        self.assertIn("Media Studio Resource Readiness", report)
+        self.assertIn("Stage Cost Plan", report)
+
+
+class GenerationRunnerTests(unittest.TestCase):
+    def _pkg(self):
+        out = director.direct("seedance 2.5 ilə 10s səyahət sığortası promo", use_llm=False)
+        return {
+            "slug": "t",
+            "request": out["request"],
+            "concept": out["concept"],
+            "brief": out["brief"],
+            "resolution": out["resolution"],
+            "meta": out["meta"],
+        }
+
+    def test_paid_stage_requires_matching_approval(self):
+        pkg = self._pkg()
+        credits = runs.planned_credits(pkg, "film")
+        self.assertGreater(credits, 0)
+
+        with self.assertRaises(PermissionError):
+            runs.validate_approval(
+                pkg,
+                stage="film",
+                confirm_spend=False,
+                approved_slug=None,
+                approved_stage=None,
+                approved_credits=None,
+            )
+        with self.assertRaises(PermissionError):
+            runs.validate_approval(
+                pkg,
+                stage="film",
+                confirm_spend=True,
+                approved_slug="wrong",
+                approved_stage="film",
+                approved_credits=credits,
+            )
+
+        self.assertEqual(
+            runs.validate_approval(
+                pkg,
+                stage="film",
+                confirm_spend=True,
+                approved_slug="t",
+                approved_stage="film",
+                approved_credits=credits,
+            ),
+            credits,
+        )
+
+    def test_stage_commands_keep_confirm_only_on_paid_stages(self):
+        film_cmd = runs.build_command("travel-demo", "film")
+        animatic_cmd = runs.build_command("travel-demo", "animatic")
+
+        self.assertEqual(film_cmd[-2:], ["--film", "--confirm"])
+        self.assertEqual(animatic_cmd[-1], "--animatic")
+        self.assertNotIn("--confirm", animatic_cmd)
 
 
 class GenerateTests(unittest.TestCase):
@@ -269,6 +361,15 @@ class KeyframePipelineTests(unittest.TestCase):
         self.assertEqual(plan["estimated_credits"], 8 * 28)
         self.assertEqual(plan["params"]["aspect_ratio"], "9:16")
         self.assertTrue(all("No readable text" in b["prompt"] for b in plan["beats"]))
+
+    def test_contact_sheet_saves_picks_through_studio_api(self):
+        from mediaforge import frames
+        pkg = self._pkg()
+        html_out = frames.render_contact_sheet(pkg, frames.plan_frames(pkg, variants=1))
+
+        self.assertIn("/api/generate/t/run", html_out)
+        self.assertIn("savePicks", html_out)
+        self.assertNotIn("terminalda", html_out)
 
     def test_stage_plan_lists_all_stages_with_costs(self):
         from mediaforge import generate

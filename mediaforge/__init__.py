@@ -1,11 +1,11 @@
-"""MediaForge — the creative-director brain of Ramin-OS media production.
+"""Media Studio — the creative-director brain of Ramin-OS media production.
 
 One sentence in ("make me a 10s travel-insurance promo with seedance 2.5"),
 a full, directed, professional creative package out: brief, storyboard,
 emotional arc, cinematic technique plan, model decision, a compiled FLORA
 prompt, and a ready-to-fire generation command with a cost gate.
 
-MediaForge does not spend credits or post anything on its own. It thinks like a
+Media Studio does not spend credits or post anything on its own. It thinks like a
 senior creative director + producer, assembles everything up to the single paid
 generation step, and hands that step to a human/governed OAuth checkpoint.
 
