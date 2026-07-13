@@ -281,6 +281,39 @@
       ]
     },
     {
+      "id": "front_office_steward",
+      "name": "Front-Office Steward",
+      "owner": "Ramin-OS",
+      "status": "approved_sandbox",
+      "permissions": ["read_only", "sandbox"],
+      "allowed_inputs": [
+        "services.json",
+        "audit_services.py output",
+        "repo top-level structure",
+        "hub templates",
+        "claude-agents command and agent files"
+      ],
+      "blocked_inputs": ["secrets", ".env content", "customer data", "claims", "payment data"],
+      "allowed_outputs": [
+        "services.json registry edits (services, capabilities, audit_ignore_dirs)",
+        "hub sidebar capability cards",
+        "front-door drift reports"
+      ],
+      "blocked_actions": [
+        "delete or retire organs without human approval",
+        "post publicly",
+        "send messages",
+        "handle payments",
+        "modify .env or secrets",
+        "fabricate invoke instructions"
+      ],
+      "required_controls": [
+        "Sonarzum rule: every top-level organ must be a service, a capability card, or a justified audit_ignore_dirs entry.",
+        "Writes limited to services.json, hub/, and claude-agents metadata; python audit_services.py must exit 0 before done.",
+        "Every invoke line must be verified against a real entry point (command file, __main__, or gateway tool wiring)."
+      ]
+    },
+    {
       "id": "ai_council_executor",
       "name": "AI Council Executor",
       "owner": "Ramin-OS",

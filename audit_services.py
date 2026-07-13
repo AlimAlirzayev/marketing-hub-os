@@ -33,6 +33,12 @@ REGISTRY = os.path.join(ROOT, "services.json")
 
 _SKIP_DIRS = {".venv", ".audit-tools", "__pycache__", "node_modules", ".git",
               "data", "browser_profiles", "tmp", "output", ".claude", "tests"}
+# Top-level dirs that are plumbing, not organs — never need a front-door card.
+# Everything else at the repo root must be accounted for: a service dir, a
+# capability home, or a conscious entry in services.json "audit_ignore_dirs".
+_SUPPORT_DIRS = {"docs", "tests", "config", "scripts", "data", "output", "logs",
+                 "tmp", "memory", "secrets", "workspace", "__pycache__",
+                 "node_modules"}
 _NON_SERVICE_PORTS = {
     # Local/private dependency endpoints, not Marketing OS HTTP services.
     8080,  # TEI / OpenAI-compatible embedding sidecar
@@ -100,6 +106,47 @@ def referenced_ports(lo: int, hi: int) -> set[int]:
     return found
 
 
+def _service_dirs(services: list[dict]) -> set[str]:
+    """Top-level dir each service occupies. dir='.' services live at the root —
+    their real home is the first module segment of the uvicorn target
+    (e.g. 'mediaforge.server:app' → 'mediaforge')."""
+    dirs: set[str] = set()
+    for s in services:
+        d = (s.get("dir") or "").strip()
+        if d and d != ".":
+            dirs.add(d.split("/")[0])
+        else:
+            head = (s.get("target") or "").split(":")[0].split(".")[0]
+            if head and os.path.isdir(os.path.join(ROOT, head)):
+                dirs.add(head)
+    return dirs
+
+
+def organ_coverage(reg: dict) -> dict:
+    """The sonarzum rule, enforced: every organ dir at the repo root must have a
+    front-door presence — a registered service, a capability card, or a conscious
+    'audit_ignore_dirs' entry. An organ nobody can see from the hub is a motor
+    rusting outside the car; this check turns that into red drift, not a memory."""
+    accounted = _service_dirs(reg.get("services", []))
+    caps = reg.get("capabilities", [])
+    accounted |= {c.get("home", "").split("/")[0] for c in caps if c.get("home")}
+    accounted |= set(reg.get("audit_ignore_dirs", []))
+
+    unaccounted = []
+    for name in sorted(os.listdir(ROOT)):
+        if name.startswith(".") or name in _SUPPORT_DIRS or name in _SKIP_DIRS:
+            continue
+        if not os.path.isdir(os.path.join(ROOT, name)):
+            continue
+        if name not in accounted:
+            unaccounted.append(name)
+
+    missing_home = [{"key": c["key"], "home": c["home"]} for c in caps
+                    if c.get("home") and not os.path.isdir(os.path.join(ROOT, c["home"]))]
+    return {"capabilities": len(caps), "unaccounted": unaccounted,
+            "missing_home": missing_home}
+
+
 def audit_data() -> dict:
     """The one place the audit is computed. Both the CLI and the hub's
     /api/audit consume this — so console and UI can never disagree."""
@@ -114,6 +161,7 @@ def audit_data() -> dict:
     registered |= set(extra.get("audit_ignore_ports", []))
     listening = listening_ports(lo, hi)
     referenced = referenced_ports(lo, hi)
+    organs = organ_coverage(extra)
 
     drift = []
     for p in sorted((listening | referenced) - registered - _NON_SERVICE_PORTS):
@@ -132,10 +180,13 @@ def audit_data() -> dict:
             for s in sorted(services, key=lambda x: x["port"])]
 
     return {
-        "ok": not drift and not missing_dir,
+        "ok": (not drift and not missing_dir
+               and not organs["unaccounted"] and not organs["missing_home"]),
         "counts": {"registered": len(services), "listening": len(listening),
-                   "referenced": len(referenced), "range": [lo, hi]},
+                   "referenced": len(referenced), "range": [lo, hi],
+                   "capabilities": organs["capabilities"]},
         "services": rows, "drift": drift, "missing_dir": missing_dir,
+        "organs": organs,
     }
 
 
@@ -154,6 +205,13 @@ def _telegram_text(a: dict) -> str:
                      + ", ".join(f"{d['port']} ({', '.join(d['why'])})" for d in a["drift"]))
     if a["missing_dir"]:
         lines.append("⚠ Qovluq yox: " + ", ".join(s["key"] for s in a["missing_dir"]))
+    org = a.get("organs", {})
+    if org.get("unaccounted"):
+        lines.append("⚠ Vitrinsiz orqan (hub-da kartı yoxdur): "
+                     + ", ".join(org["unaccounted"]))
+    if org.get("missing_home"):
+        lines.append("⚠ Qabiliyyət evi itib: "
+                     + ", ".join(f"{m['key']}→{m['home']}" for m in org["missing_home"]))
     return "\n".join(lines)
 
 
@@ -211,12 +269,25 @@ def main() -> int:
         for s in a["missing_dir"]:
             print(f"     ✗ {s['key']} → {s['dir']}")
 
+    org = a.get("organs", {})
+    if not quiet:
+        print(f"\n  Portsuz qabiliyyətlər (vitrin kartı olan): {org.get('capabilities', 0)}")
+    if org.get("unaccounted"):
+        print("\n  ⚠ VİTRİNSİZ ORQANLAR (sonarzum-tipli boşluq — qovluq var, ön qapıda yeri yox!):")
+        for name in org["unaccounted"]:
+            print(f"     ✗ {name}/ → services.json: servis, capability və ya audit_ignore_dirs qeydi ver")
+    if org.get("missing_home"):
+        print("\n  ⚠ Qabiliyyət reyestrdə var, qovluğu yoxdur:")
+        for m in org["missing_home"]:
+            print(f"     ✗ {m['key']} → {m['home']}")
+
     # Telegram alert: only on real drift by default; --always = daily heartbeat.
     if "--telegram" in sys.argv and ((not a["ok"]) or "--always" in sys.argv):
         sent = _send_telegram(_telegram_text(a))
         print(f"\n  telegram: {'göndərildi ✓' if sent else 'göndərilmədi ✗'}")
 
-    problems = len(a["drift"]) + len(a["missing_dir"])
+    problems = (len(a["drift"]) + len(a["missing_dir"])
+                + len(org.get("unaccounted", [])) + len(org.get("missing_home", [])))
     print("\n" + "=" * 66)
     if problems:
         print(f"  ✗ {problems} uyğunsuzluq — reyestr reallıqla üst-üstə düşmür. Düzəlt.")

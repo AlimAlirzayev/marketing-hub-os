@@ -1,6 +1,6 @@
 # RAMIN OS System Context
 
-Generated UTC: 2026-07-10T10:46:09Z
+Generated UTC: 2026-07-13T11:30:37Z
 
 ## Mission
 
@@ -29,15 +29,15 @@ a disconnected side project.
 | capi | Konversiyalar | 8811 | Analitika & Reklam | uvicorn | web:app | /api/health |
 | capi-gw | CAPI Gateway | 8812 | Analitika & Reklam | uvicorn | gateway:app | /healthz |
 | ga4 | Vebsayt Analitikası | 8850 | Analitika & Reklam | uvicorn | app:app | /api/health |
-| influencer | Influencer Hunter | 8840 | Analitika & Reklam | uvicorn | server:app | /api/health |
+| influencer | Influencer Hunter | 8840 | Kəşfiyyat | uvicorn | server:app | /api/health |
 | cx | Müştəri Münasibətləri | 8810 | Müştəri | uvicorn | app:app | /api/health |
 | atelier | Kreativ Studiya | 8820 | Kontent | uvicorn | atelier.app:app | /api/health |
 | price | Qiymət Kəşfiyyatı | 8830 | Kəşfiyyat | uvicorn | server:app | /api/health |
 | seo | SEO Studiyası | 8860 | Kontent | uvicorn | seo.server:app | /api/health |
 | mediaforge | Media Studio | 8870 | Kontent | uvicorn | mediaforge.server:app | /api/health |
 | certcoach | Sertifikat Mentoru | 8880 | Təlim | uvicorn | certification_coach.server:app | /api/health |
-| panel | İdarəetmə Mərkəzi | 8890 | Sistem | uvicorn | gateway.panel:app | /api/health |
-| hq | Baş İqamətgah (klassik) | 8501 | Sistem | streamlit | app.py | / |
+| panel | İdarəetmə Mərkəzi | 8890 | İş masası | uvicorn | gateway.panel:app | /api/health |
+| hq | Arxiv modulları | 8501 | Sistem | streamlit | app.py | / |
 | mediagen | Media Generatoru | 8765 | Kontent | uvicorn | mediagen.server:app | /api/health |
 
 ## Capability Map

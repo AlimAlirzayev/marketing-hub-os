@@ -75,9 +75,48 @@ def _pending_lessons() -> int:
             return 0
 
 
+def _front_door_findings() -> list[Finding]:
+    """The sonarzum reflex: an organ with no front-door card is invisible to the
+    owner and rusts unseen. Reads the registry-vs-reality audit (repo truth,
+    same source as the hub's Sistem Sağlamlığı). Never raises."""
+    try:
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        import audit_services
+        a = audit_services.audit_data()
+    except Exception:
+        return []
+    out: list[Finding] = []
+    org = a.get("organs", {})
+    if org.get("unaccounted"):
+        names = ", ".join(org["unaccounted"])
+        out.append(Finding(
+            "watch", "front_door_gap", "Vitrinsiz orqan",
+            f"Qovluq var, ön qapıda kartı yoxdur: {names}.",
+            "services.json-da yerini ver (servis / capability / audit_ignore_dirs) — "
+            "görünməyən orqan sonarzum kimi paslanır."))
+    if a.get("drift"):
+        ports = ", ".join(str(d["port"]) for d in a["drift"])
+        out.append(Finding(
+            "watch", "port_drift", "Qeydiyyatsız port",
+            f"Reyestrdə olmayan port(lar): {ports}.",
+            "python audit_services.py ilə bax, services.json-a əlavə et və ya təmizlə."))
+    if a.get("missing_dir") or org.get("missing_home"):
+        gone = ([s["key"] for s in a.get("missing_dir", [])]
+                + [m["key"] for m in org.get("missing_home", [])])
+        out.append(Finding(
+            "watch", "registry_ghost", "Reyestrdə var, diskdə yox",
+            f"Qeyd(lər) evsiz qalıb: {', '.join(gone)}.",
+            "Qovluğu bərpa et və ya reyestrdən sil — reyestr reallıqdır."))
+    return out
+
+
 def observe_state(snap: dict | None = None) -> list[Finding]:
     """Compute grounded findings from one live snapshot. Pure over ``snap`` except
-    for contradictions/pending which read their own live source. Never raises."""
+    for contradictions/pending which read their own live source. Never raises.
+    Called with no ``snap`` (live mode) it also audits front-door coverage —
+    synthetic snapshots (tests) make no claim about the repo, so that check skips."""
+    live = snap is None
     snap = snap or sense.snapshot()
     findings: list[Finding] = []
     env = snap.get("env", {}) or {}
@@ -150,6 +189,10 @@ def observe_state(snap: dict | None = None) -> list[Finding]:
             "İşlər bitib, amma blackboard turn tutmayıb (CLI işlərin chat thread-i yox).",
             "Telegram üzərindən real söhbət axını L1–L4 yaddaşı qızdıracaq."))
 
+    # 8. front-office coverage — every organ must be visible from the front door.
+    if live:
+        findings.extend(_front_door_findings())
+
     findings.sort(key=lambda f: _LEVEL_RANK.get(f.level, 9))
     return findings
 
@@ -185,8 +228,7 @@ def _llm_prioritize(findings: list[Finding]) -> str | None:
 
 def assess(*, use_llm: bool = True) -> dict:
     """Machine-readable assessment: snapshot-derived findings (+ optional AI ranking)."""
-    snap = sense.snapshot()
-    findings = observe_state(snap)
+    findings = observe_state()  # live mode — includes front-door coverage
     return {
         "findings": [f.as_dict() for f in findings],
         "risk_count": sum(1 for f in findings if f.level == "risk"),
@@ -196,8 +238,7 @@ def assess(*, use_llm: bool = True) -> dict:
 
 def brief(*, use_llm: bool = True) -> str:
     """Human-readable proactive board — the advisor's voice. Azerbaijani."""
-    snap = sense.snapshot()
-    findings = observe_state(snap)
+    findings = observe_state()  # live mode — includes front-door coverage
     lines = ["=== RAMIN OS — Məsləhətçi (proaktiv baxış) ==="]
     if not findings:
         lines.append("Hər şey qaydasında — kritik ziddiyyət/risk görünmür.")

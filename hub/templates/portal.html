@@ -70,6 +70,8 @@ nav{flex:1;overflow-y:auto;padding:12px 10px;scrollbar-width:thin;scrollbar-colo
 .dot.up{background:var(--ok)} .dot.down{background:var(--bad)} .dot.na{background:var(--line2)}
 .badge{font-size:10px;font-weight:700;border-radius:999px;padding:2px 7px;
   background:var(--warn-soft);color:var(--warn)}
+.ktag{font-size:9px;font-weight:700;letter-spacing:.5px;flex:none;
+  color:var(--acc);background:var(--acc-soft);border-radius:4px;padding:1px 5px}
 
 /* collapsible drawer (Arxiv / Digər dünyalar) */
 .drawer{width:100%;display:flex;align-items:center;gap:8px;padding:7px 10px;margin-top:14px;
@@ -263,7 +265,8 @@ button.tile:hover{border-color:var(--acc-line)}
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let SERVICES = [], EXTERNAL = [], statusMap = {}, current = null;
+let SERVICES = [], EXTERNAL = [], CAPS = [], statusMap = {}, current = null;
+const CAP_KIND = {slash:'CHAT ƏMRİ', cli:'TERMİNAL', agent:'AGENT', extension:'BRAUZER'};
 
 function ago(ts){
   if(!ts) return '';
@@ -292,6 +295,7 @@ async function init(){
   applyTheme(new URLSearchParams(location.search).get('theme') || th);
   loadBrand();
   SERVICES = await (await fetch('/api/services')).json();
+  try{ CAPS = await (await fetch('/api/capabilities')).json(); }catch(e){ CAPS = []; }
   try{ EXTERNAL = await (await fetch('/api/external')).json(); }catch(e){ EXTERNAL = []; }
   renderNav();
   await refreshStatus();
@@ -333,6 +337,21 @@ function renderNav(){
         <span class="dot" data-dot="${s.key}"></span>
       </button>`;
   });
+  /* Port-less organs — the sonarzum rule: every capability is ON the shelf,
+     with a card that says how to call it. No more motors rusting unseen. */
+  if(CAPS.length){
+    let ccat = null;
+    CAPS.forEach(c => {
+      const catName = 'Qabiliyyətlər · ' + (c.cat || 'Alət');
+      if(catName !== ccat){ ccat = catName; html += `<div class="cat">${esc(catName)}</div>`; }
+      html += `
+        <button data-cap="${c.key}" class="nav-item">
+          <span class="ic">${c.icon || '⚙️'}</span>
+          <span class="tx"><span class="n">${esc(c.name)}</span><span class="d">${esc(c.desc)}</span></span>
+          <span class="ktag">${CAP_KIND[c.kind] || 'ALƏT'}</span>
+        </button>`;
+    });
+  }
   html += `
     <div class="cat">Nəzarət</div>
     <button data-key="_health" class="nav-item">
@@ -377,6 +396,8 @@ function renderNav(){
   });
   $('nav').querySelectorAll('[data-ext]').forEach(b =>
     b.onclick = () => showExternal(EXTERNAL.find(e => e.key === b.dataset.ext)));
+  $('nav').querySelectorAll('[data-cap]').forEach(b =>
+    b.onclick = () => showCap(CAPS.find(c => c.key === b.dataset.cap)));
   paintExternalDots();
 }
 
@@ -386,7 +407,7 @@ function stage(which, key){
   $('notunnel').classList.toggle('on', which === 'notunnel');
   $('frame').style.display = which === 'tool' ? 'block' : 'none';
   $('nav').querySelectorAll('.nav-item,.wrow').forEach(b =>
-    b.classList.toggle('active', (b.dataset.key || b.dataset.ext) === key));
+    b.classList.toggle('active', (b.dataset.key || b.dataset.ext || b.dataset.cap) === key));
 }
 
 /* The hub probes services SERVER-side, so a green dot only means "alive on the
@@ -538,6 +559,34 @@ function showExternal(e){
     </div>`;
 }
 
+/* Capability card — a port-less organ's face: what it is, HOW to call it. */
+function showCap(c){
+  if(!c) return;
+  current = null;
+  stage('ext', c.key);
+  $('crumb').textContent = 'Qabiliyyətlər';
+  $('crumb2').innerHTML = ` <span class="sep">/</span> <b style="color:var(--ink)">${esc(c.name)}</b>`;
+  $('barstatus').textContent = '';
+  $('barOpen').style.display = 'none';
+  $('ext').innerHTML = `<div class="xcard">
+      <div class="world">Qabiliyyət · ${esc(CAP_KIND[c.kind] || 'Alət')} · ${esc(c.cat || '')}</div>
+      <h2>${c.icon || '⚙️'} ${esc(c.name)}</h2>
+      <div class="desc">${esc(c.desc)}</div>
+      <div class="xrow"><span class="mono" style="white-space:pre-wrap;line-height:1.7">${esc(c.invoke || '')}</span></div>
+      <div class="xrow"><button class="ghostbtn" style="margin-top:0" id="capCopy">⧉ Əmri kopyala</button></div>
+      ${c.note ? `<div class="xnote">${esc(c.note)}</div>` : ''}
+      <div class="xrow" style="font-size:12px;color:var(--mut)">
+        Ev: <span class="mono">${esc(c.home || '')}/</span>
+        ${c.docs ? `· Sənəd: <span class="mono">${esc(c.docs)}</span>` : ''}</div>
+    </div>`;
+  const btn = $('capCopy');
+  btn.onclick = async () => {
+    try{ await navigator.clipboard.writeText(c.invoke || ''); btn.textContent = '✓ kopyalandı'; }
+    catch(e){ btn.textContent = 'kopyalanmadı'; }
+    setTimeout(() => btn.textContent = '⧉ Əmri kopyala', 1600);
+  };
+}
+
 function paintBarStatus(){
   const el = $('barstatus');
   if(!current){ el.textContent = ''; return; }
@@ -602,6 +651,12 @@ async function showHealth(){
       ${a.drift.map(d => `✗ ${d.port} (${d.why.join(', ')}) → services.json-a əlavə et`).join('<br>')}</div>` : '';
   const mdir = a.missing_dir.length ? `<div class="warnbox amber"><b>⚠ Reyestrdə var, qovluq yox</b><br>
       ${a.missing_dir.map(s => `✗ ${s.key} → ${s.dir}`).join('<br>')}</div>` : '';
+  const org = a.organs || {};
+  const orgbox = (org.unaccounted || []).length ? `<div class="warnbox"><b>⚠ Vitrinsiz orqanlar</b>
+      — qovluq var, ön qapıda kartı yoxdur (sonarzum dərsi):<br>
+      ${org.unaccounted.map(n => `✗ ${esc(n)}/ → services.json: servis, capability və ya audit_ignore_dirs`).join('<br>')}</div>` : '';
+  const homebox = (org.missing_home || []).length ? `<div class="warnbox amber"><b>⚠ Qabiliyyət evi itib</b><br>
+      ${org.missing_home.map(m => `✗ ${esc(m.key)} → ${esc(m.home)}`).join('<br>')}</div>` : '';
   const m = a.monitor || {};
   const mon = `<div class="monrow">🔄 Avto-monitor: ${m.enabled ? 'AKTİV — hər ' + m.interval_min + ' dəq' : 'söndürülüb'}
       · son yoxlama: ${m.last_run || '—'}${m.last_alert ? ' · son Telegram: ' + m.last_alert : ''} · drift olsa Telegram</div>`;
@@ -611,11 +666,11 @@ async function showHealth(){
         <h2 style="font-size:17px">Sistem Sağlamlığı</h2>${okBadge}</div>
       <div style="font-size:12.5px;color:var(--mut);margin-top:6px">
         Reyestr: ${a.counts.registered} · dinləyən: ${a.counts.listening} · kodda istinad: ${a.counts.referenced}
-        · aralıq ${a.counts.range[0]}–${a.counts.range[1]}</div>
+        · qabiliyyət kartı: ${a.counts.capabilities ?? 0} · aralıq ${a.counts.range[0]}–${a.counts.range[1]}</div>
       ${mon}
       <div class="hcard"><h4>Marketing OS — ${a.services.length} xidmət</h4>${rows}</div>
       <div class="hcard"><h4>Digər dünyalar — ${EXTERNAL.length} qeyd</h4>${xrows}</div>
-      ${drift}${mdir}
+      ${drift}${mdir}${orgbox}${homebox}
       <button class="ghostbtn" onclick="showHealth()">↻ Yenidən yoxla</button>
     </div>`;
 }

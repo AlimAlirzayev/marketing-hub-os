@@ -76,6 +76,15 @@ def services() -> JSONResponse:
     return JSONResponse(_cards())
 
 
+@app.get("/api/capabilities")
+def capabilities() -> JSONResponse:
+    """Port-less organs (slash commands, CLIs, gateway agents) — the sonarzum
+    rule: every capability gets a sidebar card saying HOW to invoke it, so no
+    organ ever again rusts invisible outside the front door."""
+    with open(REGISTRY, encoding="utf-8") as f:
+        return JSONResponse(json.load(f).get("capabilities", []))
+
+
 @app.get("/api/brand")
 def brand_info() -> JSONResponse:
     """Brand identity for the shell header — from brand.py (BRAND env), so the
@@ -178,10 +187,14 @@ def audit() -> JSONResponse:
 
 
 def _signature(a: dict) -> tuple:
-    """The 'problem set' — drift ports + missing dirs. Telegram fires only when
-    this changes, so a persistent drift is reported once, not every cycle."""
+    """The 'problem set' — drift ports, missing dirs, unshowcased organs.
+    Telegram fires only when this changes, so a persistent drift is reported
+    once, not every cycle."""
+    org = a.get("organs", {})
     return (tuple(d["port"] for d in a["drift"]),
-            tuple(s["key"] for s in a["missing_dir"]))
+            tuple(s["key"] for s in a["missing_dir"]),
+            tuple(org.get("unaccounted", [])),
+            tuple(m["key"] for m in org.get("missing_home", [])))
 
 
 def _monitor_loop() -> None:
@@ -194,10 +207,10 @@ def _monitor_loop() -> None:
             MONITOR["last_ok"] = a["ok"]
             sig = _signature(a)
             if MONITOR["enabled"] and sig != _last_sig:
-                if sig != ((), ()):  # a problem exists (new or changed)
+                if any(sig):  # a problem exists (new or changed)
                     if audit_services._send_telegram(audit_services._telegram_text(a)):
                         MONITOR["last_alert"] = MONITOR["last_run"]
-                elif _last_sig not in (None, ((), ())):  # problem just cleared
+                elif _last_sig is not None and any(_last_sig):  # problem just cleared
                     audit_services._send_telegram(
                         "✅ Marketing OS — drift aradan qalxdı, hər şey qaydasında.")
                     MONITOR["last_alert"] = MONITOR["last_run"]
