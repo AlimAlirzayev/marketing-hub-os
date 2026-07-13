@@ -37,6 +37,13 @@ _WORKER_IDLE = 2.0   # seconds to wait when the queue is empty
 # so without this it would only learn about the other machine's pushed updates
 # when a human said so. Minutes between checks; 0 disables.
 _SYNC_MIN = float(os.getenv("ENGINE_SYNC_MIN", "15"))
+_SIGNAL_RADAR_TICK = float(os.getenv("SIGNAL_RADAR_TICK_SECONDS", "3600"))
+_SIGNAL_RADAR_ENABLED = os.getenv("SIGNAL_RADAR_ENABLED", "1").lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
 
 
 def _supervise(name: str, step, idle: float) -> None:
@@ -81,6 +88,29 @@ def _sync_forever() -> None:
         except Exception as exc:  # noqa: BLE001
             print(f"[supervisor] engine sync error: {exc}")
         _stop.wait(max(_SYNC_MIN, 1.0) * 60)
+
+
+def _signal_radar_forever() -> None:
+    """Run the read-only public signal radar when due.
+
+    This is research intake only: public sources in, local lab/report artifacts
+    out. Provider setup, spending, publishing, connector use, and hardware
+    actions still require the normal human approval rails.
+    """
+    while not _stop.is_set():
+        try:
+            from . import signal_radar
+
+            summary = signal_radar.run_if_due()
+            if not summary.get("skipped"):
+                print(f"[supervisor] signal radar: {summary}")
+                try:
+                    sense.emit("signal-radar", "public signal intake", summary)
+                except Exception:
+                    pass
+        except Exception as exc:  # noqa: BLE001
+            print(f"[supervisor] signal radar error: {exc}")
+        _stop.wait(max(_SIGNAL_RADAR_TICK, 60.0))
 
 
 def _start(name: str, target) -> threading.Thread:
@@ -130,6 +160,8 @@ def main() -> None:
         _start("bot", _bot_forever)
     if _SYNC_MIN > 0:
         _start("engine-sync", _sync_forever)
+    if _SIGNAL_RADAR_ENABLED:
+        _start("signal-radar", _signal_radar_forever)
 
     print("[supervisor] running. Ctrl+C to stop.")
     try:

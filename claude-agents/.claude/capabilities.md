@@ -132,6 +132,34 @@ Groq Whisper (free key, fast) → local faster-whisper (offline; blocked until
 IT installs VC++ redist) → HF `whisper-large-v3` Space (free). See
 `video-studio/transcribe.py`.
 
+### media-download — pull a video/audio from a social URL  *(proven 2026-07-03)*
+
+| # | Provider | Tier | Free quota | Quota check | How invoked | Notes |
+|---|----------|------|-----------|-------------|-------------|-------|
+| 1 | **yt-dlp** (venv) | free | unlimited | n/a | `yt-dlp -x --audio-format mp3 --ffmpeg-location video-studio/tools/ffmpeg-8.1.1-essentials_build/bin <url>` | Works for YouTube/TikTok anonymously. Instagram = login wall; `--cookies-from-browser` fails while Edge/Chrome run (locked DB, issue #7271). |
+| 2 | **IG embed + Googlebot UA** | free | unlimited | n/a | GET `instagram.com/reel/<code>/embed/captioned/` with Googlebot UA → double-JSON-escaped `video_url` in HTML → download mp4 with browser UA + IG referer | **Proven.** Also yields og:title/description (caption, author) for content ID. See brain playbook `playbook-instagram-reel-download-without-login-embed-caption`. |
+| 3 | **Apify** `instagram-scraper` | metered | monthly platform credits | `GET /v2/users/me` then try run (403 `platform-feature-disabled` = limit hit) | run-sync-get-dataset-items | Account `ivory_hive` FREE plan hit its monthly hard limit 2026-07. Check before relying. |
+
+InstaFix mirrors (ddinstagram/kkinstagram) are DNS/cert-blocked on the corporate
+network — skip them. Audio extract afterwards: video-studio portable ffmpeg,
+`-vn -codec:a libmp3lame -b:a 192k`.
+
+### url-content-access — READ and SEE any link the user shares  *(proven 2026-07-10)*
+
+**Standing rule: never answer "bu linki aça bilmirəm" until this whole chain
+has been tried.** The organs exist; coordinate them like a body.
+
+| # | Organ | What it gets | How invoked | Notes |
+|---|-------|--------------|-------------|-------|
+| 1 | **WebFetch** (+ follow redirects) | page text, og-meta, author | fetch original URL, then the redirect URL it returns | LinkedIn share-links 307-redirect to the canonical post URL which often renders public content — the redirect itself leaks the author handle. **Proven on a LinkedIn post.** |
+| 2 | **yt-dlp** | the actual video/audio file | see media-download section above; works on LinkedIn ugcPost videos anonymously | **Proven:** 9.5MB LinkedIn video downloaded first try. |
+| 3 | **ffmpeg frames → vision** | Claude actually SEES the video | extract N frames (`ffmpeg -ss <t> -frames:v 1`) at duration/N intervals → Read each jpg | **Proven:** 6-frame analysis of a 69s video; caught that a text summary of the same post was wrong. Full chain in brain playbook. |
+| 4 | **Apify actors** (token in .env) | corpora: a company's/profile's whole feed | `harvestapi/linkedin-company-posts` etc. — no-cookie actors; input schema via `GET /v2/acts/<id>/builds/default/openapi.json` | For bulk reference-mining (e.g. a creator's entire posting pattern), not single posts. Check platform-credit limit first. |
+| 5 | **doit / Playwright attach** | anything auth-walled, as the logged-in user | `doit/` drives Chrome/Edge under the user's own session (`doit/.profile-chrome` exists; playwright installed) | Last resort; visible window; never for credentials we don't own. |
+
+Escalate 1→5, stop at first success. If ALL fail, say exactly which organs
+were tried and why each failed — never a bare "I can't".
+
 ### llm — reasoning, scoring, copy (the "brain" steps)
 
 **20/80 hybrid (the cost rule):** route ~20% — high-level planning, final

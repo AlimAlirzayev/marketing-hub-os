@@ -30,10 +30,13 @@ CAPABILITY_PATHS = [
     ("Knowledge Core", "brain", "Recall and reflect loop with optional private TEI/OpenAI-compatible embeddings."),
     ("Daily briefing", "briefing_panel.py", "Executive CX and ads briefing panel."),
     ("Agent Radar", "gateway/agent_radar.py", "Agent governance, sandbox scoring, and automatic Marketing OS scan."),
+    ("Public Signal Radar", "gateway/signal_radar.py", "Read-only public signal intake that source-checks trends into lab notes, prototype backlog, and reports."),
     ("Agent Permission Manifest", "config/agent_permissions.json", "Fail-closed capability boundaries for internal agents and MCP workflows."),
     ("Context7 Docs Grounding", "docs/CONTEXT7_GROUNDING.md", "Read-only current documentation layer for external library/API work."),
     ("Hugging Face Opportunity Radar", "gateway/hf_radar.py", "Governed HF model, MCP, Spaces, and private RAG opportunity scoring."),
     ("FLORA AI Creative MCP", "gateway/flora_ai.py", "Governed draft-media MCP bridge for FLORA Techniques, assets, and creative generation."),
+    ("Notion Workers", "gateway/notion_workers.py", "Governed Notion Custom Agent tools for draft handoffs and action risk screening."),
+    ("Marketing Certification Coach", "certification_coach", "Ethical certification mentor with source-linked roadmaps, persistent Journey Engine, readiness gates, local vector knowledge index, learner memory, original mock tests, RAG answers, proof tasks, and approval checkpoints."),
     ("CX Command Center", "cx-command-center", "Customer complaint radar, AI triage, optional private HF sentiment, SLA, and draft-only resolution planning."),
     ("Ads Studio", "ads-studio", "Meta ads performance reporting and campaign analytics."),
     ("Conversions API", "meta-capi", "CRM to Meta CAPI and pixel/CAPI gateway."),
@@ -45,6 +48,7 @@ CAPABILITY_PATHS = [
     ("Publisher", "publisher", "Publish package planning and Postiz/manual routing."),
     ("Audio Studio", "audio-studio", "Music, SFX, TTS, voice references, and audio generation workflows."),
     ("Video Studio", "video-studio", "Video editing, Remotion, motion graphics, and clip pipeline."),
+    ("Media Studio / AI UGC Pack", "mediaforge", "Directed FLORA video packages plus draft-only AI UGC persona, script, voice, economics, QA, safe resource readiness, browser-run checkpoints, and dry-run handoff."),
     ("Claude Code control plane", "claude-agents", "Claude subagents, MCP setup, slash command conventions."),
 ]
 

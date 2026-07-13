@@ -108,6 +108,41 @@ Agent capabilities are governed by `config/agent_permissions.json`. Add or
 update a manifest entry before expanding any agent, MCP server, or workflow.
 See [docs/CONTEXT7_GROUNDING.md](docs/CONTEXT7_GROUNDING.md).
 
+## Notion Workers
+
+Notion Workers are wired as a governed Notion Custom Agent helper surface, not a
+local service. The first worker lives in
+`notion-workers/ramin-os-agent-tools` and exposes read-only/draft-only tools for
+Ramin-OS action screening and module handoff preparation.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-notion-workers.ps1
+python -m gateway.notion_workers doctor
+```
+
+Login, deploy, worker secrets, OAuth, real sync triggers, and webhook URLs need
+a human checkpoint. See [docs/NOTION_WORKERS.md](docs/NOTION_WORKERS.md).
+
+## Marketing Certification Coach
+
+`certification_coach/` is the governed exam-prep mentor for marketing
+certifications. It ranks official-source certification paths, builds a weekly
+roadmap, runs a persistent Journey Engine with readiness gates, builds a local
+vector knowledge index, stores mock-attempt learner memory, answers grounded
+mentor questions, generates original mock questions, and keeps account login,
+payment, booking, live exams, and certificate publishing behind human
+checkpoints.
+
+```powershell
+python -m uvicorn certification_coach.server:app --port 8880
+```
+
+The module is registered in `services.json` as `certcoach` and governed by
+`config/agent_permissions.json` (`marketing_certification_coach`). It is
+strictly a coach; it never takes exams or answers live exam questions.
+Runtime knowledge state lives under `data/certification_coach/` and is
+regenerable/local.
+
 ## Setup order
 
 ### Step 1: Install Docker Desktop

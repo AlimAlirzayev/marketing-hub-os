@@ -34,6 +34,116 @@
       "required_controls": ["Maximum positive verdict is approved_for_sandbox."]
     },
     {
+      "id": "public_signal_radar",
+      "name": "Public Signal Radar",
+      "owner": "Ramin-OS",
+      "status": "approved_read_only",
+      "permissions": ["read_only", "sandbox"],
+      "allowed_inputs": [
+        "public URLs",
+        "public Telegram channel mirrors",
+        "official product documentation links",
+        "public model and provider announcements",
+        "synthetic trend notes"
+      ],
+      "blocked_inputs": [
+        "secrets",
+        "API keys",
+        "tokens",
+        "cookies",
+        "customer data",
+        "claims",
+        "policies",
+        "payment data",
+        "internal strategy",
+        "private documents",
+        ".env content",
+        "local or private network URLs"
+      ],
+      "allowed_outputs": [
+        "source-checked lab notes",
+        "prototype backlog items",
+        "module routing suggestions",
+        "risk controls",
+        "read-only reports"
+      ],
+      "blocked_actions": [
+        "read .env",
+        "print secrets",
+        "enable providers",
+        "install external agents automatically",
+        "call public inference with private data",
+        "spend credits",
+        "post publicly",
+        "send messages",
+        "handle payments",
+        "book services",
+        "change production data",
+        "access private network services",
+        "control camera, microphone, browser, desktop apps, or hardware devices"
+      ],
+      "required_controls": [
+        "Only fetch public http(s) sources; block localhost, private IPs, credentials-in-URL, .local, .lan, and .internal hosts.",
+        "Treat public channel posts as claims until official sources are linked.",
+        "Write only to lab, data/signal_radar, output/signal-radar, and prototype backlog paths.",
+        "Provider integration, paid runs, connector enablement, publishing, account login, camera/mic capture, and hardware actions require human approval."
+      ]
+    },
+    {
+      "id": "notion_workers",
+      "name": "Notion Workers",
+      "owner": "Ramin-OS",
+      "status": "sandbox_draft_only",
+      "permissions": ["read_only", "draft_only", "approval_required"],
+      "allowed_inputs": [
+        "public or redacted campaign briefs",
+        "synthetic test prompts",
+        "approved non-sensitive project notes",
+        "public docs questions",
+        "redacted handoff requests"
+      ],
+      "blocked_inputs": [
+        "secrets",
+        "API keys",
+        "tokens",
+        "cookies",
+        "customer data",
+        "claims",
+        "policies",
+        "payment data",
+        "internal policies",
+        "unredacted private strategy",
+        ".env content"
+      ],
+      "allowed_outputs": [
+        "draft handoff packages",
+        "risk screening verdicts",
+        "module routing suggestions",
+        "approval checklists",
+        "redaction reminders"
+      ],
+      "blocked_actions": [
+        "read .env",
+        "print secrets",
+        "post publicly",
+        "send replies",
+        "handle payments",
+        "access payments",
+        "deploy workers without approval",
+        "push or pull worker secrets without approval",
+        "expose webhook URLs",
+        "call private network services",
+        "write production data"
+      ],
+      "required_controls": [
+        "Keep Notion Worker tools read-only or draft-only unless a new manifest entry and human checkpoint approve wider scope.",
+        "Use local smoke tests with --no-dotenv by default.",
+        "Login, deploy, env set/push/pull, OAuth start, real sync triggers, and webhook URL handling require human approval.",
+        "Webhooks must verify provider signatures before processing payloads.",
+        "Syncs must be previewed before real writes and must use pacers for upstream APIs."
+      ]
+    },
+    {
       "id": "flora_ai_mcp",
       "name": "FLORA AI Creative MCP",
       "owner": "Ramin-OS",
@@ -110,6 +220,65 @@
       "allowed_outputs": ["opportunity maps", "risk reports", "private-path recommendations"],
       "blocked_actions": ["call public inference with private data", "install Spaces as trusted tools"],
       "required_controls": ["Private data goes only to local/private endpoints."]
+    },
+    {
+      "id": "marketing_certification_coach",
+      "name": "Marketing Certification Coach",
+      "owner": "Ramin-OS",
+      "status": "draft_only_approval_gated",
+      "permissions": ["read_only", "draft_only", "approval_required"],
+      "allowed_inputs": [
+        "public certification metadata",
+        "official documentation links",
+        "user learning goals",
+        "self-assessment answers",
+        "redacted portfolio practice briefs",
+        "synthetic mock exam attempts"
+      ],
+      "blocked_inputs": [
+        "secrets",
+        "API keys",
+        "tokens",
+        "passwords",
+        "cookies",
+        "payment data",
+        "customer data",
+        "live exam questions",
+        "exam screenshots",
+        "exam dumps",
+        "proctoring session content"
+      ],
+      "allowed_outputs": [
+        "certification roadmaps",
+        "gated certification journeys",
+        "journey readiness reports",
+        "study plans",
+        "original mock questions",
+        "flashcard prompts",
+        "portfolio proof tasks",
+        "approval checklists",
+        "draft certificate-sharing copy"
+      ],
+      "blocked_actions": [
+        "take live exams",
+        "answer live exam questions",
+        "view live exam screens",
+        "bypass proctoring",
+        "log in as user",
+        "handle payments",
+        "book exams",
+        "submit exams",
+        "post publicly",
+        "send messages",
+        "access payments"
+      ],
+      "required_controls": [
+        "Exam prep only: the human takes every live assessment.",
+        "Verify official provider pages before registration, payment, booking, or exam launch.",
+        "Journey Engine must keep official exam setup blocked until source, study, drill, mock, repair, portfolio, readiness review, and human approval gates clear.",
+        "Credentialed actions, paid enrollment, proctored booking, live exam launch, and certificate publishing require human approval.",
+        "Practice questions must be original and must not reproduce live exam content, dumps, or screenshots."
+      ]
     },
     {
       "id": "ai_council_executor",

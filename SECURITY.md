@@ -47,6 +47,21 @@ Allowed next step after a good score: a narrow audition task with read-only
 access, no production credentials, logging enabled, and human review before any
 write/send/payment action.
 
+## Public Signal Radar
+
+Public Signal Radar (`gateway/signal_radar.py`) is approved only as a read-only
+public-source intake loop. It may fetch public http(s) sources, extract claims,
+attach official-source candidates, write local lab notes, update prototype
+backlog items, and produce reports. It must not read `.env`, secrets, customer
+data, claims, policies, private strategy, OAuth caches, or private documents.
+
+It must block localhost, private IPs, link-local addresses, `.local`, `.lan`,
+`.internal`, and URLs containing credentials. It must not enable providers,
+install agents, spend credits, post publicly, send messages, schedule posts,
+log in, control browser/desktop/camera/microphone/hardware, or change production
+data. Any useful signal that implies those actions becomes a prototype or
+approval-gated task first.
+
 ## Hugging Face Model And Tool Intake
 
 Hugging Face is treated as an external model/tool ecosystem, not as a trusted

@@ -7,7 +7,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from doit import envfile, keyscan  # noqa: E402
+from unittest import mock  # noqa: E402
+
+from doit import agent, envfile, keyscan  # noqa: E402
 
 # A realistic RapidAPI application key shape (msh ... jsn markers).
 _SAMPLE_KEY = "a1b2c3d4e5f6mshAbCdEf123456p1a2b3c4jsn0011223344ff"
@@ -72,3 +74,37 @@ def test_unknown_provider_is_handled_cleanly():
     res = agent.acquire("nonsense")
     assert res["ok"] is False
     assert "provider" in res["error"]
+
+
+# --- doctor: report the ONE precondition instead of failing a browser run ----
+
+def test_doctor_reports_a_borrowable_session():
+    with mock.patch.object(agent.profiles, "user_data_root", return_value="/fake"), \
+         mock.patch.object(agent.profiles, "find_profile",
+                           return_value=("/fake", "Profile 3", 12)):
+        diag = agent.doctor("rapidapi")
+    assert diag["ok"] is True
+    assert "Profile 3" in diag["message"]
+
+
+def test_doctor_names_the_one_human_step_when_no_session():
+    def _find(domain, channel):
+        # Google is signed in; the provider is not — the real-world case.
+        return ("/fake", "Profile 3", 67) if "google" in domain else None
+
+    with mock.patch.object(agent.profiles, "user_data_root", return_value="/fake"), \
+         mock.patch.object(agent.profiles, "find_profile", side_effect=_find):
+        diag = agent.doctor("rapidapi")
+    assert diag["ok"] is False
+    assert "sessiya YOXDUR" in diag["message"]
+    assert "Sign in with Google" in diag["message"]   # the password-free path
+
+
+def test_acquire_fails_fast_without_a_session_and_never_opens_a_browser():
+    with mock.patch.object(agent.profiles, "user_data_root", return_value="/fake"), \
+         mock.patch.object(agent.profiles, "find_profile", return_value=None), \
+         mock.patch.object(agent.profiles, "snapshot") as snap:
+        res = agent.acquire("rapidapi")
+    assert res["ok"] is False
+    assert res["needs_login"] is True
+    snap.assert_not_called()          # no browser work attempted

@@ -119,6 +119,21 @@ internal policies, or unredacted private strategy. Check generation cost before
 batches, and pass all final media through Video Studio QA plus Publisher dry-run
 before any post or schedule action.
 
+## Notion Workers
+
+Notion Workers are governed as a Notion Custom Agent helper surface for
+read-only screening and draft handoffs. The local worker project lives in
+`notion-workers/ramin-os-agent-tools` and is checked by `gateway.notion_workers`.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-notion-workers.ps1
+python -m gateway.notion_workers doctor
+python -m gateway.notion_workers report
+```
+
+Login, deploy, worker secrets, OAuth, real sync triggers, and webhook URL
+handling require a human checkpoint. See `docs/NOTION_WORKERS.md`.
+
 ## Use it today (CLI, no setup)
 
 ```powershell

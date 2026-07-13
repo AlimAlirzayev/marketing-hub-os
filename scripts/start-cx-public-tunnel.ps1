@@ -18,6 +18,40 @@ $pidFile = Join-Path $logDir "cloudflared-cx.pid"
 
 New-Item -ItemType Directory -Force -Path $tools, $logDir | Out-Null
 
+function Test-PublicHealth {
+    param([string]$Url)
+
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python) {
+        $code = @"
+import requests
+import sys
+session = requests.Session()
+session.trust_env = False
+try:
+    response = session.get(sys.argv[1] + "/api/health", timeout=20)
+    raise SystemExit(0 if response.ok and response.json().get("ok") else 1)
+except Exception:
+    raise SystemExit(1)
+"@
+        $script = [System.IO.Path]::GetTempFileName() + ".py"
+        Set-Content -Path $script -Value $code -Encoding UTF8
+        try {
+            & python $script $Url | Out-Null
+            return $LASTEXITCODE -eq 0
+        } finally {
+            Remove-Item -Force $script -ErrorAction SilentlyContinue
+        }
+    }
+
+    try {
+        $health = Invoke-RestMethod -Uri "$Url/api/health" -TimeoutSec 20
+        return [bool]$health.ok
+    } catch {
+        return $false
+    }
+}
+
 if (-not (Test-Path $cloudflared)) {
     $url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
     Write-Host "cloudflared download edilir..."
@@ -35,17 +69,13 @@ if (Test-Path $pidFile) {
                     ForEach-Object { $_.Matches.Value } |
                     Select-Object -Last 1
                 if ($existing) {
-                    try {
-                        $health = Invoke-RestMethod -Uri "$existing/api/health" -TimeoutSec 15
-                        if ($health.ok) {
-                            Write-Host "Public URL: $existing"
-                            exit 0
-                        }
-                    } catch {
-                        Write-Host "Movcud tunnel cavab vermir, yenisi yaradilir..."
-                        Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
-                        Remove-Item -Force $pidFile -ErrorAction SilentlyContinue
+                    if (Test-PublicHealth $existing) {
+                        Write-Host "Public URL: $existing"
+                        exit 0
                     }
+                    Write-Host "Movcud tunnel cavab vermir, yenisi yaradilir..."
+                    Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
+                    Remove-Item -Force $pidFile -ErrorAction SilentlyContinue
                 }
             }
         }
@@ -82,15 +112,11 @@ for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
     if ($publicUrl) {
         $healthOk = $false
         for ($i = 0; $i -lt 8; $i++) {
-            try {
-                $health = Invoke-RestMethod -Uri "$publicUrl/api/health" -TimeoutSec 15
-                if ($health.ok) {
-                    $healthOk = $true
-                    break
-                }
-            } catch {
-                Start-Sleep -Seconds 3
+            if (Test-PublicHealth $publicUrl) {
+                $healthOk = $true
+                break
             }
+            Start-Sleep -Seconds 3
         }
         if ($healthOk) {
             break

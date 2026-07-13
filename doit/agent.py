@@ -100,6 +100,63 @@ def _mid_auth(url: str, recipe: dict) -> bool:
     return _is_login(url, recipe) or "accounts." in url or "/sso" in url
 
 
+def doctor(provider: str = "rapidapi") -> dict:
+    """Say — BEFORE launching anything — whether a session exists to borrow.
+
+    doit inherits the operator's session; it never authenticates (Google OAuth
+    refuses automation-driven browsers by design). So the only precondition that
+    can block a fully autonomous run is: the operator has never signed in to the
+    provider in ANY local browser profile. That is an account fact, not a bug —
+    and it must be reported as one clean sentence instead of a failed browser run.
+    """
+    recipe = RECIPES.get(provider)
+    if not recipe:
+        return {"ok": False, "provider": provider, "error": f"tanınmayan provider: {provider}"}
+    domain = recipe.get("session_domain", "")
+    report: dict = {"ok": False, "provider": provider, "domain": domain, "profiles": []}
+
+    for ch in ("chrome", "msedge"):
+        if not profiles.user_data_root(ch):
+            continue
+        found = profiles.find_profile(domain, ch)
+        if found:
+            _root, prof, hits = found
+            report["profiles"].append({"browser": ch, "profile": prof, "cookies": hits})
+
+    if report["profiles"]:
+        best = report["profiles"][0]
+        report["ok"] = True
+        report["message"] = (
+            f"Sessiya hazırdır: {best['browser']} profili «{best['profile']}» "
+            f"({best['cookies']} {domain} cookie). doit login etmədən açarı gətirə bilər."
+        )
+        return report
+
+    # No provider session anywhere. Tell them the ONE human action that fixes it,
+    # and whether the identity provider they'd use is already signed in.
+    google = next(
+        (f for ch in ("chrome", "msedge")
+         if profiles.user_data_root(ch)
+         for f in [profiles.find_profile("google.com", ch)] if f),
+        None,
+    )
+    hint = (
+        f"Google sessiyan artıq var ({google[1]} profilində) — rapidapi.com-da "
+        "«Sign in with Google» bir kliklə keçəcək, parol soruşmayacaq."
+        if google else
+        "Əvvəlcə brauzerində hesab yarat/daxil ol."
+    )
+    report["message"] = (
+        f"{domain} üçün heç bir brauzer profilində sessiya YOXDUR — yəni bu hesaba "
+        "heç vaxt daxil olunmayıb. doit sessiya miras alır, özü login etmir "
+        "(Google OAuth avtomatlaşdırılmış brauzeri qəbul etmir).\n"
+        f"BİR DƏFƏLİK insan addımı: adi (avtomatlaşdırılmamış) brauzerində "
+        f"https://{domain} aç → daxil ol. {hint}\n"
+        "Sonra doit sessiyanı götürüb açarı tam avtonom gətirəcək."
+    )
+    return report
+
+
 def _needs_login(url: str, recipe: dict) -> bool:
     """Login detection can't trust URL markers alone: RapidAPI renders its
     login screen without an /auth or /login URL. Treat 'not on the dashboard'
@@ -146,15 +203,22 @@ def acquire(
     borrowed = None
     if not user_data_dir and borrow_session:
         found = profiles.find_profile(recipe.get("session_domain", ""), channel)
-        if found:
-            root, prof, hits = found
-            dest = os.path.join(HERE, f".session-{channel}")
-            try:
-                user_data_dir = profiles.snapshot(root, prof, dest)
-                borrowed = f"{prof} ({hits} cookie)"
-                _log(f"sessiya götürüldü: {channel} profili «{prof}» — login lazım deyil")
-            except Exception as exc:  # noqa: BLE001 — fall back to own profile
-                _log(f"sessiya surəti alınmadı ({exc}); öz profilimlə davam edirəm")
+        if not found:
+            # Fail FAST and actionably. Opening a browser here is pointless: with
+            # no session to inherit, doit would land on a login wall it is
+            # designed never to pass. One clean sentence beats a failed run.
+            diag = doctor(provider)
+            return {"ok": False, "provider": provider, "browser": channel,
+                    "env": env_path, "session": "yoxdur",
+                    "needs_login": True, "error": diag["message"]}
+        root, prof, hits = found
+        dest = os.path.join(HERE, f".session-{channel}")
+        try:
+            user_data_dir = profiles.snapshot(root, prof, dest)
+            borrowed = f"{prof} ({hits} cookie)"
+            _log(f"sessiya götürüldü: {channel} profili «{prof}» — login lazım deyil")
+        except Exception as exc:  # noqa: BLE001 — fall back to own profile
+            _log(f"sessiya surəti alınmadı ({exc}); öz profilimlə davam edirəm")
 
     profile_dir = user_data_dir or os.path.join(HERE, f".profile-{channel}")
     os.makedirs(profile_dir, exist_ok=True)

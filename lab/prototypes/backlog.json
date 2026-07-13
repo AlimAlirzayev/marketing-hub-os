@@ -1,0 +1,252 @@
+[
+  {
+    "topic": "Publisher privacy guard for child and family imagery",
+    "status": "do-now",
+    "score": 10,
+    "what": "Add a strong consent and minor-image safety checklist before any public media package.",
+    "integration_idea": "Publisher and Media Studio flag minors/family imagery, ask for consent proof, and prefer synthetic or non-identifiable alternatives.",
+    "prototype": {
+      "name": "Publisher Privacy Guard",
+      "goal": "Prevent unsafe use of child, family, event, or UGC imagery in public marketing.",
+      "acceptance": [
+        "Minor/family imagery forces human review before publishing.",
+        "Checklist asks for consent, audience scope, necessity, and safer substitutions.",
+        "External AI editing/generation with minor imagery is blocked unless explicitly approved."
+      ]
+    },
+    "dependencies": [
+      "publisher",
+      "atelier",
+      "mediaforge",
+      "config/agent_permissions.json"
+    ],
+    "risks": [
+      "AI manipulation harm",
+      "consent gap",
+      "public reposting risk",
+      "brand safety failure"
+    ],
+    "next_action": "Add this checklist to the next Publisher or Media Studio safety pass.",
+    "id": "publisher-privacy-guard",
+    "source": "Perplexity Discover",
+    "window": "2026-07-10",
+    "evidence": [
+      {
+        "title": "📸 Parents Warned Not to Post Children's Photos Online",
+        "url": "https://t.me/perplexity/1034"
+      },
+      {
+        "title": "official source",
+        "url": "https://www.nationalcrimeagency.gov.uk/news/new-guidance-for-parents-and-carers-as-ai-manipulated-images-of-children-become-a-growing-concern"
+      }
+    ],
+    "last_seen": "2026-07-10",
+    "first_seen": "2026-07-10"
+  },
+  {
+    "topic": "Public signal triage report",
+    "status": "prototype-soon",
+    "score": 9,
+    "what": "Turn public channel claims into source-checked lab notes with module routing and risk status.",
+    "integration_idea": "A read-only Signal Radar workflow that writes lab findings and prototype candidates without creating new services.",
+    "prototype": {
+      "name": "Public Signal Triage Report",
+      "goal": "Produce a dated report with claim, source, verification status, module fit, risk controls, and next action.",
+      "acceptance": [
+        "Every claim is marked verified, watch, prototype, do-now, or skip.",
+        "Official-source links are attached before provider/workflow recommendations.",
+        "No secrets, private data, customer data, or credentials are read or sent."
+      ]
+    },
+    "dependencies": [
+      "gateway/signal_radar.py",
+      "lab/knowledge",
+      "lab/prototypes"
+    ],
+    "risks": [
+      "hype intake",
+      "stale provider claims",
+      "source spoofing",
+      "service sprawl"
+    ],
+    "next_action": "Keep the supervisor loop enabled and review output/signal-radar reports.",
+    "id": "public-signal-triage-report",
+    "source": "Signal Radar",
+    "window": "2026-07-10",
+    "evidence": [],
+    "last_seen": "2026-07-10",
+    "first_seen": "2026-07-10"
+  },
+  {
+    "topic": "Official-source gate for model and provider claims",
+    "status": "do-now",
+    "score": 9,
+    "what": "Require official-source verification before a public claim becomes a provider, agent, permission, or workflow.",
+    "integration_idea": "Fail closed in Agent Radar/provider auditions unless official docs, pricing, model IDs, availability, and terms are checked.",
+    "prototype": {
+      "name": "Official Source Gate",
+      "goal": "Fail closed on unverified model/provider claims.",
+      "acceptance": [
+        "Provider claims cannot reach router/config changes without official source URLs.",
+        "Pricing, model IDs, availability, data policy, and region limits are rechecked before implementation.",
+        "Reports separate channel claims from verified facts."
+      ]
+    },
+    "dependencies": [
+      "gateway/agent_radar.py",
+      "config/agent_permissions.json",
+      "lab/knowledge"
+    ],
+    "risks": [
+      "provider hallucination",
+      "wrong model IDs",
+      "unexpected API spend"
+    ],
+    "next_action": "Use this gate before any new model/provider route.",
+    "id": "official-source-gate",
+    "source": "Perplexity Discover",
+    "window": "2026-07-10",
+    "evidence": [
+      {
+        "title": "❎ SpaceXAI Unveils Grok 4.5",
+        "url": "https://t.me/perplexity/1039"
+      },
+      {
+        "title": "official source",
+        "url": "https://x.ai/news/grok-4-5"
+      }
+    ],
+    "last_seen": "2026-07-10",
+    "first_seen": "2026-07-10"
+  },
+  {
+    "topic": "Creative capability audition for emerging media providers",
+    "status": "prototype-soon",
+    "score": 8,
+    "what": "Benchmark emerging media models against Ramin-OS needs before routing them into Media Studio, Atelier, or Mediagen.",
+    "integration_idea": "Synthetic benchmark pack with cost, safety, exact-text, brand-fit, and QA scoring.",
+    "prototype": {
+      "name": "Creative Capability Audition",
+      "goal": "Decide whether a media model is worth a governed provider path.",
+      "acceptance": [
+        "Uses only synthetic or approved/licensed assets.",
+        "Compares exact Azerbaijani text, prompt adherence, editing precision, cost, latency, and policy risk.",
+        "Produces a draft-only report; no provider route is added automatically."
+      ]
+    },
+    "dependencies": [
+      "atelier",
+      "mediagen",
+      "mediaforge",
+      "publisher"
+    ],
+    "risks": [
+      "private asset leakage",
+      "minor imagery",
+      "unlicensed references",
+      "paid generation cost"
+    ],
+    "next_action": "Define 5 synthetic benchmark briefs and expected scoring fields.",
+    "id": "creative-capability-audition",
+    "source": "Perplexity Discover",
+    "window": "2026-07-10",
+    "evidence": [
+      {
+        "title": "♊ Google Releases Nano Banana 2 Lite",
+        "url": "https://t.me/perplexity/1031"
+      },
+      {
+        "title": "official source",
+        "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-omni-flash-nano-banana-2-lite/"
+      }
+    ],
+    "last_seen": "2026-07-10",
+    "first_seen": "2026-07-10"
+  },
+  {
+    "topic": "Work package operating pattern for Ramin-OS",
+    "status": "do-now",
+    "score": 8,
+    "what": "Substantial, reviewable work across files, tools, connectors, scheduled tasks, and artifacts.",
+    "integration_idea": "Strengthen job packaging: source status, plan, artifact, approval checklist, and reviewable output.",
+    "prototype": {
+      "name": "Work Package Skill",
+      "goal": "Turn broad work requests into governed, reviewable work packages.",
+      "acceptance": [
+        "Every package records sources, redaction status, deliverables, risk gates, and approvals.",
+        "Outward actions and scheduled tasks park for approval.",
+        "Output appears in the panel deliverables gallery."
+      ]
+    },
+    "dependencies": [
+      "gateway/workspace_agent.py",
+      "gateway/panel.py",
+      "publisher",
+      "brain"
+    ],
+    "risks": [
+      "connector overreach",
+      "local file exposure",
+      "unapproved scheduled sending"
+    ],
+    "next_action": "Fold this pattern into the next workspace-agent or panel refinement.",
+    "id": "chatgpt-work-operating-pattern",
+    "source": "Perplexity Discover",
+    "window": "2026-07-10",
+    "evidence": [
+      {
+        "title": "💼 OpenAI Releases GPT-5.6 and ChatGPT Work",
+        "url": "https://t.me/perplexity/1045"
+      },
+      {
+        "title": "official source",
+        "url": "https://learn.chatgpt.com/docs/get-started-with-work"
+      }
+    ],
+    "last_seen": "2026-07-10",
+    "first_seen": "2026-07-10"
+  },
+  {
+    "topic": "Sensor-backed ambient agent pattern",
+    "status": "prototype-soon",
+    "score": 7,
+    "what": "A local agent pattern that combines camera, voice, sensor readings, and memory into a status surface.",
+    "integration_idea": "Prototype with mock sensors first; later adapt to an office/lab pulse or local hardware demo.",
+    "prototype": {
+      "name": "Sensor-backed Ambient Agent",
+      "goal": "Explore local sensor/context patterns without touching real devices by default.",
+      "acceptance": [
+        "Initial prototype uses mock images and JSON sensor readings.",
+        "Camera, microphone, serial, Arduino, and actuation are disabled by default.",
+        "Any real hardware, voice, or API spend requires human approval."
+      ]
+    },
+    "dependencies": [
+      "lab/prototypes",
+      "gateway approval rail",
+      "brain local memory"
+    ],
+    "risks": [
+      "camera privacy",
+      "microphone privacy",
+      "device actuation",
+      "API spend"
+    ],
+    "next_action": "Write a mock-only proof spec if the lab needs a hardware-adjacent demo.",
+    "id": "sensor-backed-ambient-agent",
+    "source": "Perplexity Discover",
+    "window": "2026-07-10",
+    "evidence": [
+      {
+        "title": "🔄 Now Plants Can Talk to ChatGPT",
+        "url": "https://t.me/perplexity/1028"
+      },
+      {
+        "title": "official source",
+        "url": "https://github.com/openai/planttalk"
+      }
+    ],
+    "last_seen": "2026-07-10",
+    "first_seen": "2026-07-10"
+  }
+]

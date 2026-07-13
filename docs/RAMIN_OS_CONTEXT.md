@@ -1,6 +1,6 @@
 # RAMIN OS System Context
 
-Generated UTC: 2026-07-01T12:20:31Z
+Generated UTC: 2026-07-10T10:46:09Z
 
 ## Mission
 
@@ -34,8 +34,11 @@ a disconnected side project.
 | atelier | Kreativ Studiya | 8820 | Kontent | uvicorn | atelier.app:app | /api/health |
 | price | Qiymət Kəşfiyyatı | 8830 | Kəşfiyyat | uvicorn | server:app | /api/health |
 | seo | SEO Studiyası | 8860 | Kontent | uvicorn | seo.server:app | /api/health |
-| mediaforge | Media Rejissoru | 8870 | Kontent | uvicorn | mediaforge.server:app | /api/health |
+| mediaforge | Media Studio | 8870 | Kontent | uvicorn | mediaforge.server:app | /api/health |
+| certcoach | Sertifikat Mentoru | 8880 | Təlim | uvicorn | certification_coach.server:app | /api/health |
+| panel | İdarəetmə Mərkəzi | 8890 | Sistem | uvicorn | gateway.panel:app | /api/health |
 | hq | Baş İqamətgah (klassik) | 8501 | Sistem | streamlit | app.py | / |
+| mediagen | Media Generatoru | 8765 | Kontent | uvicorn | mediagen.server:app | /api/health |
 
 ## Capability Map
 
@@ -50,10 +53,13 @@ a disconnected side project.
 | Knowledge Core | `brain` | yes | Recall and reflect loop with optional private TEI/OpenAI-compatible embeddings. |
 | Daily briefing | `briefing_panel.py` | yes | Executive CX and ads briefing panel. |
 | Agent Radar | `gateway/agent_radar.py` | yes | Agent governance, sandbox scoring, and automatic Marketing OS scan. |
+| Public Signal Radar | `gateway/signal_radar.py` | yes | Read-only public signal intake that source-checks trends into lab notes, prototype backlog, and reports. |
 | Agent Permission Manifest | `config/agent_permissions.json` | yes | Fail-closed capability boundaries for internal agents and MCP workflows. |
 | Context7 Docs Grounding | `docs/CONTEXT7_GROUNDING.md` | yes | Read-only current documentation layer for external library/API work. |
 | Hugging Face Opportunity Radar | `gateway/hf_radar.py` | yes | Governed HF model, MCP, Spaces, and private RAG opportunity scoring. |
 | FLORA AI Creative MCP | `gateway/flora_ai.py` | yes | Governed draft-media MCP bridge for FLORA Techniques, assets, and creative generation. |
+| Notion Workers | `gateway/notion_workers.py` | yes | Governed Notion Custom Agent tools for draft handoffs and action risk screening. |
+| Marketing Certification Coach | `certification_coach` | yes | Ethical certification mentor with source-linked roadmaps, persistent Journey Engine, readiness gates, local vector knowledge index, learner memory, original mock tests, RAG answers, proof tasks, and approval checkpoints. |
 | CX Command Center | `cx-command-center` | yes | Customer complaint radar, AI triage, optional private HF sentiment, SLA, and draft-only resolution planning. |
 | Ads Studio | `ads-studio` | yes | Meta ads performance reporting and campaign analytics. |
 | Conversions API | `meta-capi` | yes | CRM to Meta CAPI and pixel/CAPI gateway. |
@@ -65,6 +71,7 @@ a disconnected side project.
 | Publisher | `publisher` | yes | Publish package planning and Postiz/manual routing. |
 | Audio Studio | `audio-studio` | yes | Music, SFX, TTS, voice references, and audio generation workflows. |
 | Video Studio | `video-studio` | yes | Video editing, Remotion, motion graphics, and clip pipeline. |
+| Media Studio / AI UGC Pack | `mediaforge` | yes | Directed FLORA video packages plus draft-only AI UGC persona, script, voice, economics, QA, safe resource readiness, browser-run checkpoints, and dry-run handoff. |
 | Claude Code control plane | `claude-agents` | yes | Claude subagents, MCP setup, slash command conventions. |
 
 ## Agent Governance State

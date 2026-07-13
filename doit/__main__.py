@@ -37,7 +37,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--user-data-dir", default=None, help="öz real brauzer profilinin User Data qovluğu")
     ap.add_argument("--profile-directory", default=None, help="profil adı (məs. Default)")
     ap.add_argument("--subscribe-url", default=None, help="bir host-un RapidAPI səhifəsi (pulsuz plana abunə üçün)")
+    ap.add_argument("--check", action="store_true",
+                    help="heç nə açmadan yoxla: miras alına bilən sessiya varmı?")
     args = ap.parse_args(argv)
+
+    if args.check:
+        diag = agent.doctor(args.provider)
+        print(f"[doit] {diag.get('message', diag.get('error', '?'))}")
+        return 0 if diag.get("ok") else 2
 
     res = agent.acquire(
         args.provider, browser=args.browser, headless=args.headless, env_path=args.env,

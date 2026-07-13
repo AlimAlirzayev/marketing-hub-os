@@ -168,8 +168,8 @@
     },
     {
       "key": "mediaforge",
-      "name": "Media Rejissoru",
-      "desc": "Bir cümlə -> rejissor səviyyəli promo video paketi (FLORA MCP backend)",
+      "name": "Media Studio",
+      "desc": "Rejissor səviyyəli video, UGC, voice, QA və publish-ready media paketi",
       "port": 8870,
       "dir": ".",
       "venv": ".venv",
@@ -181,6 +181,21 @@
       "cat": "Kontent",
       "hub_show": true,
       "order": 22
+    },
+    {
+      "key": "certcoach",
+      "name": "Sertifikat Mentoru",
+      "desc": "Etik marketinq sertifikat coach-u, roadmap, mock test və təsdiq xətti",
+      "port": 8880,
+      "dir": "certification_coach",
+      "venv": ".venv",
+      "cwd": ".",
+      "launch": "uvicorn",
+      "target": "certification_coach.server:app",
+      "health": "/api/health",
+      "icon": "🎓",
+      "cat": "Təlim",
+      "hub_show": true
     },
     {
       "key": "panel",

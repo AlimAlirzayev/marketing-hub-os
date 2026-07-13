@@ -22,11 +22,23 @@ import re
 import subprocess
 import sys
 
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 REGISTRY = os.path.join(ROOT, "services.json")
 
 _SKIP_DIRS = {".venv", ".audit-tools", "__pycache__", "node_modules", ".git",
-              "data", "browser_profiles", "tmp", "output", ".claude"}
+              "data", "browser_profiles", "tmp", "output", ".claude", "tests"}
+_NON_SERVICE_PORTS = {
+    # Local/private dependency endpoints, not Marketing OS HTTP services.
+    8080,  # TEI / OpenAI-compatible embedding sidecar
+    8199,  # Suno-compatible local music sidecar
+    8787,  # Whisper-compatible local transcription sidecar
+}
 _PORT_PATTERNS = [
     re.compile(r"--port[ \"']+(\d{4})"),
     re.compile(r"server\.port[ \"',:=]+(\d{4})"),
@@ -104,7 +116,7 @@ def audit_data() -> dict:
     referenced = referenced_ports(lo, hi)
 
     drift = []
-    for p in sorted((listening | referenced) - registered):
+    for p in sorted((listening | referenced) - registered - _NON_SERVICE_PORTS):
         why = []
         if p in listening:
             why.append("işləyir")
