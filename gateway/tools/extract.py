@@ -38,6 +38,18 @@ def _proxy() -> str | None:
     return (os.getenv("SCRAPER_PROXY") or os.getenv("BRIGHTDATA_PROXY") or "").strip() or None
 
 
+def _soup(html: str):
+    """Parse with lxml when available, else the stdlib parser. Without this a
+    host missing lxml raised FeatureNotFound inside fetch(), which the escalation
+    try/except swallowed — so EVERY page silently took the slow browser path
+    instead of the fast one. Degrade, don't misroute."""
+    from bs4 import BeautifulSoup
+    try:
+        return BeautifulSoup(html or "", "lxml")
+    except Exception:  # noqa: BLE001 — lxml absent/broken on this host
+        return BeautifulSoup(html or "", "html.parser")
+
+
 def _looks_thin(html: str) -> bool:
     """Did the fast path return too little real text to trust? A scraper's job is
     to GET the content, so we escalate to a real browser whenever the visible
@@ -46,8 +58,7 @@ def _looks_thin(html: str) -> bool:
     silently missing a JS-rendered page's content."""
     if not html:
         return True
-    from bs4 import BeautifulSoup
-    soup = BeautifulSoup(html, "lxml")
+    soup = _soup(html)
     for tag in soup(("script", "style", "noscript", "template")):
         tag.decompose()
     return len(re.sub(r"\s+", " ", soup.get_text(" ", strip=True))) < 300
@@ -96,8 +107,7 @@ def _fetch_browser(url: str, *, proxy: str | None, timeout: int) -> str:
 
 def clean_text(html: str) -> str:
     """Main-content plain text: drop chrome/scripts, prefer <article>/<main>."""
-    from bs4 import BeautifulSoup
-    soup = BeautifulSoup(html or "", "lxml")
+    soup = _soup(html)
     for tag in soup(_DROP_TAGS):
         tag.decompose()
     root = soup.find("article") or soup.find("main") or soup.body or soup
@@ -107,8 +117,7 @@ def clean_text(html: str) -> str:
 
 
 def page_title(html: str) -> str:
-    from bs4 import BeautifulSoup
-    soup = BeautifulSoup(html or "", "lxml")
+    soup = _soup(html)
     if soup.title and soup.title.string:
         return soup.title.string.strip()
     h1 = soup.find("h1")

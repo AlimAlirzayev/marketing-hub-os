@@ -11,4 +11,8 @@ uvicorn[standard]>=0.30
 rich>=13.7
 groq>=0.9
 cryptography>=42.0
+beautifulsoup4>=4.12
+lxml>=5.0
+pypdf>=4.0
+pytest>=8.0
 

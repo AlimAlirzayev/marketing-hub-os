@@ -63,6 +63,47 @@ class Fetch(unittest.TestCase):
         browser.assert_not_called()
 
 
+class ParserFallback(unittest.TestCase):
+    """Without lxml the module used to raise inside fetch(), get swallowed by the
+    escalation try/except, and silently send EVERY page down the slow browser
+    path. It must degrade to the stdlib parser instead of misrouting."""
+
+    def test_thin_check_still_correct_when_lxml_missing(self):
+        import bs4
+        real = bs4.BeautifulSoup
+
+        def no_lxml(markup, features=None, *a, **kw):
+            if features == "lxml":
+                raise bs4.FeatureNotFound("lxml not installed")
+            return real(markup, features, *a, **kw)
+
+        rich = "<html><body><main>" + ("word " * 200) + "</main></body></html>"
+        with patch.object(bs4, "BeautifulSoup", side_effect=no_lxml):
+            self.assertFalse(extract._looks_thin(rich))     # rich stays rich
+            self.assertTrue(extract._looks_thin("<html><body></body></html>"))
+
+    def test_fast_path_survives_missing_lxml(self):
+        import bs4
+        real = bs4.BeautifulSoup
+
+        def no_lxml(markup, features=None, *a, **kw):
+            if features == "lxml":
+                raise bs4.FeatureNotFound("lxml not installed")
+            return real(markup, features, *a, **kw)
+
+        class R:
+            status_code = 200
+            text = "<html><body><main>" + ("word " * 200) + "</main></body></html>"
+
+        with patch.object(bs4, "BeautifulSoup", side_effect=no_lxml), \
+             patch.object(extract.requests, "get", return_value=R()), \
+             patch.object(extract, "_fetch_browser") as browser:
+            _html, method = extract.fetch("https://site.test")
+
+        self.assertEqual(method, "requests")   # NOT silently escalated
+        browser.assert_not_called()
+
+
 class Clean(unittest.TestCase):
     def test_strips_chrome_and_keeps_article(self):
         html = ("<html><body><nav>MENU</nav><script>junk()</script>"
