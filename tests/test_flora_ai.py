@@ -1,3 +1,4 @@
+import shutil
 import unittest
 
 from gateway import flora_ai
@@ -44,6 +45,31 @@ class FloraAiMcpTests(unittest.TestCase):
         self.assertIn("claims", blocked_inputs)
         self.assertIn("post publicly", blocked_actions)
         self.assertIn("run unapproved paid batches", blocked_actions)
+
+
+class CrossMachineCommandTests(unittest.TestCase):
+    """settings.json is git-tracked, so it TRAVELS — carrying the Windows twin's
+    absolute path to its own vendored npx. A POSIX Path does not treat a backslash as
+    a separator, so that path defeated every name check here: the doctor reported a
+    perfectly working paid-Flora integration as broken on the VPS and the Mac, and the
+    transport was misread as plain stdio. Resolution now falls back to a local npx.
+    """
+
+    WIN = r"C:\Users\a.alirzayev\ramin-os\video-studio\tools\node-v24.15.0-win-x64\npx.cmd"
+
+    def test_basename_splits_a_windows_path_on_any_os(self):
+        self.assertEqual(flora_ai._basename(self.WIN), "npx.cmd")
+
+    @unittest.skipUnless(shutil.which("npx"), "node/npx not installed on this machine")
+    def test_a_foreign_absolute_path_resolves_to_the_local_npx(self):
+        resolved = flora_ai._resolve_command(self.WIN)
+        self.assertTrue(resolved, "a machine with npx must still be able to launch flora")
+        self.assertIn("npx", resolved.lower())
+
+    def test_transport_survives_a_windows_command(self):
+        server = {"command": self.WIN,
+                  "args": ["-y", "mcp-remote", flora_ai.FLORA_MCP_URL]}
+        self.assertEqual(flora_ai._flora_transport(server), "stdio_proxy_to_http")
 
 
 if __name__ == "__main__":

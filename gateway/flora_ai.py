@@ -103,7 +103,7 @@ def _flora_transport(server: dict[str, Any]) -> str:
         return str(server.get("type"))
     args = [str(item) for item in server.get("args") or []]
     command = str(server.get("command") or "")
-    command_name = Path(command).name.casefold() if command else ""
+    command_name = _basename(command).casefold()
     if command_name in {"npx", "npx.cmd", "npx.ps1"} and "mcp-remote" in args:
         return "stdio_proxy_to_http"
     if server.get("command"):
@@ -124,6 +124,39 @@ def _portable_npx_candidates() -> list[str]:
     if not tools_dir.exists():
         return []
     return [str(path) for path in sorted(tools_dir.rglob("npx.cmd"), reverse=True)]
+
+
+def _basename(command: str) -> str:
+    """Basename of a command from EITHER OS.
+
+    A POSIX Path does not treat '\\' as a separator, so Path(r'C:\\...\\npx.cmd').name
+    returns the WHOLE string on Linux/macOS — which is how the twin's Windows path
+    silently defeated every name check here.
+    """
+    return command.replace("\\", "/").rsplit("/", 1)[-1] if command else ""
+
+
+def _resolve_command(command: str) -> str:
+    """The command that would ACTUALLY launch the MCP on THIS machine.
+
+    settings.json is git-tracked, so it travels between the twins — and it currently
+    carries the Windows work PC's absolute path to its own vendored npx. That path
+    cannot exist on the VPS or the Mac, yet npx does, so the integration is fine
+    there and only the check was wrong. Resolve the way a launcher would: the
+    configured command, then a repo-vendored npx, then npx on PATH. "" if none.
+    """
+    if _command_available(command):
+        return command
+    for candidate in _portable_npx_candidates():
+        if Path(candidate).exists():
+            return candidate
+    base = _basename(command)
+    for name in (base, Path(base).stem if base else "", "npx"):
+        if name:
+            found = shutil.which(name)
+            if found:
+                return found
+    return ""
 
 
 def local_readiness() -> dict[str, Any]:
@@ -149,6 +182,7 @@ def local_readiness() -> dict[str, Any]:
     flora_url = _flora_server_url(flora_server)
     flora_command = str(flora_server.get("command") or "")
     portable_npx = _portable_npx_candidates()
+    resolved_command = _resolve_command(flora_command)
 
     return {
         "settings_path": str(MCP_SETTINGS_PATH.relative_to(ROOT_DIR)),
@@ -156,7 +190,8 @@ def local_readiness() -> dict[str, Any]:
         "manifest_path": str(PERMISSIONS_PATH.relative_to(ROOT_DIR)),
         "settings_has_flora": bool(flora_server),
         "settings_command": flora_command,
-        "settings_command_available": _command_available(flora_command),
+        "settings_command_resolved": resolved_command,
+        "settings_command_available": bool(resolved_command),
         "settings_transport": _flora_transport(flora_server),
         "settings_url": flora_url,
         "settings_url_matches_official": flora_url == FLORA_MCP_URL,

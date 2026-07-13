@@ -361,8 +361,10 @@
       "note": "v1 hazırdır, real brauzerdə hələ test olunmayıb."
     }
   ],
-  "_comment_audit_ignore_dirs": "Top-level dirs reviewed 2026-07-13 and consciously NOT front-door organs: orchestrator = internal LangGraph spine (its face is the panel); claude-agents = Claude Code control plane; lab = prototypes/experiments; notion-workers = sandboxed worker drafts; n8n = retired stack configs; jarvis = configs for the Səs & Jarvis world (external); mcp-servers = docs only; youtube-ai-toolkit = static deliverables.",
+  "_comment_audit_ignore_dirs": "Top-level dirs reviewed 2026-07-13 and consciously NOT front-door organs: orchestrator = internal LangGraph spine (its face is the panel); claude-agents = Claude Code control plane; lab = prototypes/experiments; notion-workers = sandboxed worker drafts; n8n = retired stack configs; jarvis = configs for the Səs & Jarvis world (external); mcp-servers = docs only; youtube-ai-toolkit = static deliverables; published = publish_site output sink (its front door IS registered - the published-sites static server on 8767, under \"external\" - but organ_coverage only reads services/capabilities, so the output dir itself needs this entry); review-queue = the research lab content studio’s human-review drop (drafts awaiting approval), an output queue, not an organ.",
   "audit_ignore_dirs": [
+    "published",
+    "review-queue",
     "orchestrator",
     "claude-agents",
     "lab",
