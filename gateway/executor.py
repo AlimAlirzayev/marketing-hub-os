@@ -221,6 +221,39 @@ def scrape_url(url: str, render: bool = False) -> str:
 scrape_url.__annotations__ = {"url": str, "render": bool, "return": str}
 
 
+def _codex_agent(task: str, workspace: Path, *, timeout: int = 600) -> str:
+    """Agentic build via the Codex CLI (authed to the operator's ChatGPT), used
+    when the Gemini function-calling agent is unavailable — the Gemini API keys
+    are dead, so this is what actually gets 'build me X' work done. Codex runs
+    with write access to the JOB WORKSPACE only, and returns its final message."""
+    exe = shutil.which("codex")
+    if not exe:
+        raise RuntimeError("codex CLI not available")
+    out_file = workspace / ".codex_last.txt"
+    prompt = (
+        _SYSTEM + _WORKSPACE_ADDENDUM + skills.relevant(task)
+        + f"\n\nTASK: {task}\n\nBuild everything inside the current working "
+        "directory. When done, summarise what you built in Azerbaijani."
+    )
+    args = [exe, "exec", "-C", str(workspace), "--sandbox", "workspace-write",
+            "--skip-git-repo-check", "--ephemeral",
+            "--output-last-message", str(out_file), prompt]
+    proc = subprocess.run(args, cwd=str(workspace),
+                          capture_output=True, text=True, timeout=timeout)
+    text = ""
+    if out_file.exists():
+        text = out_file.read_text(encoding="utf-8", errors="replace").strip()
+        try:
+            out_file.unlink()
+        except Exception:
+            pass
+    if not text:
+        text = (proc.stdout or proc.stderr or "").strip()
+    if proc.returncode != 0 and not text:
+        raise RuntimeError(f"codex exec failed: {(proc.stderr or '')[:200]}")
+    return text or "Codex icra etdi (mətn qaytarılmadı)."
+
+
 def _save_artifact(job_id: int, text: str, *, reply: bool = False) -> str:
     """Persist a job's text output.
 
@@ -724,24 +757,38 @@ def execute(job: Job) -> dict:
                            workspace_agent.publish_site],
                 )
             )
+            label = f"agentic-tools:{agent_model}"
             try:
                 resp = chat.send_message(job.task)
                 text = resp.text or "Alətlər icra edildi, lakin mətn qaytarılmadı."
             except Exception as loop_exc:
-                # The agent may have already built real files before a mid-loop
-                # failure (e.g. a free-tier quota hit). Never throw that work away.
-                built = [str(p.relative_to(ws)) for p in sorted(ws.rglob("*")) if p.is_file()]
-                if not built:
-                    raise
-                text = (
-                    "⚠️ İcra tam bitmədi (" + loop_exc.__class__.__name__ +
-                    "), amma bu fayllar iş sahəsində hazırlandı:\n- " +
-                    "\n- ".join(built)
-                )
+                # The Gemini function-calling agent is unavailable (its API keys
+                # are dead). Hand the SAME workspace to a working builder:
+                # Codex (operator's ChatGPT) when its quota is available, else
+                # real Claude Code (rotation), which is a first-class builder.
+                text = None
+                from . import claude_bridge
+                for name, fn in (("codex", lambda: _codex_agent(job.task, ws)),
+                                 ("claude", lambda: claude_bridge.build(job.task, ws))):
+                    try:
+                        text = fn()
+                        label = f"agentic-tools:{name}"
+                        break
+                    except Exception as be:
+                        sense.emit("llm", f"tools builder {name} unavailable: {be}")
+                if text is None:
+                    # every builder failed: salvage anything already on disk.
+                    built = [str(p.relative_to(ws)) for p in sorted(ws.rglob("*")) if p.is_file()]
+                    if not built:
+                        raise loop_exc
+                    text = (
+                        "⚠️ İcra tam bitmədi (" + loop_exc.__class__.__name__ +
+                        "), amma bu fayllar iş sahəsində hazırlandı:\n- " +
+                        "\n- ".join(built)
+                    )
             bundle = _bundle_workspace(job.id, ws)
             if bundle:
                 text += f"\n\n📦 İş sahəsi paketi (yüklə): {bundle}"
-            label = f"agentic-tools:{agent_model}"
         elif mode == "browser":
             agent_model = AGENT_MODEL
             text = agent.run_browser_agent(job.task, model=agent_model)

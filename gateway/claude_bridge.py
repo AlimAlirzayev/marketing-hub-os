@@ -211,6 +211,61 @@ def ask(prompt: str, *, thread: str = "main", cwd: Path | None = None,
     raise RuntimeError(f"all Claude accounts capped/failing: {last_exc}")
 
 
+_BUILD_FRAMING = (
+    "You are an autonomous builder for the operator. Build the requested "
+    "deliverable ENTIRELY inside the current working directory (your sandbox). "
+    "Actually create the files; do not just describe them. When finished, "
+    "summarise what you built in Azerbaijani, concise."
+)
+
+
+def build(task: str, workspace: Path, *, timeout: int = 900) -> str:
+    """Agentic BUILD via real Claude Code (write access, in the job workspace),
+    with the same account rotation as ask(). This is how 'build me X' work gets
+    done now that the Gemini agent's keys are dead and Codex is rate-limited —
+    Claude Code is a first-class building agent and we have rotation quota.
+    Returns Claude's final text; raises only if every account is capped/failing."""
+    if not is_available():
+        raise RuntimeError("claude bridge not authenticated")
+    perm = os.getenv("CLAUDE_BUILD_PERMISSION_MODE", "acceptEdits")
+    order = _account_order() or [(0, {})]
+    data = _load_accounts()
+    accts = data.get("accounts", [])
+    last = ""
+    for idx, acct in order:
+        env = os.environ.copy()
+        if acct.get("token"):
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = acct["token"]
+            for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+                env.pop(k, None)
+        proc = subprocess.run(
+            ["claude", "-p", "--output-format", "json", "--permission-mode", perm],
+            input=f"{_BUILD_FRAMING}\n\nTASK: {task}", cwd=str(workspace),
+            capture_output=True, text=True, timeout=timeout, env=env,
+        )
+        out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
+        if proc.returncode != 0:
+            last = err or out or "empty output"
+            if _is_limit(last) and accts:
+                accts[idx]["cooldown_until"] = time.time() + _COOLDOWN_S
+                _save_accounts(data)
+            continue
+        try:
+            d = json.loads(out)
+        except ValueError:
+            last = out[:150]
+            continue
+        text = (d.get("result") or "").strip()
+        if d.get("is_error") or not text:
+            last = text or str(d)[:150]
+            if _is_limit(last) and accts:
+                accts[idx]["cooldown_until"] = time.time() + _COOLDOWN_S
+                _save_accounts(data)
+            continue
+        return text
+    raise RuntimeError(f"claude build failed on all accounts: {last[:200]}")
+
+
 def account_status() -> list[dict]:
     """Masked per-account view for the panel/advisor (never exposes a token)."""
     now = time.time()
