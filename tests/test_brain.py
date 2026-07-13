@@ -22,7 +22,9 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 TEST_TMP_DIR = ROOT_DIR / "tmp" / "brain-tests"
 
 
-class BrainTestCase(unittest.TestCase):
+class _SandboxTestCase(unittest.TestCase):
+    """Shared setUp/tearDown: redirect the store into a throwaway tmp dir."""
+
     def setUp(self) -> None:
         TEST_TMP_DIR.mkdir(parents=True, exist_ok=True)
         self._tmp = TEST_TMP_DIR / f"brain-test-{uuid.uuid4().hex}"
@@ -36,6 +38,9 @@ class BrainTestCase(unittest.TestCase):
     def tearDown(self) -> None:
         store.STORE_DIR, store.PENDING_DIR, store.INDEX_FILE = self._orig
         shutil.rmtree(self._tmp, ignore_errors=True)
+
+
+class BrainTestCase(_SandboxTestCase):
 
     # ---- store ---------------------------------------------------------
 
@@ -148,6 +153,82 @@ class BrainTestCase(unittest.TestCase):
         # Should not raise, and should still find the good entry.
         hits = recall_mod.recall("pdf", k=5)
         self.assertTrue(any(h.entry.title == "Good one" for h in hits))
+
+
+class ReflectDedupTestCase(_SandboxTestCase):
+    """The reflect loop must not queue near-duplicate lessons (2026-07-13:
+    16 of 20 pending items were repeats of the same trivial price-bot lesson)."""
+
+    @staticmethod
+    def _cand(title: str, body: str) -> store.Entry:
+        return store.Entry(id=store.slugify(f"lesson-{title}"), type="lesson", title=title, body=body)
+
+    def test_exact_title_duplicate_vs_store_is_dropped(self):
+        from brain import capture
+
+        store.remember("Currency Identification", "Always identify the currency for prices.")
+        fresh, dups = capture.dedupe_against_store(
+            [self._cand("Currency Identification", "When dealing with prices, identify the currency.")]
+        )
+        self.assertEqual(fresh, [])
+        self.assertEqual(len(dups), 1)
+
+    def test_fuzzy_title_duplicate_is_dropped(self):
+        from brain import capture
+
+        store.remember(
+            "Multilingual Price Query Handling",
+            "The system processed a price query in Azerbaijani and returned the price.",
+        )
+        fresh, dups = capture.dedupe_against_store(
+            [self._cand("Multilingual price query handling", "Processed a direct price inquiry in Azerbaijani.")]
+        )
+        self.assertEqual(fresh, [])
+        self.assertEqual(len(dups), 1)
+
+    def test_duplicate_vs_pending_queue_is_dropped(self):
+        from brain import capture
+
+        store.add_pending(self._cand("Standard currency output format", "Prices as NUMBER CURRENCY_CODE."))
+        fresh, dups = capture.dedupe_against_store(
+            [self._cand("Standard currency output format", "Use NUMBER CURRENCY_CODE when presenting a price.")]
+        )
+        self.assertEqual(fresh, [])
+        self.assertEqual(len(dups), 1)
+
+    def test_distinct_candidate_passes(self):
+        from brain import capture
+
+        store.remember("Currency Identification", "Always identify the currency for prices.")
+        fresh, dups = capture.dedupe_against_store(
+            [self._cand("Headless Edge renders PDFs reliably", "HTML through headless Edge is the working PDF path.")]
+        )
+        self.assertEqual(len(fresh), 1)
+        self.assertEqual(dups, [])
+
+    def test_rejected_lesson_leaves_tombstone_and_blocks_requeue(self):
+        from brain import capture
+
+        # Queue, then reject — rejection must tombstone.
+        path = store.add_pending(self._cand("Currency Identification", "Always identify the currency for prices."))
+        store.reject_pending(path)
+        self.assertEqual(store.list_pending(), [])
+        self.assertEqual(len(store.rejected_tombstones()), 1)
+        # The same lesson proposed again must now be dropped as a duplicate.
+        fresh, dups = capture.dedupe_against_store(
+            [self._cand("Currency Identification", "When dealing with prices, identify the currency.")]
+        )
+        self.assertEqual(fresh, [])
+        self.assertEqual(len(dups), 1)
+
+    def test_batch_does_not_duplicate_itself(self):
+        from brain import capture
+
+        a = self._cand("Cut-on-beat editing hooks viewers", "Cutting on the musical beat holds attention.")
+        b = self._cand("Cut-on-beat editing hooks viewers", "Cut on the beat to hold attention in short video.")
+        fresh, dups = capture.dedupe_against_store([a, b])
+        self.assertEqual(len(fresh), 1)
+        self.assertEqual(len(dups), 1)
 
 
 if __name__ == "__main__":

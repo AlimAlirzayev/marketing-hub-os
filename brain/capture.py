@@ -16,6 +16,7 @@ never drags in the whole gateway.
 
 from __future__ import annotations
 
+import difflib
 import json
 import os
 import re
@@ -153,14 +154,71 @@ def distill(task: str, result: str, *, source: str = "reflect") -> list[Entry]:
     return entries
 
 
+_TITLE_SIM_THRESHOLD = 0.8
+_BODY_SIM_THRESHOLD = 0.85
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"[^a-z0-9əöüğışç ]+", " ", text.lower()).strip()
+
+
+def _is_near_duplicate(candidate: Entry, existing: Entry) -> bool:
+    """True when ``candidate`` says essentially what ``existing`` already says.
+
+    The reflect loop runs after every job, and repetitive jobs (e.g. the price
+    bot answering "qiymət nədir?" daily) kept proposing the same lesson under
+    slightly different titles — 16 of 20 queued items were such repeats on
+    2026-07-13. Titles are compared fuzzily; bodies as a fallback for
+    same-lesson-different-title cases.
+    """
+    if candidate.id == existing.id:
+        return True
+    t1, t2 = _norm(candidate.title), _norm(existing.title)
+    if t1 and t1 == t2:
+        return True
+    if difflib.SequenceMatcher(None, t1, t2).ratio() >= _TITLE_SIM_THRESHOLD:
+        return True
+    b1, b2 = _norm(candidate.body)[:200], _norm(existing.body)[:200]
+    if b1 and difflib.SequenceMatcher(None, b1, b2).ratio() >= _BODY_SIM_THRESHOLD:
+        return True
+    return False
+
+
+def dedupe_against_store(entries: list[Entry]) -> tuple[list[Entry], list[Entry]]:
+    """Split candidates into (fresh, duplicates) vs the trusted store, the
+    pending queue, and each other. Never raises — on store errors everything
+    passes through as fresh (queueing a dup is cheaper than losing a lesson)."""
+    try:
+        from .store import all_entries, list_pending, rejected_tombstones
+
+        known: list[Entry] = (
+            all_entries() + [e for _, e in list_pending()] + rejected_tombstones()
+        )
+    except Exception:  # noqa: BLE001
+        return entries, []
+
+    fresh: list[Entry] = []
+    dups: list[Entry] = []
+    for cand in entries:
+        if any(_is_near_duplicate(cand, k) for k in known):
+            dups.append(cand)
+        else:
+            fresh.append(cand)
+            known.append(cand)  # a batch must not duplicate itself either
+    return fresh, dups
+
+
 def reflect(task: str, result: str, *, source: str = "reflect", commit: bool = False) -> list[Entry]:
     """Distill ``(task, result)`` into candidate lessons and persist them.
 
     By default writes them to the pending review queue and returns them. Set
     ``commit=True`` only when the caller has already vetted the source.
-    Returns ``[]`` when no LLM is available -- never raises.
+    Candidates that near-duplicate the store or the queue are dropped silently
+    (they add review noise, not knowledge). Returns ``[]`` when no LLM is
+    available -- never raises.
     """
     entries = distill(task, result, source=source)
+    entries, _dropped = dedupe_against_store(entries)
 
     if commit:
         from .store import save

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as _dt
+import json
 import re
 from pathlib import Path
 from typing import Iterable
@@ -251,7 +252,43 @@ def approve_pending(path: Path) -> Entry:
 
 
 def reject_pending(path: Path) -> None:
-    Path(path).unlink(missing_ok=True)
+    """Remove a pending suggestion — and leave a tombstone.
+
+    Without the tombstone, the reflect loop re-proposes the same rejected
+    lesson forever (the store holds nothing to dedupe against): the
+    "Currency Identification" lesson was rejected and re-queued 5+ times
+    before this existed. Tombstones live next to the pending queue and are
+    read by ``capture.dedupe_against_store``.
+    """
+    p = Path(path)
+    try:
+        entry = Entry.from_markdown(p.read_text(encoding="utf-8"), p.stem)
+        rec = {"id": entry.id, "title": entry.title, "body": entry.body[:200]}
+        with rejected_log_path().open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:  # noqa: BLE001 — a tombstone must never block a rejection
+        pass
+    p.unlink(missing_ok=True)
+
+
+def rejected_log_path() -> Path:
+    _ensure_dirs()
+    return PENDING_DIR / "_rejected.jsonl"
+
+
+def rejected_tombstones() -> list[Entry]:
+    """Load rejected-suggestion tombstones as lightweight Entry objects."""
+    path = rejected_log_path()
+    if not path.exists():
+        return []
+    out: list[Entry] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            rec = json.loads(line)
+            out.append(Entry(id=rec["id"], type="lesson", title=rec["title"], body=rec.get("body", "")))
+        except Exception:  # noqa: BLE001
+            continue
+    return out
 
 
 # ---- index -------------------------------------------------------------
