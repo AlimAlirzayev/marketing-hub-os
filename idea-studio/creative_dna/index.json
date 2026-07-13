@@ -1,0 +1,19 @@
+{
+  "_comment": "Registry of creative-direction traditions (idea-level DNA). Single source of truth for /idea and any product choosing a concepting lens. Mirrors copy-studio/voice_dna/index.json philosophy: grounded = built from the real school's published work/analyzed specimens; planned = documented roadmap, research pending. The universal toolbox under every tradition lives in idea_kit/.",
+  "updated": "2026-07-10",
+  "brand_agnostic": true,
+  "toolbox_layer": "idea_kit/",
+  "rubric": "critique/idea_rubric.md",
+  "traditions": [
+    { "slug": "bernbach-ddb", "status": "grounded", "school": "DDB Creative Revolution (Bernbach/Krone/Koenig/Green)", "fit": "Honest wit + product truth; admit-the-flaw; radical simplicity. Use when the product has a real (even awkward) truth to dramatize.", "canonical": ["VW Think Small", "VW Lemon", "Avis We Try Harder"] },
+    { "slug": "wieden-kennedy", "status": "grounded", "school": "W+K (Wieden/Kennedy; Old Spice era)", "fit": "Emotional anthem + cultural courage; human truth over feature; absurdist one-take comedy. Use for brand-feeling moments.", "canonical": ["Just Do It", "Dream Crazy", "Old Spice Man", "Honda Grrr"] },
+    { "slug": "droga-provocation", "status": "grounded", "school": "Droga5 (David Droga)", "fit": "Earned media by design; brand acts not ads; stunt-with-meaning; manifesto film. Use when budget is small and ambition is news.", "canonical": ["UNICEF Tap Project", "Still Free", "I Will What I Want", "NYT The Truth Is Hard"] },
+    { "slug": "internet-native-meme", "status": "grounded", "school": "Feed-native brands (Duolingo/Liquid Death/Nutter Butter/Wendy's/Ryanair) + Shifman meme scholarship", "fit": "Remixable formats, brand-as-character, lore, trend-speed, lo-fi. Use to build an owned channel into an organic-reach asset.", "canonical": ["Duo is Dead", "Nutterverse", "Plane Face", "Wendy's roasts"] },
+    { "slug": "caring-hand-miniature", "status": "grounded", "school": "AI-era artful short-form; analyzed specimen: Human + AI (TR)", "fit": "Giant hand + miniature world + household-object metaphor; tenderness as engine. Ready-made device for insurance/care brands.", "canonical": ["Human + AI anthology (analyzed at output/humann-ai-ref/)"], "note": "Derived from direct frame analysis of the reference video, not secondhand description." },
+
+    { "slug": "artful-ugc-shortform", "status": "planned", "school": "Jacquemus-style surreal scale, sound-first edits, craft-flex genre", "note": "Research agent hit session limit; re-run after reset. Devices will extend caring-hand-miniature." },
+    { "slug": "sullivan-craft", "status": "planned", "school": "Big Idea craft canon (Sullivan Hey Whipple; Lois; James Webb Young)", "note": "Feeds idea_kit/frameworks.md (concepting process, one-truth focus). Research pending — session limit." },
+    { "slug": "aesthetic-harmony", "status": "planned", "school": "Eisenstein montage, Murch, gestalt, audiovisual congruence, Pixar color scripts", "note": "Feeds idea_kit/harmony.md (the craft science of why videos FEEL like art). Research pending — session limit." },
+    { "slug": "effectiveness-evidence", "status": "planned", "school": "Binet & Field IPA databank, System1, Kantar creative effectiveness", "note": "Feeds idea_kit/evidence.md (the numbers proving emotional creative wins). Research pending — session limit." }
+  ]
+}
