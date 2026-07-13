@@ -45,8 +45,20 @@ _FRAMING = (
 
 
 def is_available() -> bool:
-    """True if the Claude Code CLI is installed on this machine."""
-    return shutil.which("claude") is not None
+    """True only if the Claude CLI is installed AND actually authenticated —
+    checking install alone made every turn fire a `claude -p` that came back
+    'Not logged in', wasting a call before falling back. We now require real
+    credentials, so an un-logged-in box skips straight to the free brain."""
+    if shutil.which("claude") is None:
+        return False
+    if os.getenv("CLAUDE_CODE_OAUTH_TOKEN") or os.getenv("ANTHROPIC_API_KEY", "").startswith("sk-"):
+        return True
+    # subscription login writes a credentials file under the home config dir
+    for p in (Path.home() / ".claude" / ".credentials.json",
+              Path.home() / ".config" / "claude" / ".credentials.json"):
+        if p.exists():
+            return True
+    return False
 
 
 def _load_session(thread: str) -> str | None:
