@@ -120,6 +120,50 @@ def gap_report(g: GapResult) -> str:
     return "\n".join(lines)
 
 
+def gsc_report(rep) -> str:
+    lines: list[str] = []
+    lines.append(_BAR)
+    src = "CANLI (Search Console)" if rep.mode == "live" else "DEMO (sintetik — GSC açarı yoxdur)"
+    lines.append(f"  SEARCH CONSOLE — {rep.site}  ·  {rep.dimension}")
+    lines.append(f"  {rep.start} → {rep.end}  ·  mənbə: {src}")
+    lines.append(_BAR)
+    if rep.error:
+        lines.append(f"  ❌ {rep.error}")
+        lines.append(_BAR)
+        return "\n".join(lines)
+    lines.append(f"  Cəmi: {rep.total_clicks:,} klik · {rep.total_impressions:,} göstərim")
+    lines.append("")
+    lines.append(f"  {'#':>2}  {'klik':>6} {'göstərim':>9} {'CTR':>6} {'mövqe':>6}  sorğu/səhifə")
+    for i, r in enumerate(rep.rows[:20], 1):
+        lines.append(f"  {i:>2}  {r.clicks:>6} {r.impressions:>9} "
+                     f"{r.ctr*100:>5.1f}% {r.position:>6.1f}  {r.key[:52]}")
+    lines.append(_BAR)
+    return "\n".join(lines)
+
+
+def reinforce_report(o) -> str:
+    icon = {"winning": "🏆", "climbing": "📈", "struggling": "⚠️", "no-data": "➖"}.get(o.verdict, "•")
+    src = "CANLI" if o.mode == "live" else "DEMO"
+    lines = [
+        _BAR,
+        f"  REINFORCEMENT — nəşr olunmuş səhifənin real nəticəsi ({src})",
+        f"  {o.page_url}",
+        _BAR,
+        f"  {icon} Hökm: {o.verdict.upper()}  ·  orta mövqe {o.avg_position}  ·  "
+        f"{o.clicks} klik  ·  {o.impressions} göstərim  ·  CTR {o.ctr*100:.1f}%",
+        "",
+    ]
+    if o.top_queries:
+        lines.append("  Ən güclü sorğular:")
+        for q in o.top_queries:
+            lines.append(f"      · {q['query'][:48]}  (poz {q['position']}, {q['clicks']} klik)")
+        lines.append("")
+    lines.append(f"  📚 Brain dərsi: {'yazıldı ✓' if o.lesson_saved else '(brain əlçatmaz / data yox)'}"
+                 f"   ·   korpus: {o.corpus_size} sətir (D2 fine-tune üçün)")
+    lines.append(_BAR)
+    return "\n".join(lines)
+
+
 def audit_json(r: AuditResult) -> dict:
     """Machine-readable form (for the panel / brain / API)."""
     return {

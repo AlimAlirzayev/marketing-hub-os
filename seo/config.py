@@ -46,6 +46,46 @@ PSI_ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
 # Apify token (already in the ecosystem) — optional SERP fallback.
 APIFY_TOKEN = os.getenv("APIFY_API_TOKEN", "")
 
+# --- Google Search Console (own-site TRUTH; powers the D1 reinforcement loop) - #
+# The one data source no free tool can replace: real clicks/impressions/position
+# for YOUR site, straight from Google. Service-account auth, same pattern as
+# ga4-studio. Grant the service-account email access in Search Console
+# (Settings -> Users and permissions -> Add, Full/Restricted).
+#   GSC_SITE_URL   "sc-domain:xalqsigorta.az"  (Domain property, preferred) OR
+#                  "https://xalqsigorta.az/"    (URL-prefix property)
+#   credentials    GSC_SERVICE_ACCOUNT_FILE, else GA4's, else GOOGLE_APPLICATION_CREDENTIALS
+GSC_SITE_URL = os.getenv("GSC_SITE_URL", "").strip()
+GSC_SERVICE_ACCOUNT_FILE = (
+    os.getenv("GSC_SERVICE_ACCOUNT_FILE", "")
+    or os.getenv("GA4_SERVICE_ACCOUNT_FILE", "")
+    or os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+).strip()
+GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
+GSC_API = "https://searchconsole.googleapis.com/webmasters/v3"
+
+
+def gsc_mode() -> str:
+    """'live' when a site + readable credentials exist, else 'demo'. An explicit
+    GSC_DATA_MODE=demo|live overrides (mirrors ga4-studio)."""
+    forced = os.getenv("GSC_DATA_MODE", "").lower()
+    if forced in ("demo", "live"):
+        return forced
+    have = bool(GSC_SITE_URL and GSC_SERVICE_ACCOUNT_FILE
+                and os.path.exists(GSC_SERVICE_ACCOUNT_FILE))
+    return "live" if have else "demo"
+
+
+def gsc_blockers() -> list[str]:
+    """Honest reasons live GSC is unavailable (for UI/CLI labels)."""
+    out = []
+    if not GSC_SITE_URL:
+        out.append("GSC_SITE_URL .env-də yoxdur (məs: sc-domain:xalqsigorta.az)")
+    if not GSC_SERVICE_ACCOUNT_FILE:
+        out.append("Service-account JSON göstərilməyib (GSC_SERVICE_ACCOUNT_FILE)")
+    elif not os.path.exists(GSC_SERVICE_ACCOUNT_FILE):
+        out.append(f"Service-account faylı tapılmadı: {GSC_SERVICE_ACCOUNT_FILE}")
+    return out
+
 # Known AI/LLM crawler user-agents — presence in robots.txt = GEO governance.
 AI_BOTS = [
     "GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-Web",

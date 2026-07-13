@@ -57,7 +57,7 @@ Bu dəqiq JSON strukturunda, bütün mətn Azərbaycan dilində cavab ver:
  "internal_links": ["3-5 daxili keçid üçün mövzu"],
  "word_target": 1200
 }}
-Outline məntiqli semantik iyerarxiya olsun (giriş→əsas bölmələr→FAQ→nəticə).{gap}"""
+Outline məntiqli semantik iyerarxiya olsun (giriş→əsas bölmələr→FAQ→nəticə).{gap}{learned}"""
 
 
 def _gap_context(gap: GapResult | None) -> str:
@@ -74,9 +74,24 @@ def _gap_context(gap: GapResult | None) -> str:
     return "\n".join(parts)
 
 
+def _learned_context(keyword: str, learn: bool) -> str:
+    """Inject past GSC outcome lessons (D1 reinforcement) into the brief prompt."""
+    if not learn:
+        return ""
+    try:
+        from .. import reinforce
+        block = reinforce.recall_block(keyword)
+    except Exception:  # noqa: BLE001
+        block = ""
+    if not block:
+        return ""
+    return ("\n\nKEÇMİŞ NƏTİCƏ DƏRSLƏRİ (öz saytımızın real GSC datası — bunları təkrarla/qaçın):\n"
+            + block[:1500])
+
+
 def build_brief(keyword: str, *, research: ResearchResult | None = None,
                 gap: GapResult | None = None, use_serp: bool = False,
-                max_keywords: int = 80) -> Brief:
+                learn: bool = True, max_keywords: int = 80) -> Brief:
     research = research or research_keywords(keyword, cluster=True, max_keywords=max_keywords)
     grounded = research.keywords[:max_keywords]
     if use_serp and gap is None:
@@ -84,7 +99,8 @@ def build_brief(keyword: str, *, research: ResearchResult | None = None,
     brief = Brief(keyword=keyword, grounded_keywords=grounded, gap=gap)
 
     data = llm.ask_json(_BRIEF_PROMPT.format(kw=keyword, kws="\n".join(grounded),
-                                             gap=_gap_context(gap)), smart=True)
+                                             gap=_gap_context(gap),
+                                             learned=_learned_context(keyword, learn)), smart=True)
     if not data:
         # graceful fallback — still useful without an LLM; prefer live-SERP gap data
         brief.source = "fallback"
