@@ -1,8 +1,8 @@
 # Idea rubric — score the concept BEFORE the pixels
 
-Every `/idea` concept is scored 1–5 on seven dimensions. The rubric's
+Every `/idea` concept is scored 1–5 on eight dimensions. The rubric's
 teeth: **any single 1–2 on a KILL dimension kills the concept**; total
-< 24/35 sends it back for one rework, then out. Weak ideas die here,
+< 27/40 sends it back for one rework, then out. Weak ideas die here,
 while they're still cheap.
 
 Each dimension traces to a grounded tradition (see `creative_dna/`) —
@@ -17,6 +17,7 @@ this is judgment encoded, not taste.
 | 5 | **Retell test** (earned media) | A civilian would describe it at dinner unprompted; the idea IS the media plan | Needs paid spend to exist; peers-only appeal | Droga ("great if the real world thinks you're good") |
 | 6 | **Meme potential** | Remixable skeleton; format others can hijack with their twist; in-group signal | Sealed, finished, un-riffable artifact | internet-native-meme (Shifman: shared pathways) |
 | 7 | **Execution feasibility** (KILL) | Our studios can produce it at quality NOW (mediaforge dialects, social-studio, audio) with honest cost | Requires capabilities we don't have; quality would betray the idea | House rule: craft flex is part of the signal — a badly-made big idea is a small idea |
+| 8 | **Job clarity: brand vs activation** | The concept knows which job it does (fame/feeling = brand; conversion = activation) and its metric matches | A hybrid asked to build the brand AND convert — it under-delivers on both | Binet & Field (`idea_kit/evidence.md`): the two jobs work on different timescales via different mechanisms |
 
 ## Scoring notes
 
@@ -24,13 +25,14 @@ this is judgment encoded, not taste.
   device being used (e.g. "admit-the-flaw", "mascot jeopardy",
   "household-object metaphor").
 - **Kill rules:** dimension 1, 2 or 7 at ≤2 → concept dies regardless
-  of total. Total < 24 → one rework maximum.
+  of total. Total < 27 → one rework maximum.
 - Polarization is NOT a negative: a concept some people will hate scores
   *higher* on 3–5 if the stance is defensible (Bernbach: "if you stand
   for nothing… nobody for you").
-- When `idea_kit/evidence.md` lands (Binet & Field research pending),
-  add dimension 8: **brand-building vs activation balance** — until
-  then, note the intended split informally.
+- Dimension 8 is live (`idea_kit/evidence.md` landed): a concept that
+  scores 5 on it names its job AND its metric (brand: fame/feeling/
+  price-elasticity; activation: conversion). Campaign-level budget
+  guidance: ~60/40 brand/activation (Binet & Field).
 
 ## Output format (per concept)
 
@@ -38,6 +40,6 @@ this is judgment encoded, not taste.
 CONCEPT: <one-line pitch>
 insight: <the human truth>            tension: <what collides>
 device: <named device from creative_dna>  tradition: <slug>
-scores: [focus X, truth X, break X, emotion X, retell X, meme X, feasible X] = NN/35
+scores: [focus X, truth X, break X, emotion X, retell X, meme X, feasible X, job X] = NN/40
 verdict: KILL | REWORK | ADVANCE
 ```
