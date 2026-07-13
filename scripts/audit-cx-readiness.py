@@ -43,9 +43,9 @@ def build_report(env: dict[str, str], *, external: bool) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
 
     cx_port = _port_open("127.0.0.1", 8810)
-    streamlit_port = _port_open("127.0.0.1", 8501)
+    hub_port = _port_open("127.0.0.1", 8000)
     checks.append(_check("cx_server", cx_port, "Customer Relations Center is listening on 8810"))
-    checks.append(_check("main_dashboard", streamlit_port, "Main dashboard is listening on 8501"))
+    checks.append(_check("main_dashboard", hub_port, "Marketing OS hub is listening on 8000"))
 
     health = _safe_get_json("http://127.0.0.1:8810/api/health") if cx_port else None
     integrations = _safe_get_json("http://127.0.0.1:8810/api/integrations/status") if cx_port else None

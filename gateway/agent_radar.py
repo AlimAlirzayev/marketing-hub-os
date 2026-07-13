@@ -136,7 +136,7 @@ MARKETING_OS_BLUEPRINTS = [
         "strategic_priority": 91,
         "phase": "P1 - sandbox audition",
         "automation_job": "Daily complaint themes, SLA risks, and draft-response queue.",
-        "integration_points": ["cx-command-center", "gateway/database.py", "briefing_panel.py"],
+        "integration_points": ["cx-command-center", "gateway/database.py", "ads-studio /briefing"],
         "why": "Strongest immediate ROI for customer experience, but must stay draft-only first.",
     },
     {
@@ -151,7 +151,7 @@ MARKETING_OS_BLUEPRINTS = [
             requested_permissions=["network", "database_read", "file_write"],
             evidence=[
                 "ads-studio",
-                "creative_studio.py",
+                "atelier",
                 "publisher",
                 "Salesforce agentic marketing teams pattern",
                 "UiPath governed automation pattern",
@@ -161,7 +161,7 @@ MARKETING_OS_BLUEPRINTS = [
         "strategic_priority": 86,
         "phase": "P2 - approval-gated workflow",
         "automation_job": "Weekly campaign action plan with draft briefs, no spend changes without approval.",
-        "integration_points": ["ads-studio", "creative_studio.py", "publisher", "meta-capi"],
+        "integration_points": ["ads-studio", "atelier", "publisher", "meta-capi"],
         "why": "Good marketing leverage, but write/publish paths must stay behind checkpoints.",
     },
     {

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gündəlik Rəhbərlik Hesabatı — Ads Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      brand: { red:'#E31E24', reddark:'#B3171C', charcoal:'#2B2A29', ink:'#1C1B17', burgundy:'#5C0F12' },
+      surface: { bg:'#F5F6F8', card:'#FFFFFF', line:'#E5E7EB' },
+    },
+    fontFamily: { sans:['Inter','system-ui','sans-serif'], tight:['"Inter Tight"','Inter','sans-serif'] },
+  }}};
+</script>
+<style>
+  body { background:#F5F6F8; }
+  .num { font-variant-numeric: tabular-nums; font-family:'Inter Tight', Inter, sans-serif; }
+  .card { background:#fff; border:1px solid #ECEEF1; border-radius:18px; box-shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); }
+  .skeleton { background: linear-gradient(90deg,#eef0f3 25%,#e3e6ea 37%,#eef0f3 63%); background-size:400% 100%; animation: sh 1.3s ease infinite; border-radius:12px; }
+  @keyframes sh { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+  .fade-in { animation: fi .35s ease both; }
+  @keyframes fi { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+  .badge { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; border-radius:999px; padding:3px 10px; }
+  .b-live    { background:#E5F6EE; color:#0B7A47; }
+  .b-demo    { background:#FDF3DC; color:#92610A; }
+  .b-missing { background:#EEF0F3; color:#6B7280; }
+  .b-error   { background:#FDE8E8; color:#B3171C; }
+  @media print { .no-print{display:none!important} body{background:#fff} .card{box-shadow:none;border:1px solid #ddd;break-inside:avoid} @page{margin:12mm} }
+</style>
+</head>
+<body class="font-sans text-brand-ink">
+
+<header class="bg-brand-ink text-white no-print">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+    <img src="/static/logo-white.svg" alt="Xalq Sigorta" class="h-9 w-auto" />
+    <div class="leading-tight border-l border-white/15 pl-3 ml-1">
+      <div class="font-tight font-bold text-[15px]">Gündəlik Rəhbərlik Hesabatı</div>
+      <div class="text-white/55 text-[12px]">İcraçı direktor üçün son 24 saatın real mənzərəsi</div>
+    </div>
+    <div class="ml-auto flex items-center gap-2 flex-wrap justify-end">
+      <a href="/" class="text-sm bg-white/10 hover:bg-white/20 transition px-3 py-2 rounded-lg font-medium">← Hesabatlılıq</a>
+      <button id="btn-save" class="text-sm bg-white/10 hover:bg-white/20 transition px-3 py-2 rounded-lg font-medium">💾 Arxivə saxla</button>
+      <button id="btn-md" class="text-sm bg-white/10 hover:bg-white/20 transition px-3 py-2 rounded-lg font-medium">⬇️ Markdown</button>
+      <button id="btn-refresh" class="text-sm bg-brand-red hover:bg-brand-reddark transition px-3 py-2 rounded-lg font-medium">🔄 Canlı yenilə</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+  <div id="loading" class="space-y-4">
+    <div class="skeleton h-10 w-72"></div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="skeleton h-28"></div><div class="skeleton h-28"></div>
+      <div class="skeleton h-28"></div><div class="skeleton h-28"></div>
+    </div>
+    <div class="skeleton h-48"></div>
+  </div>
+  <div id="content" class="hidden space-y-6"></div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const BADGE = { live:['b-live','CANLI'], demo:['b-demo','DEMO'], missing:['b-missing','QOŞULMAYIB'], error:['b-error','ƏLÇATMAZ'] };
+const TONE = { red:'text-brand-red', amber:'text-amber-600', green:'text-emerald-600', warn:'text-amber-600', error:'text-gray-400', neutral:'text-brand-ink' };
+let VM = null;
+
+function badge(status){
+  const [cls, label] = BADGE[status] || BADGE.error;
+  return `<span class="badge ${cls}">● ${label}</span>`;
+}
+function section(title, inner){
+  return `<section class="card p-5 fade-in"><h2 class="font-tight font-bold text-[17px] mb-4">${title}</h2>${inner}</section>`;
+}
+function table(headers, rows){
+  if(!rows.length) return `<div class="text-sm text-gray-500">Data yoxdur.</div>`;
+  return `<div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead><tr class="text-left text-[11px] uppercase tracking-wide text-gray-500 border-b border-surface-line">
+      ${headers.map(h => `<th class="py-2 pr-4 font-semibold">${esc(h)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr class="border-b border-surface-line/60 last:border-0">
+      ${r.map(c => `<td class="py-2 pr-4 num">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function bars(items, labelKey, valKey){
+  if(!items.length) return `<div class="text-sm text-gray-500">Data yoxdur.</div>`;
+  const max = Math.max(...items.map(i => +i[valKey] || 0), 1);
+  return items.map(i => `
+    <div class="flex items-center gap-3 py-1 text-sm">
+      <span class="w-32 shrink-0 truncate text-gray-600">${esc(i[labelKey])}</span>
+      <div class="flex-1 bg-surface-bg rounded-full h-5 overflow-hidden">
+        <div class="h-full rounded-full bg-brand-red/80" style="width:${Math.max(4, 100*(+i[valKey]||0)/max)}%"></div>
+      </div>
+      <span class="num w-10 text-right font-semibold">${esc(i[valKey])}</span>
+    </div>`).join('');
+}
+
+function render(vm){
+  VM = vm;
+  const kpis = vm.kpis.map(k => `
+    <div class="card p-4">
+      <div class="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">${esc(k.label)}</div>
+      <div class="num text-3xl font-bold mt-1 ${TONE[k.tone] || ''}">${esc(k.value)}</div>
+      <div class="text-[12px] text-gray-500 mt-1">${esc(k.sub || '')}</div>
+    </div>`).join('');
+
+  const sources = vm.sources.map(s =>
+    `<div class="flex items-center gap-2">${badge(s.status)}<span class="text-sm text-gray-600">${esc(s.label)}</span></div>`).join('');
+
+  const comp = vm.complaints || {};
+  const complaints = comp.status === 'error'
+    ? `<div class="text-sm text-brand-red">CX mənbəyi əlçatmazdır.</div>`
+    : `<div class="grid md:grid-cols-2 gap-6">
+        <div><div class="text-[12px] text-gray-500 mb-2">Kanallar (7 gün)${comp.status==='demo' ? ' · demo' : ''}</div>${bars(comp.channels || [], 'key', 'count')}</div>
+        <div><div class="text-[12px] text-gray-500 mb-2">Əsas səbəblər → məsul komanda</div>
+          ${table(['Səbəb','Say','Komanda'], (comp.causes || []).map(c => [esc(c.category), c.count, esc(c.team)]))}</div>
+      </div>`;
+
+  const rep = vm.reputation || {};
+  const repTone = { red:'bg-red-50 border-brand-red text-brand-burgundy', amber:'bg-amber-50 border-amber-400 text-amber-900', green:'bg-emerald-50 border-emerald-400 text-emerald-900' }[rep.level] || 'bg-gray-50 border-gray-300 text-gray-600';
+  const reputation = rep.risk_score == null
+    ? `<div class="text-sm text-gray-500">CX datası olmadan risk qiymətləndirilmir.</div>`
+    : `<div class="border-l-4 rounded-xl p-4 ${repTone}">
+        <div class="font-semibold">Risk indeksi: ${rep.risk_score}/100 — ${esc(rep.title)}</div>
+        <div class="text-sm mt-1">${esc(rep.text)}</div>
+        <div class="text-[12px] mt-2 opacity-70">Neqativ siqnal (7 gün): ${rep.negative} / ${rep.total}${comp.status==='demo' ? ' · demo data' : ''}</div>
+      </div>`;
+
+  const sal = vm.sales || {};
+  let sales;
+  if(sal.status !== 'live'){
+    sales = `<div class="text-sm text-gray-500">${sal.status === 'demo' ? 'Meta hesabı qoşulmayıb (demo) — real data yoxdur.' : 'Meta mənbəyi əlçatmazdır.'}</div>`;
+  } else {
+    const cur = sal.currency || 'AZN';
+    sales = `
+      <div class="text-[12px] text-gray-500 mb-3">Hesab: ${esc(sal.account_name || sal.account)} · ${esc(sal.account)}</div>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div><div class="text-[12px] text-gray-500 mb-2">Son günlər</div>
+          ${table(['Tarix', `Xərc (${cur})`, 'Klik', 'Lead', 'Mesaj'],
+            (sal.daily || []).map(d => [esc(d.date), (+d.spend||0).toFixed(2), d.clicks ?? '—', d.leads ?? '—', d.messages ?? '—']))}</div>
+        <div><div class="text-[12px] text-gray-500 mb-2">Aktiv kampaniyalar (bu ay)</div>
+          ${sal.campaigns && sal.campaigns.length
+            ? table(['Kampaniya', `Xərc (${cur})`, 'CTR %', 'Lead'],
+                sal.campaigns.map(c => [esc(c.name), (+c.spend||0).toFixed(2), (+c.ctr||0).toFixed(2), c.leads ?? '—']))
+            : `<div class="text-sm text-amber-700 bg-amber-50 rounded-lg p-3">Bu ay heç bir kampaniya xərc etməyib — hazır draft varsa, yayımlanmaması itirilmiş fürsətdir.</div>`}</div>
+      </div>`;
+  }
+
+  const web = vm.website || {};
+  let website;
+  if(!web.totals){
+    website = `<div class="text-sm text-gray-500">GA4 qoşulmayıb və ya əlçatmazdır — rəqəm göstərilmir.</div>`;
+  } else {
+    const t = web.totals, d = web.deltas || {};
+    const delta = k => d[k] == null ? '' : ` <span class="${d[k] >= 0 ? 'text-emerald-600' : 'text-brand-red'}">(${d[k] > 0 ? '+' : ''}${d[k]}%)</span>`;
+    website = `
+      <div class="text-[12px] text-gray-500 mb-3">${esc(web.property || '')} · ${esc((web.range && web.range.label) || web.range || '7 gün')}${web.status==='demo' ? ' · demo' : ''}</div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div><div class="text-gray-500 text-[12px]">Sessiya</div><div class="num text-xl font-bold">${t.sessions ?? '—'}${delta('sessions')}</div></div>
+        <div><div class="text-gray-500 text-[12px]">İstifadəçi</div><div class="num text-xl font-bold">${t.users ?? '—'}${delta('users')}</div></div>
+        <div><div class="text-gray-500 text-[12px]">Konversiya</div><div class="num text-xl font-bold">${t.conversions ?? '—'}${delta('conversions')}</div></div>
+        <div><div class="text-gray-500 text-[12px]">Konv. faizi</div><div class="num text-xl font-bold">${t.conversion_rate ?? '—'}%</div></div>
+      </div>
+      ${web.channels && web.channels.length ? `<div class="mt-4"><div class="text-[12px] text-gray-500 mb-2">Kanallar</div>${bars(web.channels, 'channel', 'sessions')}</div>` : ''}`;
+  }
+
+  const soc = (vm.social && vm.social.platforms) || [];
+  const social = `
+    <div class="text-[12px] text-gray-500 mb-2">Ayrıca sosial dinləmə aləti qoşulmayıb — görünən siqnallar məhduddur.</div>
+    ${soc.length ? table(['Platforma','Göstərim','Klik'], soc.map(p => [esc(p.key), p.impressions, p.clicks])) : ''}
+    <div class="text-sm text-gray-500 mt-2">TikTok, forumlar, rəqib fəaliyyəti: <b>data yoxdur</b> — qiymətləndirmə verilmir.</div>`;
+
+  const actions = `<ol class="list-decimal ml-5 space-y-2 text-sm">${(vm.actions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ol>`;
+
+  $('#content').innerHTML = `
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="text-sm text-gray-500">Sonuncu yığım: <b class="num">${esc(vm.generated_label)}</b></div>
+      <div class="flex items-center gap-3 flex-wrap">${sources}</div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">${kpis}</div>
+    ${section('1. Müştəri şikayətləri', complaints)}
+    ${section('2. Reputasiya riski', reputation)}
+    ${section('3. Satış fürsətləri / Paid media', sales)}
+    ${section('4. Vebsayt (GA4)', website)}
+    ${section('5. Sosial media siqnalları', social)}
+    ${section('6. Prioritet addımlar (data-əsaslı)', actions)}
+    ${section('🗂 Arxiv', `<div id="archive" class="text-sm text-gray-500">yüklənir…</div>`)}`;
+  $('#loading').classList.add('hidden');
+  $('#content').classList.remove('hidden');
+  loadArchive();
+}
+
+async function load(refresh){
+  $('#content').classList.add('hidden');
+  $('#loading').classList.remove('hidden');
+  try{
+    const r = await fetch('/api/briefing' + (refresh ? '?refresh=1' : ''));
+    const vm = await r.json();
+    if(vm.error){ $('#loading').innerHTML = `<div class="card p-5 text-brand-red">Kollektor xətası: ${esc(vm.error)}</div>`; return; }
+    render(vm);
+  }catch(e){
+    $('#loading').innerHTML = `<div class="card p-5 text-brand-red">Hesabat alınmadı: ${esc(e.message)}</div>`;
+  }
+}
+
+async function loadArchive(){
+  const box = $('#archive');
+  try{
+    const names = await (await fetch('/api/briefing/archive')).json();
+    if(!names.length){ box.textContent = 'Hələ saxlanmış hesabat yoxdur.'; return; }
+    box.innerHTML = names.map(n =>
+      `<button data-name="${esc(n)}" class="arch block text-left w-full py-1.5 px-2 rounded-lg hover:bg-surface-bg text-brand-ink">📄 ${esc(n)}</button>
+       <pre data-body="${esc(n)}" class="hidden whitespace-pre-wrap text-[12.5px] bg-surface-bg rounded-xl p-4 my-2"></pre>`).join('');
+    box.querySelectorAll('.arch').forEach(b => b.onclick = async () => {
+      const pre = box.querySelector(`[data-body="${b.dataset.name}"]`);
+      if(pre.classList.contains('hidden')){
+        if(!pre.textContent) pre.textContent = await (await fetch('/api/briefing/archive/' + b.dataset.name)).text();
+        pre.classList.remove('hidden');
+      } else pre.classList.add('hidden');
+    });
+  }catch(e){ box.textContent = 'Arxiv oxuna bilmədi.'; }
+}
+
+$('#btn-refresh').onclick = () => load(true);
+$('#btn-md').onclick = () => {
+  if(!VM) return;
+  const blob = new Blob([VM.markdown], {type:'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `briefing-${new Date().toISOString().slice(0,10)}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+$('#btn-save').onclick = async () => {
+  const r = await (await fetch('/api/briefing/save', {method:'POST'})).json();
+  $('#btn-save').textContent = `✓ ${r.saved}`;
+  setTimeout(() => $('#btn-save').innerHTML = '💾 Arxivə saxla', 2500);
+  loadArchive();
+};
+load(false);
+</script>
+</body>
+</html>

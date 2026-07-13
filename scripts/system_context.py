@@ -21,14 +21,14 @@ HF_SCAN_PATH = ROOT / "data" / "hf_radar" / "hf_opportunity_scan.json"
 SERVICES_PATH = ROOT / "services.json"
 
 CAPABILITY_PATHS = [
-    ("Hub / front door", "hub", "Unified Marketing OS entry point and service cards."),
-    ("Classic HQ dashboard", "app.py", "Streamlit command center with briefing, agent terminal, RAG, creative studio, and Agent Radar."),
-    ("Service registry", "services.json", "Single source of truth for ports, launchers, and hub visibility."),
+    ("Hub / front door", "hub", "Unified Marketing OS entry point, service cards, and port-less capability cards."),
+    ("Service registry", "services.json", "Single source of truth for ports, launchers, capabilities, and hub visibility."),
     ("Service drift audit", "audit_services.py", "Compares services.json with real listening ports and missing dirs."),
     ("Security Guard", "gateway/security.py", "Blocks secrets, destructive actions, payments, unsafe URLs, and unknown scripts."),
     ("Autonomous gateway", "gateway", "Queue, worker, executor, browser tools, AI Council, Telegram delivery path."),
     ("Knowledge Core", "brain", "Recall and reflect loop with optional private TEI/OpenAI-compatible embeddings."),
-    ("Daily briefing", "briefing_panel.py", "Executive CX and ads briefing panel."),
+    ("Bilik Bazası (RAG)", "gateway/rag_server.py", "Corporate knowledge base service: vector search plus source-grounded free-first answers."),
+    ("Daily briefing", "scripts/daily_briefing.py", "Executive CX + Meta + GA4 briefing; served at ads-studio /briefing."),
     ("Agent Radar", "gateway/agent_radar.py", "Agent governance, sandbox scoring, and automatic Marketing OS scan."),
     ("Public Signal Radar", "gateway/signal_radar.py", "Read-only public signal intake that source-checks trends into lab notes, prototype backlog, and reports."),
     ("Agent Permission Manifest", "config/agent_permissions.json", "Fail-closed capability boundaries for internal agents and MCP workflows."),

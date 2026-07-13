@@ -243,14 +243,11 @@ Configure it from `.env` with `AI_COUNCIL_ENABLED`,
 `AI_COUNCIL_GEMINI_TIMEOUT_SECONDS`.
 
 ### Atelier — Creative Lab + Brand Brain
-Atelier's brain (brand-DNA 11-layer prompts + AI vision critique + A/B board) is
-**merged natively into the dashboard** as the **🎨 Kreativ Studio** tab (no
-separate server needed) — part of the "one OS, one frontend" consolidation.
-`creative_studio.py` imports `atelier` as a library and adds one-click Imagen 3
-plus the ChatGPT Bridge upload.
-
-A standalone Atelier server still exists for development (`cd atelier; .\run.ps1`
-→ http://localhost:8820), but is transitional. See [atelier/README.md](atelier/README.md).
+Atelier (brand-DNA 11-layer prompts + AI vision critique + A/B board) runs as
+its own registered service — **Kreativ Studiya**, `http://localhost:8820` —
+embedded in the hub like every other studio (`cd atelier; .\run.ps1` or the
+START launcher). The old Streamlit `creative_studio.py` tab was retired with
+the 8501 monolith (2026-07-13). See [atelier/README.md](atelier/README.md).
 
 ### Influencer Hunter — Creator Intelligence
 Influencer Hunter is now part of the OS as a FastAPI panel on

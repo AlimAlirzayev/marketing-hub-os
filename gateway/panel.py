@@ -57,6 +57,21 @@ def pulse() -> JSONResponse:
     return JSONResponse(sense.snapshot())
 
 
+@app.get("/api/radar")
+def radar(refresh: int = 0) -> JSONResponse:
+    """Agent Radar + HF radar governance scans — migrated home from the 8501
+    Streamlit archive (2026-07-13). Deterministic local scoring (no LLM, no
+    network); auto-reruns when the stored scan is older than 24h."""
+    from . import agent_radar, hf_radar
+    scan = agent_radar.load_latest_scan()
+    if refresh or agent_radar.scan_is_stale(scan):
+        scan = agent_radar.run_marketing_os_scan()
+    hf = hf_radar.load_latest_scan()
+    if refresh or hf_radar.scan_is_stale(hf):
+        hf = hf_radar.run_hf_scan()
+    return JSONResponse({"scan": scan, "hf": hf})
+
+
 @app.get("/api/advisor")
 def advisor_view() -> JSONResponse:
     findings = [f.as_dict() for f in advisor.observe_state()]
@@ -716,6 +731,11 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
     <h3>Son hadisələr</h3>
     <div id="events" class="muted">yüklənir…</div>
   </section>
+  <section class="card pad">
+    <h3>Agent Radar — avtomatik governance
+      <span class="lnk" onclick="loadRadar(1)">↻ yenidən skan et</span></h3>
+    <div id="radar" class="muted">yüklənir…</div>
+  </section>
 </section>
 
 </main>
@@ -1012,6 +1032,48 @@ async function submitTask(){
   refresh();
 }
 
+/* ── Agent Radar (governance) — cached scan; ↻ forces a fresh run ── */
+async function loadRadar(force){
+  const box=$("radar");
+  if(force)box.innerHTML=`<div class="muted">skan işləyir…</div>`;
+  let r;
+  try{r=await j("/api/radar"+(force?"?refresh=1":""));}
+  catch(e){box.innerHTML=`<div class="muted">radar oxunmadı</div>`;return;}
+  const s=r.scan||{},hf=r.hf||{};
+  const sum=s.system_fit_summary||{},rec=s.recommendation||{};
+  const hsum=hf.system_fit_summary||{},hrec=hf.recommendation||{};
+  const chip=(k,v)=>`<span class="badge">${k}: <b>${v??"–"}</b></span>`;
+  const rows=(s.ranked_candidates||[]).map(it=>`<tr>
+    <td>${esc(it.candidate.name)}</td><td class="muted">${esc(it.phase||"")}</td>
+    <td class="mono">${it.fit_score}</td><td class="mono">${it.evaluation.risk_score}</td>
+    <td>${esc(it.evaluation.verdict)}</td><td class="muted">${esc(it.decision)}</td></tr>`).join("");
+  const hrows=(hf.ranked_opportunities||[]).slice(0,6).map(it=>`<tr>
+    <td>${esc(it.opportunity.name)}</td><td class="muted">${esc(it.opportunity.category)}</td>
+    <td class="mono">${it.evaluation.fit_score}</td><td class="mono">${it.evaluation.risk_score}</td>
+    <td>${esc(it.evaluation.verdict)}</td><td class="muted">${esc(it.evaluation.decision)}</td></tr>`).join("");
+  box.classList.remove("muted");
+  box.innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      ${chip("Ümumi uyğunluq",(sum.overall_rating??"–")+"/100")}
+      ${chip("Orta fit",sum.avg_fit_score)} ${chip("Orta risk",sum.avg_risk_score)}
+      <span class="badge">tövsiyə: <b>${esc(rec.name||"–")}</b> → ${esc(rec.decision||"")}</span>
+    </div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Modul</th><th>Faza</th><th>Fit</th><th>Risk</th><th>Verdikt</th><th>Qərar</th></tr></thead>
+      <tbody>${rows||`<tr><td colspan="6" class="muted">skan yoxdur</td></tr>`}</tbody></table></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px">
+      <span class="badge">🤗 Hugging Face radarı</span>
+      ${chip("HF fit",(hsum.overall_rating??"–")+"/100")}
+      <span class="badge">tövsiyə: <b>${esc(hrec.name||"–")}</b> → ${esc(hrec.decision||"")}</span>
+    </div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Fürsət</th><th>Kateqoriya</th><th>Fit</th><th>Risk</th><th>Verdikt</th><th>Qərar</th></tr></thead>
+      <tbody>${hrows||`<tr><td colspan="6" class="muted">skan yoxdur</td></tr>`}</tbody></table></div>
+    <div class="muted" style="font-size:12px;margin-top:8px">
+      Yerli deterministik skorlama — LLM-siz · hesabatlar: output/agent-radar · output/hf-radar
+      ${s.generated_at_iso?` · son skan: ${esc(s.generated_at_iso)}`:""}</div>`;
+}
+
 async function doSync(){
   const b=$("syncBtn"); b.disabled=true;
   const r=await j("/api/sync",{method:"POST"});
@@ -1053,6 +1115,7 @@ showTab(_qs.get("tab")||_tab);
 refresh();
 loadChat();
 loadDeliverables();
+loadRadar(0);
 setInterval(refresh, 15000);
 setInterval(loadChat, 12000);
 setInterval(loadDeliverables, 60000);

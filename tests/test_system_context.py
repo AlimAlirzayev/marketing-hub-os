@@ -21,7 +21,9 @@ class SystemContextTests(unittest.TestCase):
         text = system_context.render_context(datetime(2026, 6, 22, tzinfo=timezone.utc))
         self.assertIn("| Key | Name | Port | Category | Launch | Target | Health |", text)
         self.assertIn("| hub |", text)
-        self.assertIn("| hq |", text)
+        self.assertIn("| rag |", text)
+        # The 8501 Streamlit monolith was retired 2026-07-13 — it must not return.
+        self.assertNotIn("| hq |", text)
 
     def test_capability_paths_are_workspace_relative(self):
         text = system_context.render_context(datetime(2026, 6, 22, tzinfo=timezone.utc))

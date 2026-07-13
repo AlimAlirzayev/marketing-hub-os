@@ -1,7 +1,7 @@
-# Atelier standalone launcher. Atelier is now an importable package, so the
+# Atelier standalone launcher. Atelier is an importable package, so the
 # server runs as `atelier.app:app` from the repo root (one dir up). The venv
-# still lives in atelier/.venv. NOTE: the standalone server is transitional —
-# Atelier's brain is being merged natively into the unified dashboard (8501).
+# still lives in atelier/.venv. Registered in services.json (port 8820,
+# "Kreativ Studiya") and embedded in the hub like every other studio.
 $ErrorActionPreference = "Stop"
 $here = $PSScriptRoot
 $root = Split-Path $here -Parent

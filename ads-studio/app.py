@@ -12,9 +12,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import sys
+import time
+from datetime import date
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -72,6 +76,75 @@ def _save_snapshot(report: dict) -> None:
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(os.path.join(BASE, "templates", "dashboard.html"))
+
+
+# --------------------------------------------------------------------------
+# Gündəlik Rəhbərlik Hesabatı — migrated home from the 8501 Streamlit archive
+# (2026-07-13). All numbers come from scripts/daily_briefing.py collectors;
+# demo/unavailable sources are labelled, never invented.
+# --------------------------------------------------------------------------
+ROOT = os.path.dirname(BASE)
+BRIEFINGS_DIR = os.path.join(ROOT, "output", "briefings")
+_BRIEFING_TTL = 600  # seconds — same 10-min cache the old panel used
+_briefing_cache: dict = {"at": 0.0, "vm": None}
+
+
+def _briefing_vm(refresh: bool = False) -> dict:
+    if (not refresh and _briefing_cache["vm"]
+            and time.time() - _briefing_cache["at"] < _BRIEFING_TTL):
+        return _briefing_cache["vm"]
+    scripts_dir = os.path.join(ROOT, "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    import daily_briefing as briefing
+    cx, ads_data = briefing.collect_all()
+    ga4 = briefing.collect_ga4()
+    vm = briefing.build_view_model(cx, ads_data, ga4)
+    _briefing_cache.update(at=time.time(), vm=vm)
+    return vm
+
+
+@app.get("/briefing")
+def briefing_page() -> FileResponse:
+    return FileResponse(os.path.join(BASE, "templates", "briefing.html"))
+
+
+@app.get("/api/briefing")
+def briefing_api(refresh: int = 0) -> JSONResponse:
+    try:
+        return JSONResponse(_briefing_vm(bool(refresh)))
+    except Exception as exc:  # collectors must never 500 the page
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=502)
+
+
+@app.post("/api/briefing/save")
+def briefing_save() -> JSONResponse:
+    vm = _briefing_vm()
+    os.makedirs(BRIEFINGS_DIR, exist_ok=True)
+    name = f"briefing-{date.today().isoformat()}.md"
+    with open(os.path.join(BRIEFINGS_DIR, name), "w", encoding="utf-8") as f:
+        f.write(vm["markdown"])
+    return JSONResponse({"saved": name})
+
+
+@app.get("/api/briefing/archive")
+def briefing_archive() -> JSONResponse:
+    if not os.path.isdir(BRIEFINGS_DIR):
+        return JSONResponse([])
+    names = sorted((n for n in os.listdir(BRIEFINGS_DIR)
+                    if re.fullmatch(r"briefing-\d{4}-\d{2}-\d{2}\.md", n)), reverse=True)
+    return JSONResponse(names)
+
+
+@app.get("/api/briefing/archive/{name}")
+def briefing_archive_item(name: str) -> PlainTextResponse:
+    if not re.fullmatch(r"briefing-\d{4}-\d{2}-\d{2}\.md", name):
+        return PlainTextResponse("bad name", status_code=400)
+    path = os.path.join(BRIEFINGS_DIR, name)
+    if not os.path.isfile(path):
+        return PlainTextResponse("not found", status_code=404)
+    with open(path, encoding="utf-8") as f:
+        return PlainTextResponse(f.read())
 
 
 # --------------------------------------------------------------------------

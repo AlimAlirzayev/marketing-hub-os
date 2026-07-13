@@ -129,10 +129,21 @@ def collect_all() -> tuple[dict, dict]:
     return cx, ads
 
 
+def _app_python(cwd: Path) -> str:
+    """Each app's collector runs with that app's own venv when it has one, so
+    the briefing works no matter which service imports us (ads-studio serves
+    it now; the CLI and tests use the root venv)."""
+    for candidate in (cwd / ".venv" / "Scripts" / "python.exe",
+                      cwd / ".venv" / "bin" / "python"):
+        if candidate.exists():
+            return str(candidate)
+    return sys.executable
+
+
 def _collect(name: str, cwd: Path, code: str, timeout: int) -> dict:
     try:
         proc = subprocess.run(
-            [sys.executable, "-c", code],
+            [_app_python(cwd), "-c", code],
             cwd=str(cwd),
             capture_output=True,
             text=True,

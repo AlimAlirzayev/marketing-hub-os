@@ -1,6 +1,6 @@
 # RAMIN OS System Context
 
-Generated UTC: 2026-07-13T11:30:37Z
+Generated UTC: 2026-07-13T12:31:39Z
 
 ## Mission
 
@@ -37,21 +37,21 @@ a disconnected side project.
 | mediaforge | Media Studio | 8870 | Kontent | uvicorn | mediaforge.server:app | /api/health |
 | certcoach | Sertifikat Mentoru | 8880 | Təlim | uvicorn | certification_coach.server:app | /api/health |
 | panel | İdarəetmə Mərkəzi | 8890 | İş masası | uvicorn | gateway.panel:app | /api/health |
-| hq | Arxiv modulları | 8501 | Sistem | streamlit | app.py | / |
+| rag | Bilik Bazası | 8895 | İş masası | uvicorn | gateway.rag_server:app | /api/health |
 | mediagen | Media Generatoru | 8765 | Kontent | uvicorn | mediagen.server:app | /api/health |
 
 ## Capability Map
 
 | Capability | Path | Present | Role |
 |---|---|---|---|
-| Hub / front door | `hub` | yes | Unified Marketing OS entry point and service cards. |
-| Classic HQ dashboard | `app.py` | yes | Streamlit command center with briefing, agent terminal, RAG, creative studio, and Agent Radar. |
-| Service registry | `services.json` | yes | Single source of truth for ports, launchers, and hub visibility. |
+| Hub / front door | `hub` | yes | Unified Marketing OS entry point, service cards, and port-less capability cards. |
+| Service registry | `services.json` | yes | Single source of truth for ports, launchers, capabilities, and hub visibility. |
 | Service drift audit | `audit_services.py` | yes | Compares services.json with real listening ports and missing dirs. |
 | Security Guard | `gateway/security.py` | yes | Blocks secrets, destructive actions, payments, unsafe URLs, and unknown scripts. |
 | Autonomous gateway | `gateway` | yes | Queue, worker, executor, browser tools, AI Council, Telegram delivery path. |
 | Knowledge Core | `brain` | yes | Recall and reflect loop with optional private TEI/OpenAI-compatible embeddings. |
-| Daily briefing | `briefing_panel.py` | yes | Executive CX and ads briefing panel. |
+| Bilik Bazası (RAG) | `gateway/rag_server.py` | yes | Corporate knowledge base service: vector search plus source-grounded free-first answers. |
+| Daily briefing | `scripts/daily_briefing.py` | yes | Executive CX + Meta + GA4 briefing; served at ads-studio /briefing. |
 | Agent Radar | `gateway/agent_radar.py` | yes | Agent governance, sandbox scoring, and automatic Marketing OS scan. |
 | Public Signal Radar | `gateway/signal_radar.py` | yes | Read-only public signal intake that source-checks trends into lab notes, prototype backlog, and reports. |
 | Agent Permission Manifest | `config/agent_permissions.json` | yes | Fail-closed capability boundaries for internal agents and MCP workflows. |
