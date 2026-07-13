@@ -131,3 +131,4 @@ output/social/
 *.bak3.*
 data/postpull_state.json
 data/last_sync.json
+data/skills/

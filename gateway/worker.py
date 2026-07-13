@@ -15,7 +15,7 @@ import time
 import traceback
 
 from ._bootstrap import load_env
-from . import knowledge, mic, queue, sense, telegram, voice
+from . import knowledge, mic, queue, sense, skills, telegram, voice
 from .executor import execute
 
 load_env()
@@ -131,6 +131,14 @@ def run_once() -> bool:
                 print(f"[worker] job {job.id} -> {n} lesson(s) queued for review")
         except Exception as exc:
             print(f"[worker] reflect skipped for job {job.id}: {exc}")
+        # Hermes-style: turn a successful WORK job into a reusable skill card the
+        # work lanes reuse next time. Also post-delivery + guarded (never blocks).
+        try:
+            slug = skills.learn_from_job(job.task, out["result"])
+            if slug:
+                print(f"[worker] job {job.id} -> learned skill '{slug}'")
+        except Exception as exc:
+            print(f"[worker] skill learn skipped for job {job.id}: {exc}")
     except Exception as exc:
         err = f"{exc}\n{traceback.format_exc()}"
         queue.fail(job.id, err)

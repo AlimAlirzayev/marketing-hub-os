@@ -20,7 +20,7 @@ import subprocess
 from pathlib import Path
 
 from ._bootstrap import load_env
-from . import agent, knowledge, llm, mic, security, sense
+from . import agent, knowledge, llm, mic, security, sense, skills
 from .queue import Job
 from .studio_api import call_studio_api, list_studios, generate_media
 from orchestrator.router import classify, route
@@ -669,20 +669,6 @@ def execute(job: Job) -> dict:
             sense.emit("job", f"#{job.id} briefing", {"task": job.task[:80]})
             return {"result": f"_[briefing]_\n\n{text}", "artifacts": [artifact]}
 
-        # Meta ads rail: the owner talks to his LIVE ad account in plain Azerbaijani
-        # ("Awareness kampaniyasını dayandır"). Reads answer at once. Anything that
-        # changes a campaign builds a plan from the CURRENT live state, shows it, and
-        # parks — it runs only on the approved re-run. This sits ahead of the generic
-        # checkpoint because it can show what actually changes, not just "risky task".
-        from . import ads_agent
-        if ads_agent.wants_ads(job.task):
-            out = ads_agent.handle(job)
-            if out is not None:
-                sense.emit("job", f"#{job.id} ads", {"task": job.task[:80]})
-                artifact = _save_artifact(job.id, out["result"], reply=True)
-                out["artifacts"] = list(out.get("artifacts") or []) + [artifact]
-                return out
-
         # The human checkpoint (charter: outward actions never run silently).
         # A publish/send/call/deploy task parks for operator approval; once the
         # operator /approve-s it, the job returns approved=1 and passes through.
@@ -728,7 +714,8 @@ def execute(job: Job) -> dict:
                 model=agent_model,
                 config=types.GenerateContentConfig(
                     system_instruction=knowledge.augment_system(
-                        _SYSTEM + _WORKSPACE_ADDENDUM, job.task, thread),
+                        _SYSTEM + _WORKSPACE_ADDENDUM, job.task, thread)
+                    + skills.relevant(job.task),
                     temperature=0.2,
                     tools=[run_studio_automation, call_studio_api, list_studios,
                            generate_media, scrape_url, workspace_agent.run_command,
@@ -769,7 +756,7 @@ def execute(job: Job) -> dict:
                 model=agent_model,
                 contents=job.task,
                 config=types.GenerateContentConfig(
-                    system_instruction=knowledge.augment_system(_SYSTEM, job.task, thread) + " Dəqiq və ən son aktual məlumatlar üçün mütləq Google Axtarışdan istifadə et.",
+                    system_instruction=knowledge.augment_system(_SYSTEM, job.task, thread) + " Dəqiq və ən son aktual məlumatlar üçün mütləq Google Axtarışdan istifadə et." + skills.relevant(job.task),
                     temperature=0.2,
                     tools=[{"google_search": {}}],  # Google-un rəsmi Search API-si birbaşa modelə bağlanır
                 )
