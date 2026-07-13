@@ -17,6 +17,18 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+# The corporate Windows console defaults to cp1252, which cannot encode
+# Azerbaijani characters (ə, ö, ...). A bare print() of a task/result then
+# raises UnicodeEncodeError and can crash a claimed job mid-run. Harden every
+# gateway process once, here: keep the console's encoding but never crash on
+# an unencodable character.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if (getattr(_stream, "encoding", "") or "").lower() not in ("utf-8", "utf8"):
+            _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 _ENV_LOADED = False
 
 
