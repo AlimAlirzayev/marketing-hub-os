@@ -52,6 +52,13 @@ if (Test-Path $gwpy) {
 $door = ($reg.services | Where-Object { $_.front_door } | Select-Object -First 1)
 $port = if ($door) { $door.port } else { 8000 }
 Start-Sleep -Seconds 6
+# Access launchers on the Desktop — the one-click buttons travel to BOTH twins
+# via the engine, so opening the system on the work PC puts them in reach with
+# no manual copying (Alim's cross-twin rule). Best-effort; never blocks boot.
+$lpy = Join-Path $root ".venv\Scripts\python.exe"
+if (-not (Test-Path $lpy)) { $lpy = "python" }
+& $lpy (Join-Path $root "scripts\install_launchers.py")
+
 Write-Host ""
 Write-Host ("  Hazirdir -> http://localhost:{0}" -f $port) -ForegroundColor Cyan
 Write-Host ""
