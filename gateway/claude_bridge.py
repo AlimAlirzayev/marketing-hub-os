@@ -129,31 +129,52 @@ def _save_session(thread: str, session_id: str) -> None:
 def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
               token: str | None) -> tuple[str, dict]:
     """One `claude -p` turn against a specific account token (None = ambient
-    login). Returns (text, meta) on success; raises on any error. A usage-cap
-    result is surfaced as a RuntimeError whose message trips _is_limit()."""
+    login). Returns (text, meta). Raises on error; a usage-cap message trips
+    _is_limit() so the caller fails over. `claude -p` occasionally exits non-
+    zero with empty output (transient overload / cache-creation race) or fails
+    to resume a stale session — both are retried once (the retry drops --resume),
+    so a blip doesn't needlessly bounce the turn to the free brain."""
     perm = os.getenv("CLAUDE_BRIDGE_PERMISSION_MODE", "default")
-    cmd = ["claude", "-p", "--output-format", "json", "--permission-mode", perm]
-    sid = _load_session(thread)
-    if sid:
-        cmd += ["--resume", sid]
     env = os.environ.copy()
     if token:
         env["CLAUDE_CODE_OAUTH_TOKEN"] = token
-    proc = subprocess.run(
-        cmd, input=f"{_FRAMING}\n\n{prompt}", cwd=str(cwd or ROOT),
-        capture_output=True, text=True, timeout=timeout or _TIMEOUT, env=env,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(f"claude -p failed: {(proc.stderr or '').strip()[:200]}")
-    data = json.loads(proc.stdout)
-    text = (data.get("result") or "").strip()
-    if not text or data.get("is_error"):
-        raise RuntimeError(f"claude -p error: {text or str(data)[:200]}")
-    new_sid = data.get("session_id")
-    if new_sid:
-        _save_session(thread, new_sid)
-    return text, {"session_id": new_sid, "cost_usd": data.get("total_cost_usd"),
-                  "num_turns": data.get("num_turns")}
+        # CRITICAL: claude -p prefers ANTHROPIC_API_KEY over the OAuth token, and
+        # .env carries a DEAD placeholder key that load_env() puts in the env —
+        # leaving it makes every subscription turn 401 "Invalid API key". Strip
+        # the API-key vars so the (valid) subscription token is what authenticates.
+        for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+            env.pop(k, None)
+    sid = _load_session(thread)
+
+    last = ""
+    for attempt in range(2):
+        cmd = ["claude", "-p", "--output-format", "json", "--permission-mode", perm]
+        if sid and attempt == 0:  # only the first try resumes; retry is fresh
+            cmd += ["--resume", sid]
+        proc = subprocess.run(
+            cmd, input=f"{_FRAMING}\n\n{prompt}", cwd=str(cwd or ROOT),
+            capture_output=True, text=True, timeout=timeout or _TIMEOUT, env=env,
+        )
+        out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
+        if proc.returncode != 0:
+            last = err or out or "empty output"
+            if _is_limit(last):
+                raise RuntimeError(f"claude -p capped: {last[:200]}")
+            continue  # transient / bad-session -> retry fresh
+        try:
+            data = json.loads(out)
+        except ValueError:
+            last = f"unparseable output: {out[:150]}"
+            continue
+        text = (data.get("result") or "").strip()
+        if data.get("is_error") or not text:
+            raise RuntimeError(f"claude -p error: {text or str(data)[:200]}")
+        new_sid = data.get("session_id")
+        if new_sid:
+            _save_session(thread, new_sid)
+        return text, {"session_id": new_sid, "cost_usd": data.get("total_cost_usd"),
+                      "num_turns": data.get("num_turns")}
+    raise RuntimeError(f"claude -p failed after retry: {last[:200]}")
 
 
 def ask(prompt: str, *, thread: str = "main", cwd: Path | None = None,
