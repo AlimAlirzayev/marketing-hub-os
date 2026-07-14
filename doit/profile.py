@@ -26,8 +26,11 @@ import tempfile
 
 # Only the files that carry a session. Copying the whole profile means gigabytes
 # of cache for nothing.
-_SESSION_FILES = ("Cookies", "Cookies-journal", "Preferences",
-                  "Secure Preferences", "Login Data", "Web Data")
+# Cookies-wal / Cookies-shm are the WAL sidecars: while Chrome is open the freshest
+# cookies live there, not in the main Cookies file (see _copy_sqlite). Snapshot them
+# too or the borrowed session is stale for exactly the login the operator just made.
+_SESSION_FILES = ("Cookies", "Cookies-journal", "Cookies-wal", "Cookies-shm",
+                  "Preferences", "Secure Preferences", "Login Data", "Web Data")
 _SESSION_DIRS = ("Network", "Local Storage", "Session Storage", "IndexedDB")
 
 
@@ -54,6 +57,26 @@ def user_data_root(channel: str = "chrome") -> str | None:
     return root if root and os.path.isdir(root) else None
 
 
+def _copy_sqlite(src: str, dest: str) -> None:
+    """Copy a live Chrome SQLite DB *including its -wal/-shm sidecars*.
+
+    Chrome runs its cookie store in WAL mode. While the browser is OPEN — exactly
+    the case doit is built for — the newest cookies (a login you JUST made) live in
+    the `-wal` file and have not been checkpointed into the main DB yet. Copying only
+    the main file reads a STALE snapshot, so a fresh session is invisible. Bringing
+    the -wal and -shm siblings along (with matching basenames) lets SQLite replay the
+    log and see those cookies. host_key only; values are never read or decrypted.
+    """
+    shutil.copy2(src, dest)
+    for suffix in ("-wal", "-shm"):
+        sib = src + suffix
+        if os.path.exists(sib):
+            try:
+                shutil.copy2(sib, dest + suffix)
+            except Exception:  # noqa: BLE001 — a missing sidecar just means no WAL
+                pass
+
+
 def _cookie_hits(profile_dir: str, domain: str) -> int:
     """How many cookies this profile holds for the provider's domain. The DB is
     copied first — Chrome holds a lock on the live file while it runs. Only
@@ -64,8 +87,9 @@ def _cookie_hits(profile_dir: str, domain: str) -> int:
             continue
         tmp = os.path.join(tempfile.mkdtemp(), "c.db")
         try:
-            shutil.copy2(src, tmp)
+            _copy_sqlite(src, tmp)
             con = sqlite3.connect(tmp)
+            con.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # fold the -wal into the copy
             n = con.execute(
                 "SELECT count(*) FROM cookies WHERE host_key LIKE ?",
                 (f"%{domain}%",),
