@@ -70,7 +70,13 @@ class ConversationalDefault(_IsolatedJobsDB):
             seen["thread"] = thread
             return system
 
-        with mock.patch.object(executor, "_council_should_run", return_value=False), \
+        # Pin the conversational brain to free: this test asserts the free-router
+        # chat path (mocked llm.complete). In the FULL suite (but not in isolation)
+        # some earlier test leaks MIC_BRAIN=claude into the live os.environ, so
+        # without this pin _converse takes the real claude_bridge path and the mock
+        # is never hit. Pinning the selector is hermetic regardless of that leak.
+        with mock.patch.object(executor, "_mic_brain", return_value="free"), \
+             mock.patch.object(executor, "_council_should_run", return_value=False), \
              mock.patch.object(executor, "_choose_mode", return_value="plain"), \
              mock.patch.object(executor, "route", return_value="fake"), \
              mock.patch.object(executor.knowledge, "augment_system", side_effect=_augment), \

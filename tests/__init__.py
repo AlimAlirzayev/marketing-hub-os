@@ -24,3 +24,12 @@ import tempfile
 _tmp = tempfile.mkdtemp(prefix="ramin-os-tests-")
 os.environ.setdefault("SYSTEM_EVENTS_PATH", os.path.join(_tmp, "system_events.jsonl"))
 os.environ.setdefault("LLM_USAGE_PATH", os.path.join(_tmp, "llm_usage.jsonl"))
+
+# Pin the conversational brain to the code default. The machine's .env may set
+# MIC_BRAIN=claude (premium Telegram brain), which routes executor._converse
+# through claude_bridge instead of the mocked llm.complete — silently breaking
+# tests that assert the free chat path (test_mic, test_approval_rail). Tests must
+# exercise CODE behavior, not this box's config. load_env() uses setdefault, so
+# forcing it here (before any gateway import) wins; a test that specifically wants
+# the claude path overrides MIC_BRAIN itself.
+os.environ["MIC_BRAIN"] = "free"

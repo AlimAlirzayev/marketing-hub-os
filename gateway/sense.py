@@ -276,6 +276,15 @@ def pulse() -> str:
     lines.append(f"MEMORY:    {s['memory']}")
     lines.append(f"SCHEDULES: {s['schedules']}")
     lines.append(f"LLM(bugün):{s['llm']}")
+    # Which brain actually answers the conversational path. This was invisible once
+    # and the system silently served Groq for weeks (MIC_BRAIN defaulted to 'free',
+    # so executor._converse never called claude_bridge). Surface it so "why is it
+    # dumb" is answerable at a glance, not after tracing the call path.
+    mic = os.getenv("MIC_BRAIN", "free").strip().lower()
+    if mic == "claude":
+        lines.append("BEYİN:     🟢 claude-code (premium) — söhbət Claude-a gedir")
+    else:
+        lines.append("BEYİN:     🟡 free (Gemini→Groq) — premium üçün MIC_BRAIN=claude")
     lines.append(f"GIT:       {s['git']}")
     if s["recent_events"]:
         lines.append("SON HADİSƏLƏR:")
