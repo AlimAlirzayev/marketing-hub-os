@@ -35,6 +35,15 @@ _SYNC = _ROOT / "scripts" / "sync_engine.py"
 _ENV_PATH = _ROOT / ".env"
 _KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,64}$")
 
+# Secure FILE courier. /setkey carries a single KEY=value line; some secrets are
+# whole files (e.g. ~/.codex/auth.json — multi-line JSON, past the 4096-char
+# Telegram message cap). The owner attaches the file with caption "/setfile NAME";
+# we stage the raw bytes here, locked and OFF git (data/ is git-ignored), for a
+# machine that pulls it (e.g. the Mac fetches over SSH, installs, then wipes the
+# staged copy). Same trust model as /setkey: owner is the courier, we never send.
+_COURIER_DIR = _ROOT / "data" / "couriered"
+_COURIER_MAX_BYTES = 256 * 1024
+
 _WHISPER_URL = os.getenv(
     "WHISPER_URL", "http://127.0.0.1:8787/v1/audio/transcriptions"
 )
@@ -56,6 +65,7 @@ _HELP = (
     "  /reject N   - reject a parked risky job (owner only)\n"
     "  /update     - pull the latest engine from GitHub (owner only)\n"
     "  /setkey K V - write an API key into THIS machine's .env (owner only)\n"
+    "  /setfile N  - attach a file with this caption to courier it in (owner only)\n"
     "  /keys       - masked status of critical keys (owner only)\n"
     "  /help       - this message"
 )
@@ -184,6 +194,55 @@ def _transcribe(file_id: str) -> str | None:
         return None
 
 
+def _handle_couriered_file(chat_id: int, msg: dict, doc: dict) -> None:
+    """Stage an owner-couriered file (caption '/setfile NAME'), locked and off git.
+
+    Owner-only is already enforced by the caller. The carrying message is deleted
+    best-effort so the secret does not linger in the chat, exactly like /setkey.
+    """
+    caption = (msg.get("caption") or "").strip()
+    pieces = caption.split()
+    if len(pieces) < 2 or pieces[0] != "/setfile" or not _KEY_RE.match(pieces[1]):
+        telegram.send_message(
+            chat_id,
+            "📎 Faylı təhlükəsiz keçirmək üçün onu başlıqla (caption) göndər:\n"
+            "  /setfile AD\n"
+            "Məs.: auth.json faylını əlavə et, başlığa yaz: /setfile CODEX_AUTH\n"
+            "(Ad BÖYÜK_HƏRF_VƏ_ALT_XƏTT formatında olmalıdır.)",
+        )
+        return
+    name = pieces[1]
+    size = int(doc.get("file_size") or 0)
+    if size and size > _COURIER_MAX_BYTES:
+        telegram.send_message(
+            chat_id, f"Fayl çox böyükdür ({size} bayt, limit {_COURIER_MAX_BYTES}).")
+        return
+    data = telegram.download_file_by_id(doc["file_id"])
+    if not data:
+        telegram.send_message(chat_id, "Faylı yükləyə bilmədim — bir də göndər.")
+        return
+    if len(data) > _COURIER_MAX_BYTES:
+        telegram.send_message(chat_id, "Fayl çox böyükdür — imtina etdim.")
+        return
+    _COURIER_DIR.mkdir(parents=True, exist_ok=True)
+    dest = _COURIER_DIR / name
+    dest.write_bytes(data)
+    try:
+        os.chmod(dest, 0o600)
+    except OSError:
+        pass
+    try:  # scrub the carrying message from chat history, best-effort
+        telegram.delete_message(chat_id, msg["message_id"])
+    except Exception:
+        pass
+    sense.emit("credential", f"couriered file {name} staged ({len(data)} bytes, masked)")
+    telegram.send_message(
+        chat_id,
+        f"📎 Fayl alındı: {name} ({len(data)} bayt) — kilidli saxlandı, daşıyıcı mesaj silindi.\n"
+        f"İndi onu təyinatına çəkib quraşdırmaq olar.",
+    )
+
+
 def _extract_task(msg: dict) -> tuple[str | None, bool]:
     """Return (task_text, was_voice). Text wins; else transcribe voice/audio."""
     text = (msg.get("text") or "").strip()
@@ -231,6 +290,14 @@ def _handle_message(msg: dict) -> None:
             telegram.send_message(chat_id, reply)
         except Exception:
             pass
+        return
+
+    # Secure file courier: an owner-attached document with a "/setfile NAME"
+    # caption is staged, not treated as a task. Sits ahead of task extraction
+    # because a document has no task text and would otherwise be rejected.
+    doc = msg.get("document")
+    if doc and doc.get("file_id"):
+        _handle_couriered_file(chat_id, msg, doc)
         return
 
     task, was_voice = _extract_task(msg)
