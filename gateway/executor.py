@@ -101,6 +101,23 @@ def _is_briefing(task: str) -> bool:
     return any(cue in low for cue in _BRIEFING_CUES)
 
 
+# AI Radar rail-i (gateway/radar.py): həftəlik dərin brif + gündəlik kritik-nəbz.
+# Cues dar saxlanılıb ki, içində təsadüfən "radar" keçən adi tapşırıqlar bura
+# düşməsin. "nəbz" sözü QƏSDƏN yoxdur — o, briefing rail-inin cue-sudur.
+_RADAR_CUES = ("radar həftəlik", "radar heftelik", "ai radar", "/radar")
+_RADAR_PULSE_CUES = ("radar gündəlik", "radar gundelik", "radar pulse")
+
+
+def _is_radar(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return low == "radar" or any(cue in low for cue in _RADAR_CUES + _RADAR_PULSE_CUES)
+
+
+def _is_radar_pulse(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return any(cue in low for cue in _RADAR_PULSE_CUES)
+
+
 def _choose_mode(task: str) -> str:
     low = task.lower()
     if any(k in low for k in _TOOL_HINTS):
@@ -702,6 +719,17 @@ def execute(job: Job) -> dict:
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} briefing", {"task": job.task[:80]})
             return {"result": f"_[briefing]_\n\n{text}", "artifacts": [artifact]}
+
+        # AI Radar rail-i: gündəlik nəbz (yalnız kritik olanda sahibə yazır) və
+        # həftəlik dərin brif. Schedule hər gün çağırır; taktı radar özü qoruyur.
+        # Telegram-ı radar özü göndərir — schedule mənbəli işlər üçün worker
+        # _notify Telegram-a yazmır (yalnız source=="telegram" bildirilir).
+        if _is_radar(job.task):
+            from . import radar
+            text = radar.pulse(send=True) if _is_radar_pulse(job.task) else radar.run(send=True)
+            artifact = _save_artifact(job.id, text)
+            sense.emit("job", f"#{job.id} radar", {"task": job.task[:80]})
+            return {"result": f"_[radar]_\n\n{text}", "artifacts": [artifact]}
 
         # The human checkpoint (charter: outward actions never run silently).
         # A publish/send/call/deploy task parks for operator approval; once the

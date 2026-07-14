@@ -73,7 +73,14 @@ def augment_system(system: str, task: str, thread_id: str | None = None) -> str:
     hierarchical blackboard (L1 turns + L3 entities + L4 summary + L2 recall);
     without one, fall back to plain L2 recall. Backward compatible (thread_id opt)."""
     ctx = thread_context(task, thread_id) if thread_id else recall_context(task)
-    return f"{system}\n\n{ctx}" if ctx else system
+    # Lab yanaşması: yaddaşda tapşırığa uyğun hazır imkan varsa, sistem bunu
+    # gizlətmir — operator "labda nə var" bilməlidir və yığım TƏKLİF olunmalıdır.
+    lab_hint = (
+        "\n\nLAB QAYDASI: yuxarıdakı yaddaş kontekstində bu tapşırığa uyğun hazır "
+        "imkan, radar tapıntısı və ya keçmiş dərs varsa, cavabında bunu açıq de "
+        "('labımızda bununla bağlı X var') və onları yığıb təhvil verməyi təklif et."
+    )
+    return f"{system}\n\n{ctx}{lab_hint}" if ctx else system
 
 
 def thread_context(task: str, thread_id: str | None, *, k: int = 4) -> str:
