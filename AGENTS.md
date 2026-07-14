@@ -61,6 +61,28 @@ python scripts/system_context.py
 6. Capture reusable lessons through the Brain workflow when the lesson should
    survive the current session.
 
+## Checks (how to know the system is green)
+
+```powershell
+python run_tests.py       # ALL suites — the only command that runs everything
+python audit_services.py  # registry (services.json) vs reality — no drift
+```
+
+`run_tests.py` runs each suite in its **own interpreter**, and that is not
+optional. This repo deliberately holds standalone tools rooted in their own
+folders, so it contains eight different `config.py` modules, a
+`meta-capi/gateway.py` that shadows the root `gateway/` package, and a
+`seo/http.py` that shadows the Python stdlib `http`. Put them in one process and
+they overwrite each other in `sys.modules` — you get failures like
+`module 'gateway' has no attribute '_client_ip'` on code that is perfectly fine.
+
+So: **a red suite here is far more often a shadowing artifact than a real bug.**
+Never "fix" the sub-projects to make a single flat `pytest` run work — process
+isolation is the design. A bare `pytest` at the root is scoped by `pytest.ini` to
+the collision-free root suite only; anything wider must go through `run_tests.py`.
+
+Baseline: 6 suites, 504 tests green, ~30s.
+
 ## Current Strategic Direction
 
 - The hub and `services.json` are the operational front door.
