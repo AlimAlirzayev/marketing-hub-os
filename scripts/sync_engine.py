@@ -50,8 +50,7 @@ def _git(*args: str, timeout: int | None = None) -> tuple[int, str]:
             cwd=str(ROOT),
             capture_output=True,
             text=True,
-            timeout=timeout,
-        )
+            timeout=timeout, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired:
         return 124, "timeout"
     except FileNotFoundError:
@@ -112,8 +111,7 @@ def _apply_vault_keys() -> None:
     try:
         proc = subprocess.run(
             [str(py) if py.exists() else sys.executable, "-m", "gateway.keyvault", "apply"],
-            cwd=str(ROOT), capture_output=True, text=True, timeout=30,
-        )
+            cwd=str(ROOT), capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace")
         line = (proc.stdout or "").strip()
         if line and "applied 0" not in line:
             print(line)

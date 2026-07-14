@@ -194,6 +194,7 @@ def run_studio_automation(studio_name: str, script_name: str) -> str:
             capture_output=True,
             text=True,
             timeout=120,
+            encoding="utf-8", errors="replace",
         )
         return f"Success output:\n{result.stdout}" if result.returncode == 0 else f"Error output:\n{result.stderr}"
     except Exception as e:
@@ -238,8 +239,8 @@ def _codex_agent(task: str, workspace: Path, *, timeout: int = 600) -> str:
     args = [exe, "exec", "-C", str(workspace), "--sandbox", "workspace-write",
             "--skip-git-repo-check", "--ephemeral",
             "--output-last-message", str(out_file), prompt]
-    proc = subprocess.run(args, cwd=str(workspace),
-                          capture_output=True, text=True, timeout=timeout)
+    proc = subprocess.run(args, cwd=str(workspace), capture_output=True, text=True,
+                          timeout=timeout, encoding="utf-8", errors="replace")
     text = ""
     if out_file.exists():
         text = out_file.read_text(encoding="utf-8", errors="replace").strip()

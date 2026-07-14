@@ -196,8 +196,7 @@ def run_command(command: str) -> str:
     try:
         proc = subprocess.run(
             _bwrap_argv(command),
-            capture_output=True, text=True, timeout=_CMD_TIMEOUT,
-        )
+            capture_output=True, text=True, timeout=_CMD_TIMEOUT, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired:
         return f"TIMEOUT after {_CMD_TIMEOUT}s — command killed. Break the work into smaller steps."
     except Exception as exc:  # never crash the agent loop

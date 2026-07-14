@@ -28,5 +28,3 @@
 **Next action:** Use this gate before any new model/provider route.
 
 **Evidence:**
-- [❎ SpaceXAI Unveils Grok 4.5](https://t.me/perplexity/1039)
-- [official source](https://x.ai/news/grok-4-5)

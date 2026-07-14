@@ -40,6 +40,14 @@ _SESSION_FILE = ROOT / "data" / "claude_session.json"
 # two accounts to survive the 5-hour usage cap; we rotate between them.
 _ACCOUNTS_FILE = ROOT / "data" / "private_context" / "claude_accounts.json"
 _TIMEOUT = int(os.getenv("CLAUDE_BRIDGE_TIMEOUT", "240"))
+# THE AZERBAIJANI LETTER THAT KILLED THE PREMIUM BRAIN (2026-07-14).
+# `subprocess.run(text=True)` with no explicit encoding uses the LOCALE default,
+# which on this Windows box is cp1252 — an alphabet with no 'ı' (U+0131). So every
+# `claude -p` turn carrying Azerbaijani raised UnicodeEncodeError, the bridge was
+# marked "unavailable", and the whole system silently fell back to the free Groq
+# model. The premium brain was never down; it was never reachable.
+# Pin UTF-8 on BOTH directions of the pipe. Never remove: the prompts are Azerbaijani.
+_TEXT_IO = {"encoding": "utf-8", "errors": "replace"}
 # When an account hits its usage cap, rest it this long before trying it again
 # (Claude's window is ~5h). The other account carries the load meanwhile.
 _COOLDOWN_S = int(float(os.getenv("CLAUDE_LIMIT_COOLDOWN_HOURS", "5")) * 3600)
@@ -154,6 +162,7 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
         proc = subprocess.run(
             cmd, input=f"{_FRAMING}\n\n{prompt}", cwd=str(cwd or ROOT),
             capture_output=True, text=True, timeout=timeout or _TIMEOUT, env=env,
+            **_TEXT_IO,
         )
         out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
         if proc.returncode != 0:
@@ -242,6 +251,7 @@ def build(task: str, workspace: Path, *, timeout: int = 900) -> str:
             ["claude", "-p", "--output-format", "json", "--permission-mode", perm],
             input=f"{_BUILD_FRAMING}\n\nTASK: {task}", cwd=str(workspace),
             capture_output=True, text=True, timeout=timeout, env=env,
+            **_TEXT_IO,
         )
         out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
         if proc.returncode != 0:

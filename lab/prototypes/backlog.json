@@ -72,9 +72,9 @@
     "next_action": "Keep the supervisor loop enabled and review output/signal-radar reports.",
     "id": "public-signal-triage-report",
     "source": "Signal Radar",
-    "window": "2026-07-10",
+    "window": "2026-07-14",
     "evidence": [],
-    "last_seen": "2026-07-10",
+    "last_seen": "2026-07-14",
     "first_seen": "2026-07-10"
   },
   {
@@ -104,19 +104,10 @@
     ],
     "next_action": "Use this gate before any new model/provider route.",
     "id": "official-source-gate",
-    "source": "Perplexity Discover",
-    "window": "2026-07-10",
-    "evidence": [
-      {
-        "title": "❎ SpaceXAI Unveils Grok 4.5",
-        "url": "https://t.me/perplexity/1039"
-      },
-      {
-        "title": "official source",
-        "url": "https://x.ai/news/grok-4-5"
-      }
-    ],
-    "last_seen": "2026-07-10",
+    "source": "Signal Radar",
+    "window": "2026-07-14",
+    "evidence": [],
+    "last_seen": "2026-07-14",
     "first_seen": "2026-07-10"
   },
   {

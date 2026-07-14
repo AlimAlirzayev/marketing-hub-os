@@ -40,7 +40,7 @@ def _head() -> str:
     """Current HEAD sha (empty on any error) — lets us see the pull range."""
     try:
         p = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(_ROOT),
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace")
         return (p.stdout or "").strip()
     except Exception:
         return ""
@@ -55,7 +55,7 @@ def _run_brain(pull: bool, push: bool) -> str:
         flags.append("--push-only")
     try:
         p = subprocess.run([sys.executable, str(_BRAIN), *flags], cwd=str(_ROOT),
-                           capture_output=True, text=True, timeout=120)
+                           capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
         return (p.stdout or p.stderr or "").strip()
     except Exception as exc:  # a sync hiccup must never reach the caller
         return f"[sync] skipped ({exc.__class__.__name__})"

@@ -162,8 +162,7 @@ def sync_now() -> JSONResponse:
     try:
         proc = subprocess.run(
             [sys.executable, str(_SYNC)],
-            cwd=str(ROOT), capture_output=True, text=True, timeout=90,
-        )
+            cwd=str(ROOT), capture_output=True, text=True, timeout=90, encoding="utf-8", errors="replace")
         out = (proc.stdout or proc.stderr or "").strip()
         return JSONResponse({"ok": True, "summary": out or "sync bitdi"})
     except Exception as exc:  # sync is best-effort, never a 500

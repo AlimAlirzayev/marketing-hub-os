@@ -226,7 +226,10 @@ def _llm_state() -> dict:
 
 def _git_state() -> dict:
     def _run(args):
-        return subprocess.run(args, cwd=str(ROOT), capture_output=True, text=True, timeout=8)
+        # utf-8 pinned: git subjects carry Azerbaijani + em-dashes, and the locale
+        # default (cp1252 on Windows) cannot decode them — see claude_bridge._TEXT_IO.
+        return subprocess.run(args, cwd=str(ROOT), capture_output=True, text=True,
+                              timeout=8, encoding="utf-8", errors="replace")
     try:
         head = _run(["git", "rev-parse", "--short", "HEAD"]).stdout.strip()
         dirty = bool(_run(["git", "status", "--porcelain"]).stdout.strip())

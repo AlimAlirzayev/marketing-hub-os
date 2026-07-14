@@ -46,7 +46,7 @@ _REQ_FILES = ("requirements.txt", "requirements-panel.txt")
 def _git(*args: str, timeout: int = 30) -> tuple[int, str]:
     try:
         p = subprocess.run(["git", *args], cwd=str(_ROOT),
-                           capture_output=True, text=True, timeout=timeout)
+                           capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
         return p.returncode, ((p.stdout or "") + (p.stderr or "")).strip()
     except Exception:
         return 1, ""
@@ -97,8 +97,7 @@ def run_tests() -> tuple[int, set[str]]:
     try:
         p = subprocess.run(
             [_venv_python(), "-m", "unittest", "discover", "-s", "tests", "-q"],
-            cwd=str(_ROOT), capture_output=True, text=True, timeout=_TEST_TIMEOUT,
-        )
+            cwd=str(_ROOT), capture_output=True, text=True, timeout=_TEST_TIMEOUT, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired:
         return -1, set()
     except Exception:

@@ -241,8 +241,7 @@ def _kill_tree(pid: int) -> None:
             ["taskkill", "/PID", str(pid), "/T", "/F"],
             capture_output=True,
             text=True,
-            timeout=10,
-        )
+            timeout=10, encoding="utf-8", errors="replace")
         return
     try:
         os.kill(pid, 9)

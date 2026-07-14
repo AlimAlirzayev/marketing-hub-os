@@ -95,8 +95,7 @@ def _run_sync() -> str:
             cwd=str(_ROOT),
             capture_output=True,
             text=True,
-            timeout=60,
-        )
+            timeout=60, encoding="utf-8", errors="replace")
         out = (proc.stdout or proc.stderr or "").strip()
         return out or "sync finished (no changes)."
     except subprocess.TimeoutExpired:
