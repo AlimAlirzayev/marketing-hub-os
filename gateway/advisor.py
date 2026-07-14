@@ -154,14 +154,22 @@ def observe_state(snap: dict | None = None) -> list[Finding]:
             "Növbədə xətalı işlər var.",
             "gateway xəta detalını saxlayır — səbəbi yoxla, sonra yenidən növbəyə sal."))
 
-    # 4. missing credentials that gate a concrete capability.
+    # 4. missing credentials that gate a concrete capability. The next step depends
+    #    on whether the governed acquisition rail is already armed — otherwise the
+    #    advice goes stale ("set the flag") after the owner has already set it.
+    creds_armed = str(env.get("GATEWAY_ALLOW_CREDENTIALS", "")).startswith("SET")
     for key, (provider, cap) in _GATING_CREDS.items():
         if not str(env.get(key, "")).startswith("SET"):
+            if creds_armed:
+                action = (f"Rail hazırdır (GATEWAY_ALLOW_CREDENTIALS aktiv). Telegram-a "
+                          f"«{provider} açarını gətir» yaz, ya da "
+                          f"credentials.acquire('{provider}', approved=True) işlət.")
+            else:
+                action = (f"doit ilə al: GATEWAY_ALLOW_CREDENTIALS=1, sonra "
+                          f"credentials.acquire('{provider}', approved=True).")
             findings.append(Finding(
                 "watch", "missing_cred", f"{key} yoxdur",
-                f"Bu açar olmadan bağlıdır: {cap}.",
-                f"doit ilə al: GATEWAY_ALLOW_CREDENTIALS=1, sonra "
-                f"credentials.acquire('{provider}', approved=True)."))
+                f"Bu açar olmadan bağlıdır: {cap}.", action))
 
     # 5. learning that never compounds — distilled lessons stuck unreviewed.
     pend = _pending_lessons()
