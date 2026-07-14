@@ -58,23 +58,25 @@ def user_data_root(channel: str = "chrome") -> str | None:
 
 
 def _copy_sqlite(src: str, dest: str) -> None:
-    """Copy a live Chrome SQLite DB *including its -wal/-shm sidecars*.
+    """Copy a live Chrome SQLite DB so its NEWEST cookies are readable.
 
     Chrome runs its cookie store in WAL mode. While the browser is OPEN — exactly
-    the case doit is built for — the newest cookies (a login you JUST made) live in
-    the `-wal` file and have not been checkpointed into the main DB yet. Copying only
-    the main file reads a STALE snapshot, so a fresh session is invisible. Bringing
-    the -wal and -shm siblings along (with matching basenames) lets SQLite replay the
-    log and see those cookies. host_key only; values are never read or decrypted.
+    the case doit is built for — the freshest cookies (a login made seconds ago) live
+    in the `-wal` file and are not yet checkpointed into the main DB. Copying only the
+    main file reads a STALE snapshot, so a fresh session is invisible.
+
+    We copy the main DB and its `-wal`, but deliberately NOT the `-shm`: the shared-
+    memory index is being mutated by the running browser, and a half-written copy of
+    it makes SQLite reject the whole WAL. Omitting it lets SQLite rebuild a consistent
+    `-shm` from the `-wal` on our private copy. host_key only; values never read.
     """
     shutil.copy2(src, dest)
-    for suffix in ("-wal", "-shm"):
-        sib = src + suffix
-        if os.path.exists(sib):
-            try:
-                shutil.copy2(sib, dest + suffix)
-            except Exception:  # noqa: BLE001 — a missing sidecar just means no WAL
-                pass
+    sib = src + "-wal"
+    if os.path.exists(sib):
+        try:
+            shutil.copy2(sib, dest + "-wal")
+        except Exception:  # noqa: BLE001 — a missing/locked -wal just means no fresh data
+            pass
 
 
 def _cookie_hits(profile_dir: str, domain: str) -> int:
@@ -104,9 +106,18 @@ def _cookie_hits(profile_dir: str, domain: str) -> int:
     return 0
 
 
-def find_profile(domain: str, channel: str = "chrome") -> tuple[str, str, int] | None:
-    """Pick the operator profile already logged into ``domain``.
-    Returns (user_data_root, profile_name, cookie_hits) or None."""
+def find_profile(domain, channel: str = "chrome") -> tuple[str, str, int] | None:
+    """Pick the operator profile already logged into the provider.
+
+    ``domain`` may be a single host substring or an ordered iterable of markers.
+    Some providers keep NO first-party session cookie: RapidAPI authenticates
+    through Auth0, so a logged-in profile carries `auth0.com` cookies but zero
+    `rapidapi.com` ones (this cost us a full debugging session on 2026-07-14).
+    The markers are tried in order; the first that any profile matches wins, so a
+    precise first-party marker is preferred and a shared IdP marker is the fallback.
+    Returns (user_data_root, profile_name, cookie_hits) or None.
+    """
+    markers = (domain,) if isinstance(domain, str) else tuple(domain)
     root = user_data_root(channel)
     if not root:
         return None
@@ -119,13 +130,16 @@ def find_profile(domain: str, channel: str = "chrome") -> tuple[str, str, int] |
     if not names:
         names = [d for d in os.listdir(root)
                  if d == "Default" or d.startswith("Profile ")]
-    best = max(
-        ((n, _cookie_hits(os.path.join(root, n), domain)) for n in names),
-        key=lambda t: t[1], default=(None, 0),
-    )
-    if not best[0] or best[1] == 0:
-        return None
-    return root, best[0], best[1]
+    for marker in markers:
+        if not marker:
+            continue
+        best = max(
+            ((n, _cookie_hits(os.path.join(root, n), marker)) for n in names),
+            key=lambda t: t[1], default=(None, 0),
+        )
+        if best[0] and best[1] > 0:
+            return root, best[0], best[1]
+    return None
 
 
 def snapshot(root: str, profile: str, dest: str) -> str:

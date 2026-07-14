@@ -45,7 +45,12 @@ RECIPES: dict[str, dict] = {
         ],
         "login_markers": ("/auth", "/login", "auth.rapidapi"),
         "ready_marker": "/developer",
-        "session_domain": "rapidapi.com",  # whose cookies mark a logged-in profile
+        # Whose cookies mark a logged-in profile, in priority order. RapidAPI has
+        # NO first-party session cookie — it authenticates via Auth0 — so a logged-in
+        # profile shows auth0.com cookies and zero rapidapi.com ones. Try the (ideal
+        # but absent) first-party marker first, then fall back to the Auth0 session.
+        "session_domain": "rapidapi.com",
+        "session_markers": ("rapidapi.com", "auth0"),
     },
 }
 
@@ -113,12 +118,13 @@ def doctor(provider: str = "rapidapi") -> dict:
     if not recipe:
         return {"ok": False, "provider": provider, "error": f"tanınmayan provider: {provider}"}
     domain = recipe.get("session_domain", "")
+    markers = recipe.get("session_markers", (domain,))
     report: dict = {"ok": False, "provider": provider, "domain": domain, "profiles": []}
 
     for ch in ("chrome", "msedge"):
         if not profiles.user_data_root(ch):
             continue
-        found = profiles.find_profile(domain, ch)
+        found = profiles.find_profile(markers, ch)
         if found:
             _root, prof, hits = found
             report["profiles"].append({"browser": ch, "profile": prof, "cookies": hits})
@@ -128,7 +134,7 @@ def doctor(provider: str = "rapidapi") -> dict:
         report["ok"] = True
         report["message"] = (
             f"Sessiya hazırdır: {best['browser']} profili «{best['profile']}» "
-            f"({best['cookies']} {domain} cookie). doit login etmədən açarı gətirə bilər."
+            f"({best['cookies']} sessiya cookie). doit login etmədən açarı gətirə bilər."
         )
         return report
 
@@ -202,7 +208,8 @@ def acquire(
     # into a scratch dir (their live browser stays open), and drive that.
     borrowed = None
     if not user_data_dir and borrow_session:
-        found = profiles.find_profile(recipe.get("session_domain", ""), channel)
+        found = profiles.find_profile(
+            recipe.get("session_markers", (recipe.get("session_domain", ""),)), channel)
         if not found:
             # Fail FAST and actionably. Opening a browser here is pointless: with
             # no session to inherit, doit would land on a login wall it is
