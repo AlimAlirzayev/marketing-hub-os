@@ -258,8 +258,12 @@ def digest(items: list[dict], failures: list[str]) -> tuple[str, str]:
         "Bilmədiyini 'yoxlamaq lazımdır' kimi işarələ. Dil: Azərbaycan dili, sakit və konkret."
     )
     payload = json.dumps(items, ensure_ascii=False)
+    # The weekly brief IS a synthesis/judgement task — the brain, not grunt work —
+    # so it runs on the smart tier, which prefers the Claude subscription
+    # (llm_router._claude_first). The strong anti-generic prompt below only pays off
+    # on a strong model; the free floor still catches a capped account.
     text, model = llm_router.complete(
-        payload, system=system, tier="cheap", temperature=0.3, max_tokens=1200
+        payload, system=system, tier="smart", temperature=0.3, max_tokens=1200
     )
     header = "📡 AI RADAR — həftəlik brif (%s)\nSiqnal: %d mənbə qeydi | Həzm: %s\n" % (
         _dt.date.today().isoformat(), len(items), model
@@ -373,9 +377,10 @@ def pulse(force: bool = False, send: bool = False) -> str:
         "Varsa, hər biri üçün 2 sətir yaz: nə baş verib + bizə konkret təsiri. "
         "Uydurma qadağandır, yalnız verilən siqnallardan danış. Dil: Azərbaycan dili."
     )
+    # Deciding what counts as CRITICAL is a judgement call -> smart tier (Claude).
     text, model = llm_router.complete(
         json.dumps(items, ensure_ascii=False), system=system,
-        tier="cheap", temperature=0.2, max_tokens=400,
+        tier="smart", temperature=0.2, max_tokens=400,
     )
     _write_today(_LAST_PULSE)
 
