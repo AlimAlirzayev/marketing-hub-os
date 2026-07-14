@@ -93,6 +93,40 @@ def _cascade(tier: str) -> list[tuple[str, object]]:
     return _cheap() if tier == "cheap" else _smart()
 
 
+def _claude_first(tier: str, want_json: bool) -> bool:
+    """Should this call try the Claude SUBSCRIPTION (latest model) before the free
+    API cascade? The subscription is the brain/command centre, so the smart tier
+    (planning, synthesis, decisions, digests) prefers it by default. The cheap tier
+    (mechanical bulk: scrape/parse/score) stays free so it never cannibalises the
+    account's 5h cap — the cap must be spent on THINKING, not grunt work. Set
+    CLAUDE_EVERYWHERE=1 to route even the cheap tier through Claude; set
+    BRAIN_CLAUDE_FIRST=0 to disable entirely. JSON is left to the free tier's native
+    response_format (the subscription CLI has no structured-output guarantee)."""
+    if os.getenv("BRAIN_CLAUDE_FIRST", "1").strip().lower() in ("0", "false", "no", "off"):
+        return False
+    if want_json:
+        return False
+    if tier == "smart":
+        return True
+    return os.getenv("CLAUDE_EVERYWHERE", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _try_claude(prompt: str, system: str | None, tier: str) -> tuple[str, str] | None:
+    """Best-effort subscription completion. Returns (text, model) or None so the
+    caller falls through to the free cascade. Never raises into the router."""
+    try:
+        from gateway import claude_bridge
+    except Exception:  # noqa: BLE001 — gateway not importable in this context
+        return None
+    try:
+        if not claude_bridge.is_available():
+            return None
+        text, model = claude_bridge.complete(prompt, system=system)
+        return (text, model) if text else None
+    except Exception:  # noqa: BLE001 — capped/failed: free cascade takes over
+        return None
+
+
 def available(tier: str = "cheap") -> list[str]:
     """Model ids that are actually configured for this tier (in order)."""
     _load_env()
@@ -110,6 +144,15 @@ def complete(
 ) -> tuple[str, str]:
     """Run the prompt through the tier's cascade. Returns (text, model_used)."""
     _load_env()
+
+    # THE BRAIN IS CLAUDE. Try the subscription (latest model) first for the smart
+    # tier; the free API cascade below is the resilience floor for when every
+    # Claude account is capped. See _claude_first for the tier policy.
+    if _claude_first(tier, want_json):
+        hit = _try_claude(prompt, system, tier)
+        if hit:
+            return hit
+
     import litellm
 
     litellm.drop_params = True          # silently drop params a provider lacks

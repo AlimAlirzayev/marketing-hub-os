@@ -220,6 +220,68 @@ def ask(prompt: str, *, thread: str = "main", cwd: Path | None = None,
     raise RuntimeError(f"all Claude accounts capped/failing: {last_exc}")
 
 
+def _run_stateless(prompt: str, timeout: int | None, token: str | None) -> tuple[str, str]:
+    """One fresh `claude -p` turn — NO session, NO conversational framing. This is
+    the subscription's raw completion primitive for the router's smart tier, so it
+    must not carry the mic persona or resume a chat thread. Returns (text, model)."""
+    env = os.environ.copy()
+    if token:
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = token
+        for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+            env.pop(k, None)
+    cmd = ["claude", "-p", "--output-format", "json", "--permission-mode", "default"]
+    # Default = the account's newest model (today Fable); pin only if the operator
+    # sets CLAUDE_BRIDGE_MODEL. Never hardcode an id here — model names drift.
+    model_pin = os.getenv("CLAUDE_BRIDGE_MODEL")
+    if model_pin:
+        cmd += ["--model", model_pin]
+    proc = subprocess.run(
+        cmd, input=prompt, cwd=str(ROOT), capture_output=True, text=True,
+        timeout=timeout or _TIMEOUT, env=env, **_TEXT_IO,
+    )
+    out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
+    if proc.returncode != 0:
+        msg = err or out or "empty output"
+        raise RuntimeError(f"claude -p capped: {msg[:200]}" if _is_limit(msg)
+                           else f"claude -p failed: {msg[:200]}")
+    data = json.loads(out)
+    text = (data.get("result") or "").strip()
+    if data.get("is_error") or not text:
+        raise RuntimeError(f"claude -p error: {text or str(data)[:200]}")
+    return text, "claude-code/" + str(data.get("model") or model_pin or "subscription")
+
+
+def complete(prompt: str, *, system: str | None = None,
+             timeout: int | None = None) -> tuple[str, str]:
+    """Stateless subscription completion for the router's smart tier — the premium
+    brain wherever the system THINKS (planning, synthesis, digests, decisions).
+    Rotates across the operator's Claude accounts; raises only when EVERY account
+    is capped (the router then falls back to the free cascade). Returns (text, model).
+    """
+    if not is_available():
+        raise RuntimeError("claude bridge not authenticated")
+    full = f"{system}\n\n{prompt}" if system else prompt
+    order = _account_order() or [(None, {})]  # (None, {}) = single ambient login
+    data = _load_accounts()
+    accts = data.get("accounts", [])
+    last_exc: Exception | None = None
+    for idx, acct in order:
+        try:
+            text, model = _run_stateless(full, timeout, acct.get("token") if acct else None)
+            if idx is not None:
+                data["active"] = idx
+                _save_accounts(data)
+            return text, model
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            if _is_limit(str(exc)) and idx is not None and accts:
+                accts[idx]["cooldown_until"] = time.time() + _COOLDOWN_S
+                _save_accounts(data)
+                continue  # capped -> next account
+            raise  # non-limit failure: let the router fall back to free now
+    raise RuntimeError(f"all Claude accounts capped/failing: {last_exc}")
+
+
 _BUILD_FRAMING = (
     "You are an autonomous builder for the operator. Build the requested "
     "deliverable ENTIRELY inside the current working directory (your sandbox). "

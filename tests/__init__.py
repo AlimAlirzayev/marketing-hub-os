@@ -33,3 +33,10 @@ os.environ.setdefault("LLM_USAGE_PATH", os.path.join(_tmp, "llm_usage.jsonl"))
 # forcing it here (before any gateway import) wins; a test that specifically wants
 # the claude path overrides MIC_BRAIN itself.
 os.environ["MIC_BRAIN"] = "free"
+
+# Never spawn real `claude -p` subprocesses from the test suite. The smart tier now
+# prefers the Claude subscription (llm_router._claude_first); left on, every
+# smart-tier call in a test would shell out to the CLI — slow, networked, flaky, and
+# account-cap-burning. Tests exercise the routing LOGIC with claude_bridge mocked;
+# the one test that wants the real path enables this flag itself.
+os.environ["BRAIN_CLAUDE_FIRST"] = "0"
