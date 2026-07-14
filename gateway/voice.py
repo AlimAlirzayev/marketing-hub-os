@@ -23,7 +23,12 @@ import tempfile
 
 import requests
 
+from ._bootstrap import load_env
 from . import sense
+
+# Self-sufficient: every setting here (keys, VOICE_REPLIES, voice ids) is read
+# from .env, so this module must load it rather than assume some other module did.
+load_env()
 
 _EL_KEY = lambda: (os.getenv("ELEVENLABS_API_KEY") or "").strip()  # noqa: E731
 _EL_STT = "https://api.elevenlabs.io/v1/speech-to-text"
