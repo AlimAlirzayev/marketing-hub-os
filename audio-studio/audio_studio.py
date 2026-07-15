@@ -355,9 +355,17 @@ def music_elevenlabs(job: dict) -> dict:
 
 
 def music_lyria(job: dict) -> dict:
-    """Google Lyria via Gemini API. Experimental + may bill - off unless AUDIO_ENABLE_LYRIA=1."""
+    """Google Lyria 3 via the Gemini API — FREE on an AI Studio key and, on
+    lyria-3-pro-preview, capable of SUNG VOCALS (verified 2026-07-14), which
+    closes the long-standing 'free music is instrumental-only' gap.
+
+    The prior implementation called a non-existent client.models.generate_music()
+    and always returned no audio. The real surface is generate_content with an
+    AUDIO response modality; Lyria returns the mp3 in an inline-data part (part[0]
+    is a text tag like '<instrumental>' or the sung lyrics), so we scan every part
+    for the audio rather than assuming its index."""
     if not ENABLE_LYRIA:
-        raise ProviderSkipped("Lyria disabled (set AUDIO_ENABLE_LYRIA=1; may incur cost)")
+        raise ProviderSkipped("Lyria disabled (set AUDIO_ENABLE_LYRIA=1)")
     if not GOOGLE_KEY:
         raise ProviderSkipped("GEMINI_API_KEY / GOOGLE_API_KEY not set")
     try:
@@ -366,23 +374,35 @@ def music_lyria(job: dict) -> dict:
     except ImportError:
         raise ProviderSkipped("google-genai not installed (pip install google-genai)")
     prompt = job["prompt"]
+    # The SDK prefers GOOGLE_API_KEY from the env even when an explicit key is
+    # passed; hide it so the key we pass is the one that authenticates (the same
+    # shadowing trap that broke the Claude token and the first Gemini key).
+    saved = os.environ.pop("GOOGLE_API_KEY", None)
     try:
         client = genai.Client(api_key=GOOGLE_KEY)
-        resp = client.models.generate_music(  # API surface may vary by SDK version
-            model=os.environ.get("AUDIO_LYRIA_MODEL", "lyria-3-clip-preview"),
-            prompt=prompt,
-            config=types.GenerateMusicConfig() if hasattr(types, "GenerateMusicConfig") else None,
+        resp = client.models.generate_content(
+            model=os.environ.get("AUDIO_LYRIA_MODEL", "lyria-3-pro-preview"),
+            contents=prompt,
+            config=types.GenerateContentConfig(response_modalities=["AUDIO"]),
         )
-        data = getattr(resp, "audio", None) or getattr(resp, "data", None)
-        if not data:
-            raise ProviderFailed("Lyria returned no audio (check SDK version / model id)")
-        out = _out_path(job["out"], "music", prompt, "wav")
-        out.write_bytes(data if isinstance(data, (bytes, bytearray)) else bytes(data))
+        audio = None
+        for part in resp.candidates[0].content.parts:
+            inline = getattr(part, "inline_data", None)
+            if inline and getattr(inline, "data", None):
+                audio = inline.data
+                break
+        if not audio:
+            raise ProviderFailed("Lyria returned no audio part")
+        out = _out_path(job["out"], "music", prompt, "mp3")
+        out.write_bytes(audio if isinstance(audio, (bytes, bytearray)) else bytes(audio))
         return {"path": str(out)}
     except ProviderFailed:
         raise
     except Exception as e:
         raise ProviderFailed(f"Lyria call failed: {e}")
+    finally:
+        if saved is not None:
+            os.environ["GOOGLE_API_KEY"] = saved
 
 
 # --------------------------------------------------------------------------- providers: SFX
@@ -852,7 +872,7 @@ def generate_best_of(capability: str, providers: list, job: dict, n: int) -> dic
 
 def cascade_for(capability: str, quality: bool, force: str | None) -> list:
     table = {
-        "music": [("hf", music_hf), ("elevenlabs", music_elevenlabs), ("lyria", music_lyria)],
+        "music": [("lyria", music_lyria), ("hf", music_hf), ("elevenlabs", music_elevenlabs)],
         "sfx":   [("elevenlabs", sfx_elevenlabs), ("hf", sfx_hf)],
         "tts":   [("edge", tts_edge), ("gemini", tts_gemini), ("elevenlabs", tts_elevenlabs)],
         "clone": [("omnivoice", voice_clone_omnivoice)],
