@@ -13,7 +13,7 @@ const PLAT_LABEL = { instagram:'Instagram', facebook:'Facebook', messenger:'Mess
 const DEVICE_LABEL = { android_smartphone:'Android telefon', iphone:'iPhone', desktop:'Desktop', ipad:'iPad', android_tablet:'Android tablet' };
 
 const state = { meta:null, month:null, platform:'all', account:null, compare:'prev_month',
-                sym:'$', charts:{}, loaded:{report:false, segments:false, creative:false, social:false} };
+                sym:'$', charts:{}, loaded:{report:false, segments:false, creative:false, social:false, strategy:false} };
 
 const $  = (s)=>document.querySelector(s);
 const $$ = (s)=>document.querySelectorAll(s);
@@ -21,6 +21,19 @@ const nf = (n)=> new Intl.NumberFormat('az-AZ').format(Math.round(n||0));
 const money = (n)=> state.sym + new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const azDate = (iso)=>{ const [y,m,d]=iso.split('-'); return `${+d} ${AZ_SHORT[+m]} ${y}`; };
 const mdLite = (t)=> (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+// Slightly richer renderer for longer AI reports (narrative, trend bridge):
+// headings + horizontal rules on top of mdLite's bold/escape, still no HTML injection risk (escapes first).
+function mdRich(t){
+  return (t||'').split('\n').map(line=>{
+    const trimmed = line.trim();
+    if (/^---+$/.test(trimmed)) return '<hr class="my-3 border-gray-200">';
+    const h2 = trimmed.match(/^##\s+(.*)$/);
+    if (h2) return `<div class="font-tight font-bold text-[15px] mt-4 mb-1">${mdLite(h2[1])}</div>`;
+    const h3 = trimmed.match(/^###\s+(.*)$/);
+    if (h3) return `<div class="font-tight font-bold text-[14px] mt-3 mb-1">${mdLite(h3[1])}</div>`;
+    return mdLite(line);
+  }).join('\n');
+}
 
 // ---------- init ----------
 async function init(){
@@ -79,7 +92,7 @@ function setCompare(m){
   });
 }
 
-function resetAll(){ state.loaded = {report:false, segments:false, creative:false, social:false}; }
+function resetAll(){ state.loaded = {report:false, segments:false, creative:false, social:false, strategy:false}; }
 
 function bind(){
   $('#month-select').addEventListener('change', e=>{ state.month=e.target.value; resetAll(); load(); });
@@ -91,6 +104,7 @@ function bind(){
   $('#asst-form').addEventListener('submit', onAsk);
   $('#asst-suggest').addEventListener('click', e=>{ if(e.target.classList.contains('sugg')){ $('#asst-input').value=e.target.textContent; onAsk(new Event('x')); }});
   $('#diag-search').addEventListener('input', e=> renderDiagRows(filterDiagAds(e.target.value)));
+  $('#sim-reset').addEventListener('click', ()=>{ simState.changed={}; renderSimRows(); renderSimTotals(); });
 }
 
 function setTab(name){
@@ -104,6 +118,7 @@ function setTab(name){
   if (name==='segments' && !state.loaded.segments) loadSegments();
   if (name==='creative' && !state.loaded.creative) loadCreative();
   if (name==='social' && !state.loaded.social) loadSocial();
+  if (name==='strategy' && !state.loaded.strategy){ loadStrategy(); state.loaded.strategy = true; }
 }
 function setPlatform(p){
   state.platform=p;
@@ -684,6 +699,115 @@ function renderInstagramOrganic(ig){
         scales:{ y:{grid:{color:'#f1f3f5'},beginAtZero:true} } }});
   } else { wrap.classList.add('hidden'); }
   permNote('ig-note', ig.insights_error);
+}
+
+// ---------- STRATEGİYA & AI tab ----------
+const esc = (t)=> (t||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function loadStrategy(){
+  loadBudgetSim();
+  loadNarrative();
+  loadCreativeDna();
+  loadTrendBridge();
+}
+
+// -- 1. Büdcə-Reallokasiya Simulyatoru (client-side what-if; never writes) --
+let simState = { adsets:[], daysElapsed:0, daysTotal:0, changed:{} };
+async function loadBudgetSim(){
+  const box = $('#sim-rows');
+  let d;
+  try{ d = await (await fetch(`/api/budget-sim?month=${state.month}&account=${encodeURIComponent(state.account||'')}`)).json(); }
+  catch(e){ box.innerHTML = '<p class="text-sm text-gray-400">Simulyator datası yüklənmədi.</p>'; return; }
+  if (d.error){ box.innerHTML = `<p class="text-sm text-gray-400">Ad set datası əlçatan deyil: ${esc(d.error)}</p>`; return; }
+  simState = { adsets: d.adsets||[], daysElapsed: d.days_elapsed, daysTotal: d.days_total, changed:{} };
+  renderSimRows();
+  renderSimTotals();
+}
+function renderSimRows(){
+  const rows = simState.adsets;
+  if (!rows.length){ $('#sim-rows').innerHTML = '<p class="text-sm text-gray-400">Aktiv büdcəli ad set tapılmadı.</p>'; return; }
+  $('#sim-rows').innerHTML = rows.map(a=>{
+    const cur = simState.changed[a.id] ?? a.daily_budget;
+    return `<div class="border border-surface-line rounded-xl p-3">
+      <div class="flex items-center justify-between gap-2 mb-1.5">
+        <span class="text-[13px] font-medium truncate" title="${esc(a.name)}">${esc(a.name)}</span>
+        <span class="num text-[12px] text-gray-500 whitespace-nowrap">indiki: ${money(a.daily_budget)}/gün · bu ay CPL ${a.leads_mtd?money(a.cpl_mtd):'—'}</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <input type="range" min="0" max="${Math.max(a.daily_budget*4, 20)}" step="0.5" value="${cur}"
+          data-id="${a.id}" class="sim-slider flex-1" style="accent-color:#E31E24" />
+        <span class="num text-[13px] font-bold w-16 text-right" id="sim-val-${a.id}">${money(cur)}</span>
+      </div>
+    </div>`;
+  }).join('');
+  $$('.sim-slider').forEach(el=> el.addEventListener('input', e=>{
+    const id = e.target.dataset.id;
+    simState.changed[id] = parseFloat(e.target.value);
+    $('#sim-val-'+id).textContent = money(simState.changed[id]);
+    renderSimTotals();
+  }));
+}
+function renderSimTotals(){
+  const rows = simState.adsets;
+  const daysLeft = Math.max(simState.daysTotal - simState.daysElapsed, 0);
+  let curSpend=0, curLeads=0, projSpend=0, projLeads=0;
+  rows.forEach(a=>{
+    curSpend += a.spend_mtd||0; curLeads += a.leads_mtd||0;
+    const newBudget = simState.changed[a.id] ?? a.daily_budget;
+    const remaining = newBudget * daysLeft;
+    projSpend += (a.spend_mtd||0) + remaining;
+    const cpl = a.cpl_mtd>0 ? a.cpl_mtd : null;
+    projLeads += (a.leads_mtd||0) + (cpl ? remaining/cpl : 0);
+  });
+  const blendedCpl = projLeads>0 ? projSpend/projLeads : 0;
+  $('#sim-totals').innerHTML = [
+    kpiCard('simA','','#FEE2E2',COLORS.red,'İndiki xərc (MTD)',money(curSpend),'bu günə qədər',null),
+    kpiCard('simB','','#E0E7FF','#4F46E5','Proqnoz ay-sonu xərc',money(projSpend),'yeni sürüşdürücülərlə',null),
+    kpiCard('simC','','#DCFCE7',COLORS.green,'Proqnoz ay-sonu lead',nf(Math.round(projLeads)),`indiki: ${nf(curLeads)}`,null),
+    kpiCard('simD','','#FFEDD5','#EA580C','Proqnoz blended CPL',money(blendedCpl),'bütün ad-setlər',null),
+  ].join('');
+}
+
+// -- 2. AI Həftəlik/Aylıq Hekayə Hesabatı --
+async function loadNarrative(){
+  const body = $('#narrative-body');
+  body.innerHTML = `<div class="skeleton h-4 rounded w-full mb-2"></div><div class="skeleton h-4 rounded w-11/12 mb-2"></div><div class="skeleton h-4 rounded w-3/4"></div>`;
+  try{
+    const r = await (await fetch(`/api/narrative?month=${state.month}&account=${encodeURIComponent(state.account||'')}`)).json();
+    body.innerHTML = mdRich(r.text || 'Hesabat hazırlanmadı.');
+    $('#narrative-src').textContent = r.source==='gemini' ? 'Gemini ilə' : 'avtomatik';
+  }catch(e){ body.innerHTML = '<span class="text-gray-400">Hesabat yüklənmədi.</span>'; }
+}
+
+// -- 3. Kreativ DNA Skoru --
+async function loadCreativeDna(){
+  const box = $('#dna-rows');
+  try{
+    const r = await (await fetch(`/api/creative-dna?month=${state.month}&account=${encodeURIComponent(state.account||'')}`)).json();
+    const rows = r.leaderboard || [];
+    if(!rows.length){ box.innerHTML = '<tr><td colspan="8" class="px-3 py-8 text-center text-gray-400">Kifayət qədər data yoxdur.</td></tr>'; return; }
+    box.innerHTML = rows.map(g=>`
+      <tr class="hover:bg-gray-50">
+        <td class="px-3 py-2.5 font-medium">${esc(g.product)}</td>
+        <td class="px-3 py-2.5 text-gray-500">${esc(g.format)}</td>
+        <td class="px-3 py-2.5 num text-right text-gray-500">${g.ad_count}</td>
+        <td class="px-3 py-2.5 num text-right">${money(g.spend)}</td>
+        <td class="px-3 py-2.5 num text-right">${nf(g.leads)}</td>
+        <td class="px-3 py-2.5 num text-right font-semibold">${g.cpl!=null?money(g.cpl):'—'}</td>
+        <td class="px-3 py-2.5 num text-right">${g.ctr}%</td>
+        <td class="px-3 py-2.5 num text-right">${g.quality_rate!=null?g.quality_rate+'%':'—'}</td>
+      </tr>`).join('');
+  }catch(e){ box.innerHTML = '<tr><td colspan="8" class="px-3 py-8 text-center text-gray-400">Yüklənmədi.</td></tr>'; }
+}
+
+// -- 4. Trend + Performans Körpüsü --
+async function loadTrendBridge(){
+  const body = $('#bridge-body');
+  body.innerHTML = `<div class="skeleton h-4 rounded w-full mb-2"></div><div class="skeleton h-4 rounded w-11/12 mb-2"></div><div class="skeleton h-4 rounded w-3/4"></div>`;
+  try{
+    const r = await (await fetch(`/api/trend-bridge?month=${state.month}&account=${encodeURIComponent(state.account||'')}`)).json();
+    body.innerHTML = mdRich(r.text || '—');
+    $('#bridge-src').textContent = r.source==='gemini' ? 'Gemini ilə' : '';
+  }catch(e){ body.innerHTML = '<span class="text-gray-400">Yüklənmədi.</span>'; }
 }
 
 // ---------- payments ----------

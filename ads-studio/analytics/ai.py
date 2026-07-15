@@ -200,3 +200,70 @@ def _fallback_answer(question: str, report: dict, analytics: dict) -> str:
         return f"{t['messages']} mesaj başlanıb (mesaj başına {_money(t['cost_per_message'])})."
     return (f"Bu dövrdə {_money(t['spend'])} xərclə {t['leads']} lead və "
             f"{t['messages']} mesaj əldə edilib. Daha dəqiq sual verə bilərsiniz.")
+
+
+# --------------------------------------------------------------------------
+# Leadership narrative — paid + organic + product-line, written as a story,
+# not a table. This is the thing a generic BI tool (Ads Manager, Looker, GA4)
+# structurally cannot produce: it needs business-specific grouping (product
+# line) blended with a synthesized write-up, not just numbers.
+# --------------------------------------------------------------------------
+def narrative_report(report: dict, analytics: dict, organic: dict | None,
+                      product_breakdown: list[dict]) -> dict:
+    lines = [build_context(report, analytics), ""]
+    if organic:
+        fb, ig = organic.get("facebook") or {}, organic.get("instagram") or {}
+        if fb.get("fan_count") is not None:
+            lines.append(f"Facebook Page izləyici: {fb['fan_count']}.")
+        if ig.get("followers_count") is not None:
+            lines.append(f"Instagram izləyici: {ig['followers_count']} (@{ig.get('username','')}).")
+    if product_breakdown:
+        lines.append("Məhsul xətti üzrə bölgü (bu ay, reklam səviyyəsində):")
+        for p in product_breakdown[:8]:
+            cpl_txt = _money(p["cpl"]) if p.get("cpl") is not None else "—"
+            lines.append(f"- {p['product']} / {p['format']}: xərc {_money(p['spend'])}, "
+                         f"{p['leads']} lead, CPL {cpl_txt}, CTR {p['ctr']}%.")
+    ctx = "\n".join(lines)
+    prompt = (
+        "Aşağıdakı rəqəmlərə əsasən rəhbərlik üçün HƏFTƏLİK/AYLIQ HEKAYƏ HESABATI yaz. "
+        "Struktur: (1) bu dövrdə nə baş verdi — 2-3 cümlə; (2) nə yaxşı işlədi, konkret "
+        "rəqəmlə; (3) nəyə diqqət lazımdır, konkret rəqəmlə; (4) 2-3 konkret, tətbiq edilə "
+        "bilən tövsiyə. Cədvəl və başlıq işarələri yox — axıcı, rəhbərlik səviyyəsində, "
+        "Azərbaycan dilində yaz. Marketinq jarqonu işlətmə, rəqəm uydurma.\n\n" + ctx
+    )
+    try:
+        text = _gemini(prompt, max_retries=2)
+        if text:
+            return {"text": text, "source": "gemini"}
+    except Exception:
+        pass
+    return {"text": _fallback_summary(report, analytics), "source": "rule-based"}
+
+
+# --------------------------------------------------------------------------
+# Trend + Performance bridge — cross-references live campaign weak spots with
+# the research lab's open external radar findings. No generic tool can do
+# this: it needs both live account access AND the lab's trend feed.
+# --------------------------------------------------------------------------
+def trend_bridge(analytics: dict, findings: list[dict]) -> dict:
+    flags = [a for a in analytics.get("anomalies", []) if a.get("severity") in ("warn", "high")]
+    flags_txt = ("\n".join(f"- {a['title']}: {a['detail']}" for a in flags)
+                 if flags else "Hazırda ciddi performans problemi qeydə alınmayıb.")
+    top = sorted(findings, key=lambda f: -f.get("score", 0))[:12]
+    findings_txt = "\n".join(f"- ({f['score']}/10) {f['title']}: {f.get('idea','')}" for f in top)
+    prompt = (
+        "Sən Xalq Sığorta-nın rəqəmsal marketinq strateqisən. Aşağıda (A) hazırkı "
+        "kampaniyalardakı performans siqnalları, (B) xarici bazarda aşkarlanmış "
+        "trend/imkan siyahısı var. Yalnız KONKRET, tətbiq edilə bilən 2-4 tövsiyə yaz — "
+        "hansı trend hansı problemi necə həll edə bilər, NECƏ tətbiq olunacağı ilə birgə. "
+        "Uydurma, yalnız verilən məlumata əsaslan.\n\n"
+        f"(A) Performans siqnalları:\n{flags_txt}\n\n(B) Xarici trendlər:\n{findings_txt}"
+    )
+    try:
+        text = _gemini(prompt, max_retries=2)
+        if text:
+            return {"text": text, "source": "gemini"}
+    except Exception:
+        pass
+    return {"text": "Hazırda AI məsləhətçi əlçatan deyil — tapıntıları Trendlər tabında "
+                    "(İdarəetmə Mərkəzi, port 8890) nəzərdən keçirin.", "source": "fallback"}

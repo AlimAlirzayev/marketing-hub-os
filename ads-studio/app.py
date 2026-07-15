@@ -273,6 +273,84 @@ def organic_endpoint(days: int = 30) -> JSONResponse:
     return JSONResponse(get_organic_summary(days=days))
 
 
+@app.get("/api/budget-sim")
+def budget_sim_endpoint(month: str, account: str | None = None) -> JSONResponse:
+    """Read-only seed for the budget-reallocation what-if simulator: live AD
+    SET daily budgets (the real lever on this account — Campaign Budget
+    Optimization is off, so campaign.daily_budget is null and the budget
+    actually lives on each ad set) + this month's actual spend/leads/CPL per
+    ad set. All projection math runs client-side; this endpoint never writes."""
+    data = analyze(month, "all", account, with_ai_summary=False)
+    period = data["report"]["period"]
+    try:
+        from connectors.meta import top_adsets
+        from connectors.meta_write import list_adsets
+        perf_by_id = {p["adset_id"]: p for p in top_adsets(month, account, limit=200)}
+        items = []
+        for a in list_adsets(account, limit=200):
+            if a.get("effective_status") != "ACTIVE" or not a.get("daily_budget"):
+                continue
+            p = perf_by_id.get(a["id"], {})
+            items.append({
+                "id": a["id"], "name": a.get("name", ""), "campaign_id": a.get("campaign_id"),
+                "daily_budget": round(int(a["daily_budget"]) / 100, 2),
+                "spend_mtd": p.get("spend", 0), "leads_mtd": p.get("leads", 0),
+                "cpl_mtd": p.get("cpl", 0),
+            })
+    except Exception as exc:
+        return JSONResponse({"adsets": [], "error": f"{type(exc).__name__}: {exc}",
+                              "days_elapsed": period["days_elapsed"], "days_total": period["days_total"]})
+    return JSONResponse({
+        "adsets": items,
+        "days_elapsed": period["days_elapsed"], "days_total": period["days_total"],
+        "is_current": period["is_current"],
+    })
+
+
+@app.get("/api/creative-dna")
+def creative_dna_endpoint(month: str, account: str | None = None) -> JSONResponse:
+    """Groups ad-level performance by (product line, creative format) so the
+    dashboard shows what MESSAGING STRATEGY works, not just per-ad rankings."""
+    from analytics import creative_dna
+    ads = get_creative_diagnostics(month, account, limit=200)
+    return JSONResponse({"leaderboard": creative_dna.leaderboard(ads)})
+
+
+@app.get("/api/narrative")
+def narrative_endpoint(month: str, account: str | None = None) -> JSONResponse:
+    """AI-written leadership narrative blending paid + organic + product-line
+    performance. Slower (LLM call) — the front end lazy-loads this on tab open."""
+    from analytics import creative_dna
+    from connectors import get_organic_summary
+    data = analyze(month, "all", account, with_ai_summary=False)
+    organic = get_organic_summary(days=30)
+    breakdown = creative_dna.leaderboard(get_creative_diagnostics(month, account, limit=200))
+    return JSONResponse(ai.narrative_report(data["report"], data["analytics"], organic, breakdown))
+
+
+_PANEL = "http://127.0.0.1:8890"
+
+
+@app.get("/api/trend-bridge")
+def trend_bridge_endpoint(month: str, account: str | None = None) -> JSONResponse:
+    """Cross-references live campaign weak spots with the research lab's open
+    radar findings (via the panel's /api/trends, port 8890). Best-effort —
+    degrades to a clear message if the panel isn't reachable, never invents."""
+    data = analyze(month, "all", account, with_ai_summary=False)
+    findings = []
+    try:
+        import requests
+        r = requests.get(f"{_PANEL}/api/trends", timeout=8)
+        findings = [f for f in r.json().get("findings", []) if f.get("status") == "new"]
+    except Exception:
+        pass
+    if not findings:
+        return JSONResponse({
+            "text": "Trend siyahısı əlçatan deyil (panel 8890 işləmir və ya açıq tapıntı yoxdur).",
+            "source": "fallback"})
+    return JSONResponse(ai.trend_bridge(data["analytics"], findings))
+
+
 class Ask(BaseModel):
     question: str
     month: str

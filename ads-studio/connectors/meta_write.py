@@ -106,6 +106,19 @@ def list_campaigns(account_id: str | None = None, limit: int = 25) -> list[dict[
     return data.get("data", [])
 
 
+def list_adsets(account_id: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
+    """Live ad sets with their status and budget — the real budget lever on
+    accounts without Campaign Budget Optimization (read-only)."""
+    from .meta import _request
+    acc = _acc(account_id)
+    data = _request(
+        f"{_BASE}/{META_API_VERSION}/{acc}/adsets",
+        {"fields": "id,name,campaign_id,status,effective_status,daily_budget,lifetime_budget",
+         "limit": limit, "access_token": META_ACCESS_TOKEN},
+    )
+    return data.get("data", [])
+
+
 # ---------- step 1: propose (safe, read-only) ----------
 def propose(op: str, node_id: str, *, level: str = "campaign",
             daily_budget: int | None = None) -> dict[str, Any]:

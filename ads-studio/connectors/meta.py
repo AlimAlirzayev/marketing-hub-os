@@ -497,6 +497,31 @@ def top_campaigns(ym: str, account_id: str | None = None, limit: int = 10) -> li
     return enriched[:limit]
 
 
+def top_adsets(ym: str, account_id: str | None = None, limit: int = 200) -> list[dict]:
+    """Ad-set level spend/leads — needed for the budget simulator on accounts
+    without Campaign Budget Optimization, where the real budget lever is the
+    ad set, not the campaign (Meta silently returns null campaign.daily_budget
+    in that case)."""
+    acc = _acc(account_id)
+    tr, *_ = _time_range(ym)
+    rows = _paged(f"{acc}/insights", {
+        "fields": f"adset_id,adset_name,campaign_id,{_FIELDS}",
+        "time_range": _tr_json(tr),
+        "level": "adset", "limit": 200,
+    })
+    enriched = []
+    for r in rows:
+        d = _derive(_row_to_metrics(r))
+        enriched.append({
+            "adset_id": r.get("adset_id"),
+            "adset_name": r.get("adset_name") or "(adsız)",
+            "campaign_id": r.get("campaign_id"),
+            **d,
+        })
+    enriched.sort(key=lambda r: r["spend"], reverse=True)
+    return enriched[:limit]
+
+
 # ----------------------------------------------------------------------------
 # Creative diagnostics — Meta's ad-level Quality / Engagement / Conversion rank
 # ----------------------------------------------------------------------------
