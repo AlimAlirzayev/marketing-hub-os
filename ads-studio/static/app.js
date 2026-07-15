@@ -90,6 +90,7 @@ function bind(){
   $('#asst-close').addEventListener('click', ()=> toggleAsst(false));
   $('#asst-form').addEventListener('submit', onAsk);
   $('#asst-suggest').addEventListener('click', e=>{ if(e.target.classList.contains('sugg')){ $('#asst-input').value=e.target.textContent; onAsk(new Event('x')); }});
+  $('#diag-search').addEventListener('input', e=> renderDiagRows(filterDiagAds(e.target.value)));
 }
 
 function setTab(name){
@@ -481,11 +482,17 @@ async function loadCreative(){
     ]);
     if (state.last?.analytics?.fatigue) renderFatigue(state.last.analytics.fatigue);
     renderHealth(diag.health);
-    renderDiagRows(diag.ads);
+    state.diagAds = diag.ads || [];
+    renderDiagRows(filterDiagAds($('#diag-search')?.value||''));
     renderVideo(vid);
     renderCampaigns(camp);
     state.loaded.creative = true;
   } catch(e){ console.error(e); }
+}
+function filterDiagAds(q){
+  q = (q||'').trim().toLowerCase();
+  const all = state.diagAds || [];
+  return q ? all.filter(a=>(a.ad_name||'').toLowerCase().includes(q)) : all;
 }
 
 function renderFatigue(f){
@@ -544,7 +551,13 @@ function rankPill(r){
   return `<span class="rank-pill" style="background:${c}22;color:${c}">${RANK_LABEL[r]||r}</span>`;
 }
 function renderDiagRows(ads){
-  if (!ads?.length){ $('#diag-rows').innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">Diaqnostik göstərici üçün kifayət qədər data toplanmış reklam yoxdur.</td></tr>'; return; }
+  if (!ads?.length){
+    const msg = ($('#diag-search')?.value||'').trim()
+      ? 'Axtarışa uyğun reklam tapılmadı.'
+      : 'Diaqnostik göstərici üçün kifayət qədər data toplanmış reklam yoxdur.';
+    $('#diag-rows').innerHTML = `<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">${msg}</td></tr>`;
+    return;
+  }
   $('#diag-rows').innerHTML = ads.map(a=>`
     <tr class="hover:bg-gray-50">
       <td class="px-5 py-3 text-[13px] max-w-[260px] truncate" title="${a.ad_name}">${a.ad_name}</td>
