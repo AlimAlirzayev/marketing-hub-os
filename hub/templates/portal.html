@@ -162,6 +162,42 @@ button.tile:hover{border-color:var(--acc-line)}
 .dmeta .kb{font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.5px;color:var(--acc)}
 .empty{color:var(--mut);font-size:13px;margin-top:10px}
 
+/* ── Canlı Anatomiya — n8n-style live flow map ─────────────────── */
+.anat{position:relative;min-width:1290px}
+.alane{position:absolute;top:0;font-size:10px;font-weight:700;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--mut)}
+svg.awires{position:absolute;inset:0;pointer-events:none}
+.awire{fill:none;stroke:var(--line2);stroke-width:2;opacity:.9}
+.awire.hot{stroke:var(--acc);stroke-dasharray:6 7;animation:aflow 1.1s linear infinite;opacity:.85}
+@keyframes aflow{to{stroke-dashoffset:-13}}
+.awlbl{font-size:9.5px;font-weight:700;fill:var(--mut);letter-spacing:.4px}
+.anode{position:absolute;width:170px;background:var(--card);border:1px solid var(--line2);
+  border-radius:13px;padding:9px 11px;box-shadow:var(--shadow);
+  transition:border-color .15s,transform .15s}
+.anode.click{cursor:pointer}
+.anode.click:hover{border-color:var(--acc-line);transform:translateY(-2px)}
+.anode .ah{display:flex;align-items:center;gap:8px}
+.anode .aic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;
+  background:var(--card2);border:1px solid var(--line);font-size:13px}
+.anode .an{font-size:12.5px;font-weight:700;line-height:1.25}
+.anode .as{font-size:10.5px;color:var(--mut);margin-top:4px;line-height:1.4}
+.anode.core{border-left:3px solid var(--acc)}
+.anode.gate{border-left:3px solid var(--warn)}
+.anode.outp{border-left:3px solid var(--ok)}
+.aband{margin-top:20px}
+.aband .abt{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--mut);margin-bottom:10px;display:flex;gap:8px;align-items:center}
+.agrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(196px,1fr))}
+.acell{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:9px 11px;box-shadow:var(--shadow);cursor:pointer;text-align:left;
+  transition:border-color .15s,transform .15s}
+.acell:hover{border-color:var(--acc-line);transform:translateY(-2px)}
+.acell .aic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;
+  background:var(--card2);border:1px solid var(--line);font-size:13px}
+.acell .tx{min-width:0;flex:1}
+.acell .an{display:block;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acell .as{display:block;font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* ── external / archive info card ──────────────────────────────── */
 .xcard{max-width:580px;background:var(--card);border:1px solid var(--line);border-radius:16px;
   padding:24px;box-shadow:var(--shadow)}
@@ -258,6 +294,7 @@ button.tile:hover{border-color:var(--acc-line)}
       <div id="ev" class="pane"></div>
       <div id="ext" class="pane"></div>
       <div id="health" class="pane"></div>
+      <div id="anatomy" class="pane"></div>
     </div>
   </main>
 </div>
@@ -301,7 +338,9 @@ async function init(){
   await refreshStatus();
   const want = new URLSearchParams(location.search).get('open');
   const s = SERVICES.find(x => x.key === want);
-  s ? select(s) : showEv();
+  if(want === 'anatomy') showAnatomy();
+  else if(s) select(s);
+  else showEv();
   setInterval(refreshStatus, 10000);
   setInterval(refreshExternal, 30000);
 }
@@ -354,6 +393,10 @@ function renderNav(){
   }
   html += `
     <div class="cat">Nəzarət</div>
+    <button data-key="_anatomy" class="nav-item">
+      <span class="ic">🫀</span>
+      <span class="tx"><span class="n">Canlı Anatomiya</span><span class="d">Axış xəritəsi — kim kimə ötürür</span></span>
+    </button>
     <button data-key="_health" class="nav-item">
       <span class="ic">🩺</span>
       <span class="tx"><span class="n">Sistem Sağlamlığı</span><span class="d">Reyestr ↔ reallıq audit</span></span>
@@ -391,6 +434,7 @@ function renderNav(){
     b.onclick = () => {
       if(b.dataset.key === '_ev') return showEv();
       if(b.dataset.key === '_health') return showHealth();
+      if(b.dataset.key === '_anatomy') return showAnatomy();
       select(SERVICES.find(s => s.key === b.dataset.key));
     };
   });
@@ -402,7 +446,7 @@ function renderNav(){
 }
 
 function stage(which, key){
-  ['ev','ext','health'].forEach(id => $(id).classList.toggle('on', id === which));
+  ['ev','ext','health','anatomy'].forEach(id => $(id).classList.toggle('on', id === which));
   $('offline').classList.toggle('on', which === 'offline');
   $('notunnel').classList.toggle('on', which === 'notunnel');
   $('frame').style.display = which === 'tool' ? 'block' : 'none';
@@ -587,6 +631,117 @@ function showCap(c){
   };
 }
 
+/* ── Canlı Anatomiya — the organism, head to toe, drawn from reality:
+   the task-flow spine is the ORCHESTRATION map; the organs band comes from
+   services.json (so a new organ appears here by itself), status dots are the
+   same live probes the sidebar uses. n8n-style nodes + bezier wires. ── */
+const FLOW = {
+  colx: c => 24 + c*228,
+  rowy: r => 34 + r*96,
+  lanes: ['Girişlər','Bir mikrofon','Beyin · Nəzarət','Modellər · Əllər','Nəticələr'],
+  nodes: [
+    {id:'tg',    c:0,r:0, ic:'📱', n:'Telegram',          s:'yazılı / səsli tapşırıq', k:'in'},
+    {id:'pchat', c:0,r:1, ic:'🎛️', n:'Panel söhbəti',     s:'İdarəetmə Mərkəzi', k:'in', open:'panel'},
+    {id:'cli',   c:0,r:2, ic:'⌨️', n:'Codex / Claude',    s:'kontrol müstəvisi (biz)', k:'in'},
+    {id:'sched', c:0,r:3, ic:'⏰', n:'Cədvəllər',         s:'planlı avtonom işlər', k:'in'},
+    {id:'mic',   c:1,r:1, ic:'🎙️', n:'Bir Mikrofon',      s:'bütün kanallar → tək söhbət yaddaşı', k:'core'},
+    {id:'queue', c:1,r:2, ic:'📥', n:'Növbə',             s:'davamlı job queue — növbə ilə', k:'core'},
+    {id:'sec',   c:2,r:0, ic:'🛡️', n:'Təhlükəsizlik',     s:'sirr · dağıdıcı · ödəniş → sərt blok', k:'gate'},
+    {id:'appr',  c:2,r:1, ic:'✋', n:'Sənin təsdiqin',    s:'bayıra yönəlik əməl parkda gözləyir', k:'gate', open:'panel'},
+    {id:'exec',  c:2,r:2, ic:'⚙️', n:'İcraçı',            s:'gateway.executor — işi görən əl', k:'core'},
+    {id:'brain', c:2,r:3, ic:'🧠', n:'Brain yaddaşı',     s:'işdən əvvəl recall · sonra reflect', k:'core'},
+    {id:'counc', c:2,r:4, ic:'🏛️', n:'AI Şurası',         s:'Codex+Claude+Gemini — çətin qərar', k:'core'},
+    {id:'router',c:3,r:1, ic:'🚪', n:'Model Qapısı',      s:'llm_router — bütün model çağırışları', k:'core'},
+    {id:'casc',  c:3,r:2, ic:'🆓', n:'Pulsuz kaskad',     s:'Gemini→Groq→Cerebras→OpenRouter→Ollama', k:'core'},
+    {id:'ws',    c:3,r:3, ic:'🔨', n:'Sayt emalatxanası', s:'workspace agent — sandbox əllər', k:'core', cap:'site-studio'},
+    {id:'tgout', c:4,r:0, ic:'📤', n:'Telegram cavabı',   s:'nəticə / brif sənə qayıdır', k:'outp'},
+    {id:'jobs',  c:4,r:1, ic:'📦', n:'Nəticələr anbarı',  s:'output/jobs — hər işin artefaktı', k:'outp'},
+    {id:'gal',   c:4,r:2, ic:'🖼️', n:'Qalereya',          s:'panel nəticələr qalereyası', k:'outp', open:'panel'},
+    {id:'sites', c:4,r:3, ic:'🌍', n:'Canlı saytlar',     s:'sslip.io/sites/… (Hetzner OS)', k:'outp'},
+  ],
+  edges: [
+    ['tg','mic'],['pchat','mic'],['cli','mic'],['sched','queue'],['mic','queue'],
+    ['queue','sec'],['sec','exec'],['sec','appr','riskli?'],['appr','exec','təsdiq'],
+    ['exec','brain'],['exec','counc','opt-in'],['exec','router'],['router','casc'],
+    ['exec','ws'],['ws','appr','dərc üçün'],['ws','sites'],
+    ['exec','jobs'],['jobs','gal'],['exec','tgout'],
+  ],
+};
+const NODE_W = 170, NODE_H = 58;
+
+function showAnatomy(){
+  current = null;
+  stage('anatomy', '_anatomy');
+  $('crumb').textContent = 'Nəzarət';
+  $('crumb2').innerHTML = ' <span class="sep">/</span> <b style="color:var(--ink)">Canlı Anatomiya</b>';
+  $('barstatus').textContent = '';
+  $('barOpen').style.display = 'none';
+  const box = $('anatomy');
+  if(box.dataset.built){ paintAnatomyDots(); return; }
+  box.dataset.built = '1';
+
+  const H = FLOW.rowy(5) + 10;
+  const pos = {}; FLOW.nodes.forEach(nd => pos[nd.id] = {x: FLOW.colx(nd.c), y: FLOW.rowy(nd.r)});
+  const wires = FLOW.edges.map(([a,b,lbl]) => {
+    const p1 = pos[a], p2 = pos[b];
+    const x1 = p1.x + NODE_W, y1 = p1.y + NODE_H/2;
+    const x2 = p2.x,          y2 = p2.y + NODE_H/2;
+    const dx = Math.max(46, (x2-x1)/2);
+    const path = `<path class="awire ${lbl?'':'hot'}" d="M${x1} ${y1} C${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}"/>`;
+    const text = lbl ? `<text class="awlbl" x="${(x1+x2)/2}" y="${(y1+y2)/2 - 6}" text-anchor="middle">${esc(lbl)}</text>` : '';
+    return path + text;
+  }).join('');
+  const lanes = FLOW.lanes.map((t,i) => `<div class="alane" style="left:${FLOW.colx(i)}px">${esc(t)}</div>`).join('');
+  const nodes = FLOW.nodes.map(nd => `
+    <div class="anode ${nd.k}${nd.open||nd.cap?' click':''}" data-fn="${nd.id}"
+         style="left:${pos[nd.id].x}px;top:${pos[nd.id].y}px">
+      <div class="ah"><span class="aic">${nd.ic}</span><span class="an">${esc(nd.n)}</span></div>
+      <div class="as">${esc(nd.s)}</div>
+    </div>`).join('');
+
+  const svc = SERVICES.filter(s => !s.legacy).map(s => `
+    <button class="acell" data-anasvc="${s.key}">
+      <span class="aic">${s.icon}</span>
+      <span class="tx"><span class="an">${esc(s.name)}</span><span class="as">:${s.port} · ${esc(s.cat)}</span></span>
+      <span class="dot" data-anadot="${s.key}"></span>
+    </button>`).join('');
+  const caps = CAPS.map(c => `
+    <button class="acell" data-anacap="${c.key}">
+      <span class="aic">${c.icon || '⚙️'}</span>
+      <span class="tx"><span class="an">${esc(c.name)}</span><span class="as">${esc(c.desc)}</span></span>
+      <span class="ktag">${CAP_KIND[c.kind] || 'ALƏT'}</span>
+    </button>`).join('');
+
+  box.innerHTML = `
+    <div style="max-width:1340px">
+      <h2 style="font-size:17px">Canlı Anatomiya <span class="muted" style="font-size:12px;font-weight:500">
+        — bir tapşırığın bədəndən keçən yolu · reyestrdən çəkilir, uydurma yoxdur</span></h2>
+      <div style="overflow-x:auto;margin-top:14px"><div class="anat" style="height:${H}px">
+        <svg class="awires" width="1290" height="${H}">${wires}</svg>
+        ${lanes}${nodes}
+      </div></div>
+      <div class="aband"><div class="abt">Orqanlar — portlu servislər <span class="muted" style="letter-spacing:0;text-transform:none;font-weight:500">(yaşıl = bu an işləyir · kliklə aç)</span></div>
+        <div class="agrid">${svc}</div></div>
+      <div class="aband"><div class="abt">Qabiliyyətlər — portsuz orqanlar (çat · terminal · agent)</div>
+        <div class="agrid">${caps}</div></div>
+    </div>`;
+
+  box.querySelectorAll('[data-fn]').forEach(el => el.onclick = () => {
+    const nd = FLOW.nodes.find(x => x.id === el.dataset.fn);
+    if(nd && nd.open) select(SERVICES.find(s => s.key === nd.open));
+    else if(nd && nd.cap) showCap(CAPS.find(c => c.key === nd.cap));
+  });
+  box.querySelectorAll('[data-anasvc]').forEach(el =>
+    el.onclick = () => select(SERVICES.find(s => s.key === el.dataset.anasvc)));
+  box.querySelectorAll('[data-anacap]').forEach(el =>
+    el.onclick = () => showCap(CAPS.find(c => c.key === el.dataset.anacap)));
+  paintAnatomyDots();
+}
+function paintAnatomyDots(){
+  document.querySelectorAll('[data-anadot]').forEach(d =>
+    d.className = 'dot ' + (statusMap[d.dataset.anadot] ? 'up' : 'down'));
+}
+
 function paintBarStatus(){
   const el = $('barstatus');
   if(!current){ el.textContent = ''; return; }
@@ -607,6 +762,7 @@ async function refreshStatus(){
     const d = document.querySelector(`[data-dot="${s.key}"]`);
     if(d) d.className = 'dot ' + (statusMap[s.key] ? 'up' : 'down');
   });
+  paintAnatomyDots();
   paintBarStatus();
   if(current && statusMap[current.key] && $('frame').src === 'about:blank') select(current);
   if($('ev').classList.contains('on')) showEv();
