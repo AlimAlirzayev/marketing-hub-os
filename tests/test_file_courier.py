@@ -41,7 +41,8 @@ def test_valid_setfile_stages_locked_and_scrubs_the_message(wired):
 
     dest = tmp / "CODEX_AUTH"
     assert dest.exists() and dest.read_bytes().startswith(b"{")
-    assert oct(os.stat(dest).st_mode)[-3:] == "600", "secret must be owner-only on disk"
+    if os.name != "nt":  # NTFS does not express POSIX bits; chmod(0o600) reads back 666
+        assert oct(os.stat(dest).st_mode)[-3:] == "600", "secret must be owner-only on disk"
     assert deleted == [55], "the carrying message must be deleted"
     assert any("alındı" in s for s in sent)
 

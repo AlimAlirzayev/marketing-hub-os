@@ -29,7 +29,9 @@ from urllib.request import Request, urlopen
 
 from . import store
 
-_DEFAULT_GEMINI_MODEL = "text-embedding-004"
+# text-embedding-004 was retired by Google (404 as of 2026-07); the GA
+# replacement line is gemini-embedding-001 / gemini-embedding-2.
+_DEFAULT_GEMINI_MODEL = "gemini-embedding-001"
 _DEFAULT_LOCAL_MODEL = "Qwen/Qwen3-Embedding-0.6B"
 
 _cache: dict[str, list[float]] | None = None
@@ -209,8 +211,16 @@ def _embed_gemini(text: str) -> list[float] | None:
     try:
         from google import genai
 
-        client = genai.Client(api_key=api_key)
-        resp = client.models.embed_content(model=_model(), contents=text)
+        # google-genai prefers the GOOGLE_API_KEY env var even when api_key is
+        # passed explicitly — a stale key there silently shadows a fresh
+        # GEMINI_API_KEY (observed live 2026-07-15). Hide it for the call.
+        shadow = os.environ.pop("GOOGLE_API_KEY", None)
+        try:
+            client = genai.Client(api_key=api_key)
+            resp = client.models.embed_content(model=_model(), contents=text)
+        finally:
+            if shadow is not None:
+                os.environ["GOOGLE_API_KEY"] = shadow
         return [float(v) for v in resp.embeddings[0].values]
     except Exception:
         return None

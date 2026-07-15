@@ -15,6 +15,7 @@ reintroduce silently:
 import importlib.util
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -133,6 +134,38 @@ class AdvisorFrontDoor(unittest.TestCase):
                              & {x.code for x in f})
         finally:
             os.environ.pop("ADVISOR_DISABLE_LLM", None)
+
+
+class AnatomyMap(unittest.TestCase):
+    """Canlı Anatomiya — the hub's live flow map. The organs band renders from
+    the registry at runtime; here we pin the map's spine: pane + nav exist and
+    every flow wire connects two nodes that are actually defined."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(ROOT, "hub", "templates", "portal.html"),
+                  encoding="utf-8") as f:
+            cls.html = f.read()
+
+    def test_anatomy_pane_and_nav_exist(self):
+        self.assertIn('id="anatomy"', self.html)
+        self.assertIn("Canlı Anatomiya", self.html)
+        self.assertIn("showAnatomy", self.html)
+        self.assertIn("paintAnatomyDots", self.html)
+
+    def test_flow_edges_reference_defined_nodes(self):
+        node_ids = set(re.findall(r"\{id:'(\w+)'", self.html))
+        edges = re.findall(r"\['(\w+)','(\w+)'(?:,'[^']*')?\]", self.html)
+        self.assertGreaterEqual(len(node_ids), 15, "flow xəritəsi kiçilib?")
+        self.assertGreaterEqual(len(edges), 15)
+        for a, b in edges:
+            self.assertIn(a, node_ids, f"tel açıq qalıb: {a}")
+            self.assertIn(b, node_ids, f"tel açıq qalıb: {b}")
+
+    def test_key_organs_of_the_spine_present(self):
+        for organ in ("Bir Mikrofon", "Növbə", "İcraçı", "Model Qapısı",
+                      "Sənin təsdiqin", "Brain yaddaşı"):
+            self.assertIn(organ, self.html, f"onurğa orqanı itib: {organ}")
 
 
 class HubApi(unittest.TestCase):
