@@ -265,6 +265,14 @@ def video_endpoint(month: str, account: str | None = None) -> JSONResponse:
     return JSONResponse({"metrics": v, "verdict": segm.video_verdict(v)})
 
 
+@app.get("/api/organic")
+def organic_endpoint(days: int = 30) -> JSONResponse:
+    """Owned-audience (organic) Facebook Page + Instagram Business snapshot.
+    Month-independent — always the trailing `days` window from today."""
+    from connectors import get_organic_summary
+    return JSONResponse(get_organic_summary(days=days))
+
+
 class Ask(BaseModel):
     question: str
     month: str

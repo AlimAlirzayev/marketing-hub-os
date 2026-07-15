@@ -13,7 +13,7 @@ const PLAT_LABEL = { instagram:'Instagram', facebook:'Facebook', messenger:'Mess
 const DEVICE_LABEL = { android_smartphone:'Android telefon', iphone:'iPhone', desktop:'Desktop', ipad:'iPad', android_tablet:'Android tablet' };
 
 const state = { meta:null, month:null, platform:'all', account:null, compare:'prev_month',
-                sym:'$', charts:{}, loaded:{report:false, segments:false, creative:false} };
+                sym:'$', charts:{}, loaded:{report:false, segments:false, creative:false, social:false} };
 
 const $  = (s)=>document.querySelector(s);
 const $$ = (s)=>document.querySelectorAll(s);
@@ -79,7 +79,7 @@ function setCompare(m){
   });
 }
 
-function resetAll(){ state.loaded = {report:false, segments:false, creative:false}; }
+function resetAll(){ state.loaded = {report:false, segments:false, creative:false, social:false}; }
 
 function bind(){
   $('#month-select').addEventListener('change', e=>{ state.month=e.target.value; resetAll(); load(); });
@@ -102,6 +102,7 @@ function setTab(name){
   $('#tab-'+name).classList.remove('hidden');
   if (name==='segments' && !state.loaded.segments) loadSegments();
   if (name==='creative' && !state.loaded.creative) loadCreative();
+  if (name==='social' && !state.loaded.social) loadSocial();
 }
 function setPlatform(p){
   state.platform=p;
@@ -598,6 +599,78 @@ function renderCampaigns(list){
       <div class="h-1.5 mt-1 rounded-full bg-gray-100 overflow-hidden"><div class="h-full rounded-full" style="width:${w}%;background:${COLORS.red}"></div></div>
     </div>`;
   }).join('');
+}
+
+// ---------- SOSİAL PERFORMANS tab (üzvi / organic) ----------
+function statCard(label, value, sub, color){
+  return `<div class="border border-surface-line rounded-xl p-3 fade-in">
+    <div class="text-[11px] text-gray-500 uppercase tracking-wide">${label}</div>
+    <div class="num font-extrabold text-xl mt-0.5" style="color:${color||'#1C1B17'}">${value}</div>
+    <div class="text-[11px] text-gray-400 mt-0.5">${sub||'&nbsp;'}</div>
+  </div>`;
+}
+function permNote(elId, msg){
+  const el = $('#'+elId);
+  if (!msg){ el.classList.add('hidden'); el.textContent=''; return; }
+  el.classList.remove('hidden');
+  el.innerHTML = `<strong>İcazə çatışmır.</strong> ${msg.replace(/^insufficient_permission:\s*/,'')}`;
+}
+async function loadSocial(){
+  try{
+    const d = await (await fetch('/api/organic?days=30')).json();
+    renderFacebookOrganic(d.facebook);
+    renderInstagramOrganic(d.instagram);
+    state.loaded.social = true;
+  }catch(e){ console.error(e); }
+}
+function renderFacebookOrganic(fb){
+  if (!fb || !fb.configured){
+    $('#fb-name').textContent = 'Konfiqurasiya olunmayıb (META_FACEBOOK_PAGE_IDS yoxdur).';
+    $('#fb-cards').innerHTML=''; return;
+  }
+  if (fb.error){ $('#fb-name').textContent = 'Xəta: ' + fb.error; $('#fb-cards').innerHTML=''; return; }
+  $('#fb-name').textContent = fb.name || '—';
+  $('#fb-cards').innerHTML = [
+    statCard('İzləyici (fan)', nf(fb.fan_count), 'canlı', COLORS.blue),
+    statCard('Gündəlik baxış', fb.daily?.length ? nf(fb.daily.reduce((s,d)=>s+(d.page_views_total||0),0)) : '—', '30 gün cəmi', COLORS.green),
+  ].join('');
+  const wrap = $('#fb-trend-wrap');
+  if (fb.daily && fb.daily.length){
+    wrap.classList.remove('hidden');
+    mkChart('ch-fb-trend',{ type:'line',
+      data:{ labels: fb.daily.map(d=>+d.date.split('-')[2]), datasets:[
+        { label:'Baxış', data: fb.daily.map(d=>d.page_views_total||0), borderColor:COLORS.blue, backgroundColor:'rgba(37,99,235,.08)', fill:true, tension:.35, pointRadius:0, borderWidth:2 },
+        { label:'Engagement', data: fb.daily.map(d=>d.page_post_engagements||0), borderColor:COLORS.green, fill:false, tension:.35, pointRadius:0, borderWidth:2 },
+      ]},
+      options:{ maintainAspectRatio:false, responsive:true, interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:true,position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true}}},
+        scales:{ y:{grid:{color:'#f1f3f5'},beginAtZero:true} } }});
+  } else { wrap.classList.add('hidden'); }
+  permNote('fb-note', fb.insights_error);
+}
+function renderInstagramOrganic(ig){
+  if (!ig || !ig.configured){
+    $('#ig-name').textContent = 'Konfiqurasiya olunmayıb (META_INSTAGRAM_BUSINESS_IDS yoxdur).';
+    $('#ig-cards').innerHTML=''; return;
+  }
+  if (ig.error){ $('#ig-name').textContent = 'Xəta: ' + ig.error; $('#ig-cards').innerHTML=''; return; }
+  $('#ig-name').textContent = ig.username ? '@'+ig.username : '—';
+  $('#ig-cards').innerHTML = [
+    statCard('İzləyici', nf(ig.followers_count), 'canlı', COLORS.pink),
+    statCard('Media sayı', nf(ig.media_count), 'cəmi', COLORS.purple),
+  ].join('');
+  const wrap = $('#ig-trend-wrap');
+  if (ig.daily && ig.daily.length){
+    wrap.classList.remove('hidden');
+    mkChart('ch-ig-trend',{ type:'line',
+      data:{ labels: ig.daily.map(d=>+d.date.split('-')[2]), datasets:[
+        { label:'Reach', data: ig.daily.map(d=>d.reach||0), borderColor:COLORS.pink, backgroundColor:'rgba(219,39,119,.08)', fill:true, tension:.35, pointRadius:0, borderWidth:2 },
+      ]},
+      options:{ maintainAspectRatio:false, responsive:true,
+        plugins:{legend:{display:false}},
+        scales:{ y:{grid:{color:'#f1f3f5'},beginAtZero:true} } }});
+  } else { wrap.classList.add('hidden'); }
+  permNote('ig-note', ig.insights_error);
 }
 
 // ---------- payments ----------

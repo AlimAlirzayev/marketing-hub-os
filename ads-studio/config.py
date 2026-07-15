@@ -66,6 +66,13 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN", "")
 META_AD_ACCOUNT_ID = os.getenv("META_AD_ACCOUNT_ID", "")  # e.g. act_1234567890
 META_API_VERSION = os.getenv("META_API_VERSION", "v21.0")
 
+# Organic (owned-audience) reporting reuses the same app but a separate token
+# var already provisioned for CX comment sync (cx-command-center); fall back
+# to the ads token so a single grant covers both if only one is set.
+META_GRAPH_ACCESS_TOKEN = os.getenv("META_GRAPH_ACCESS_TOKEN", "") or META_ACCESS_TOKEN
+META_FACEBOOK_PAGE_IDS = [p.strip() for p in os.getenv("META_FACEBOOK_PAGE_IDS", "").split(",") if p.strip()]
+META_INSTAGRAM_BUSINESS_IDS = [p.strip() for p in os.getenv("META_INSTAGRAM_BUSINESS_IDS", "").split(",") if p.strip()]
+
 
 def _parse_accounts() -> list[dict]:
     """Build the multi-account list. Sources, in order of priority:

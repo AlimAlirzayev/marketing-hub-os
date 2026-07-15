@@ -76,6 +76,7 @@
       <button data-tab="report"     class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium">Hesabat</button>
       <button data-tab="segments"   class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Segmentlər</button>
       <button data-tab="creative"   class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Kreativ</button>
+      <button data-tab="social"     class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Sosial Performans</button>
       <button data-tab="payments"   class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Ödənişlər</button>
       <button data-tab="sales"      class="tab seg whitespace-nowrap py-2.5 px-4 rounded-lg text-sm font-medium text-white/60">Satış</button>
     </div>
@@ -273,6 +274,42 @@
           </thead>
           <tbody id="diag-rows" class="divide-y divide-gray-100"></tbody>
         </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SOSİAL PERFORMANS (üzvi) ============ -->
+  <section id="tab-social" class="tabpanel hidden">
+    <h1 class="font-tight font-extrabold text-2xl sm:text-3xl mb-1">Sosial Performans</h1>
+    <p class="text-sm text-gray-500 mb-4">Üzvi (organic) auditoriya — reklamla deyil, brendin öz Page/Instagram hesabı. Son 30 gün.</p>
+
+    <div id="social-perm-banner"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-5">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="inline-flex w-8 h-8 items-center justify-center rounded-xl" style="background:#DBEAFE;color:#2563EB">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M13.5 21v-7h2.4l.4-3H13.5V9c0-.9.25-1.5 1.55-1.5H16V4.8C15.7 4.75 14.75 4.7 13.6 4.7c-2.3 0-3.9 1.4-3.9 4V11H7.3v3h2.4v7h3.8z"/></svg>
+          </span>
+          <h3 class="font-tight font-bold text-lg">Facebook Page</h3>
+        </div>
+        <div id="fb-name" class="text-sm text-gray-500 mb-3">—</div>
+        <div class="grid grid-cols-2 gap-3 mb-4" id="fb-cards"></div>
+        <div id="fb-trend-wrap" class="h-56 hidden"><canvas id="ch-fb-trend"></canvas></div>
+        <div id="fb-note" class="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2 hidden"></div>
+      </div>
+
+      <div class="card p-5">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="inline-flex w-8 h-8 items-center justify-center rounded-xl" style="background:#FCE7F3;color:#DB2777">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2c2.7 0 3.06.01 4.12.06 1.06.05 1.79.22 2.43.47.66.26 1.21.6 1.76 1.15.55.55.9 1.1 1.15 1.76.25.64.42 1.37.47 2.43.05 1.06.06 1.4.06 4.13s-.01 3.07-.06 4.13c-.05 1.06-.22 1.79-.47 2.43-.26.66-.6 1.21-1.15 1.76-.55.55-1.1.9-1.76 1.15-.64.25-1.37.42-2.43.47-1.06.05-1.4.06-4.12.06s-3.07-.01-4.13-.06c-1.06-.05-1.79-.22-2.43-.47-.66-.26-1.21-.6-1.76-1.15-.55-.55-.9-1.1-1.15-1.76-.25-.64-.42-1.37-.47-2.43C2.01 15.07 2 14.7 2 12s.01-3.07.06-4.13c.05-1.06.22-1.79.47-2.43.26-.66.6-1.21 1.15-1.76.55-.55 1.1-.9 1.76-1.15.64-.25 1.37-.42 2.43-.47C8.93 2.01 9.3 2 12 2zm0 5a5 5 0 100 10 5 5 0 000-10zm0 8.2a3.2 3.2 0 110-6.4 3.2 3.2 0 010 6.4zm5.4-8.4a1.2 1.2 0 100-2.4 1.2 1.2 0 000 2.4z"/></svg>
+          </span>
+          <h3 class="font-tight font-bold text-lg">Instagram</h3>
+        </div>
+        <div id="ig-name" class="text-sm text-gray-500 mb-3">—</div>
+        <div class="grid grid-cols-2 gap-3 mb-4" id="ig-cards"></div>
+        <div id="ig-trend-wrap" class="h-56 hidden"><canvas id="ch-ig-trend"></canvas></div>
+        <div id="ig-note" class="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2 hidden"></div>
       </div>
     </div>
   </section>

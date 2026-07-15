@@ -65,3 +65,11 @@ def get_creative_diagnostics(ym: str, account_id: str | None = None,
 def get_video_metrics(ym: str, account_id: str | None = None) -> dict:
     data, _ = _live_or_demo("video_metrics", ym, account_id)
     return data
+
+
+def get_organic_summary(days: int = 30) -> dict:
+    """Owned-audience reach (Facebook Page + Instagram Business) — read-only,
+    no demo fallback: each platform reports its own honest configured/error
+    state instead of showing invented numbers."""
+    from . import organic
+    return organic.organic_summary(days=days)

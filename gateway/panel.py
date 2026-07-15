@@ -23,6 +23,7 @@ import sys
 import time
 from pathlib import Path
 
+import requests
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
@@ -76,6 +77,86 @@ def radar(refresh: int = 0) -> JSONResponse:
 def advisor_view() -> JSONResponse:
     findings = [f.as_dict() for f in advisor.observe_state()]
     return JSONResponse({"findings": findings})
+
+
+_ADS_STUDIO = "http://127.0.0.1:8800"
+
+
+@app.get("/api/finance")
+def finance() -> JSONResponse:
+    """Cross-process pull from Ads Studio (8800): live spend/budget pacing +
+    organic reach, surfaced here so the front office shows the financial
+    reality without a separate tab-hop. Best-effort — Ads Studio being down
+    must degrade cleanly, never 500 the whole panel."""
+    try:
+        meta = requests.get(f"{_ADS_STUDIO}/api/meta", timeout=5).json()
+        month = meta["months"][0]["value"]
+        account = meta.get("default_account")
+        report = requests.get(f"{_ADS_STUDIO}/api/report",
+                               params={"month": month, "account": account}, timeout=10).json()
+        organic = requests.get(f"{_ADS_STUDIO}/api/organic", timeout=10).json()
+        return JSONResponse({
+            "ok": True,
+            "data_mode": meta.get("data_mode"),
+            "sym": meta.get("currency_symbol", "$"),
+            "account_name": meta.get("account"),
+            "period": report["report"]["period"],
+            "totals": report["report"]["combined_totals"],
+            "pacing": report["analytics"]["pacing"],
+            "organic": organic,
+        })
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+
+
+_LAB_ROOT = "/opt/research-lab"
+
+
+def _brain_bridge():
+    if _LAB_ROOT not in sys.path:
+        sys.path.insert(0, _LAB_ROOT)
+    import brain_bridge
+    return brain_bridge
+
+
+@app.get("/api/trends")
+def trends() -> JSONResponse:
+    """Research-lab marketing/creative radar findings, surfaced visually so
+    they stop rotting unseen in SHARED_CONTEXT.md (memory: radar bridge,
+    2026-07-12). Read-only; adopt/reject reuse the lab's own tested CLI."""
+    try:
+        bb = _brain_bridge()
+        findings = bb.read_findings()
+        status = bb._load(bb.STATUS_FILE, {})
+        proposals = bb.read_open_proposals()
+        out = []
+        for f in findings:
+            st = status.get(f["title"], {}).get("status", "new")
+            idea = bb._short(bb._field(bb.KNOW / f["file"], "Application idea"), 220)
+            out.append({**f, "status": st, "idea": idea})
+        out.sort(key=lambda f: (0 if f["status"] == "new" else 1, -f["score"]))
+        return JSONResponse({"findings": out, "proposals": proposals})
+    except Exception as exc:
+        return JSONResponse({"findings": [], "proposals": [], "error": f"{type(exc).__name__}: {exc}"})
+
+
+class TrendAction(BaseModel):
+    title: str
+
+
+@app.post("/api/trends/{action}")
+def trends_action(action: str, body: TrendAction) -> JSONResponse:
+    if action not in ("adopt", "reject"):
+        return JSONResponse({"ok": False, "error": "bad action"}, status_code=400)
+    if not body.title.strip():
+        return JSONResponse({"ok": False, "error": "boş başlıq"}, status_code=400)
+    try:
+        proc = subprocess.run(
+            [sys.executable, f"{_LAB_ROOT}/brain_bridge.py", action, body.title],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        return JSONResponse({"ok": proc.returncode == 0, "out": (proc.stdout or proc.stderr)[-500:]})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
 
 
 def _job_dict(j: queue.Job, preview: int = 400) -> dict:
@@ -567,6 +648,21 @@ h3 .lnk{margin-left:auto;font-size:12px;font-weight:600;text-transform:none;lett
 .tile .s{font-size:12px;color:var(--mut);margin-top:2px}
 .tile.warn .v{color:var(--warn)}
 section.card{margin-bottom:18px}
+
+/* ── MALİYYƏ + TRENDLƏR ────────────────────────────────────────── */
+.pbar{height:9px;border-radius:999px;background:var(--card2);border:1px solid var(--line);overflow:hidden}
+.pbar i{display:block;height:100%;border-radius:999px;background:var(--acc)}
+.pbar.warn i{background:var(--warn)} .pbar.over i{background:var(--bad)} .pbar.good i{background:var(--ok)}
+.finrow{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:6px}
+.finrow b{font-variant-numeric:tabular-nums}
+.trendcard{border:1px solid var(--line);border-radius:var(--r-md);padding:13px 15px;margin-bottom:10px;background:var(--card)}
+.trendcard .hd{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+.trendscore{font-size:11px;font-weight:800;border-radius:6px;padding:2px 8px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
+.trendtitle{font-weight:700;font-size:14px;line-height:1.3}
+.trenddate{font-size:11px;color:var(--mut);white-space:nowrap;margin-left:auto}
+.trendidea{font-size:12.5px;color:var(--ink2);margin-top:5px;line-height:1.5}
+.trendactions{display:flex;gap:8px;margin-top:9px}
+.trendcard.adopted{opacity:.55} .trendcard.rejected{opacity:.4}
 .find{display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--line);font-size:13.5px}
 .find:last-child{border-bottom:0}
 .lvl{font-size:10.5px;font-weight:700;border-radius:6px;padding:3px 9px;height:fit-content;
@@ -631,7 +727,9 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
   </div>
   <nav class="tabs">
     <button class="tab" data-t="studiya" onclick="showTab('studiya')">Studiya</button>
+    <button class="tab" data-t="maliyye" onclick="showTab('maliyye')">Maliyyə</button>
     <button class="tab" data-t="neticeler" onclick="showTab('neticeler')">Nəticələr<span class="tcnt" id="tabCnt"></span></button>
+    <button class="tab" data-t="trendler" onclick="showTab('trendler')">Trendlər<span class="tcnt" id="trendCnt"></span></button>
     <button class="tab" data-t="muherrik" onclick="showTab('muherrik')">Mühərrik</button>
   </nav>
   <span class="sp"></span>
@@ -687,6 +785,19 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
   </div>
 </section>
 
+<!-- ═══ MALİYYƏ — live spend/budget/pacing, pulled from Ads Studio (8800) ═══ -->
+<section class="page" id="page-maliyye">
+  <div class="engbar">
+    <span class="badge" id="finPeriod">…</span>
+    <span class="sp"></span>
+    <a class="btn ghost" href="http://localhost:8800" target="_blank">↗ Tam Ads Studio</a>
+    <button class="btn ghost" onclick="loadFinance()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 3v6h6"/></svg>
+      Yenilə</button>
+  </div>
+  <div id="finBody"><div class="muted">yüklənir…</div></div>
+</section>
+
 <!-- ═══ NƏTİCƏLƏR — the content gallery, the real product ═══ -->
 <section class="page" id="page-neticeler">
   <div class="gtools">
@@ -698,6 +809,26 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
     </button>
   </div>
   <div class="gallery" id="gallery"><div class="muted">yüklənir…</div></div>
+</section>
+
+<!-- ═══ TRENDLƏR — research-lab marketing/creative radar, made visible ═══ -->
+<section class="page" id="page-trendler">
+  <div class="engbar">
+    <span class="badge" id="trendMeta">…</span>
+    <span class="sp"></span>
+    <button class="btn ghost" onclick="loadTrends()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 3v6h6"/></svg>
+      Yenilə</button>
+  </div>
+  <section class="card pad" id="trendProposalsWrap" style="display:none">
+    <h3>Açıq tikinti təklifləri (engineer/builder loops)</h3>
+    <div id="trendProposals"></div>
+  </section>
+  <section class="card pad">
+    <h3>Açıq tapıntılar — hələ heç kim əməl etməyib
+      <span class="lnk" style="cursor:default;color:var(--mut)">tədqiqat lab · VPS-də hər 3 gündə bir</span></h3>
+    <div id="trendList" class="muted">yüklənir…</div>
+  </section>
 </section>
 
 <!-- ═══ MÜHƏRRİK — the engine room: telemetry lives here now ═══ -->
@@ -1081,6 +1212,91 @@ async function doSync(){
   refresh();
 }
 
+/* ── MALİYYƏ — live pull from Ads Studio (8800) ── */
+function fmoney(sym,n){return sym+new Intl.NumberFormat("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0)}
+function pbar(pct,status){return `<div class="pbar ${status||""}"><i style="width:${Math.min(pct||0,100)}%"></i></div>`}
+async function loadFinance(){
+  const box=$("finBody");
+  let f;
+  try{f=await j("/api/finance");}catch(e){box.innerHTML=`<div class="muted">Maliyyə datası oxunmadı.</div>`;return;}
+  if(!f.ok){
+    box.innerHTML=`<div class="muted">Ads Studio (8800) ilə əlaqə yoxdur — servis işləyirmi? <span class="mono" style="font-size:11px">${esc(f.error||"")}</span></div>`;
+    $("finPeriod").textContent="əlaqə yoxdur"; return;
+  }
+  const sym=f.sym||"$", p=f.pacing||{}, t=f.totals||{}, org=f.organic||{};
+  $("finPeriod").textContent=`${f.account_name||"—"} · ${f.period&&f.period.label||""} · ${f.data_mode==="live"?"CANLI":"DEMO"}`;
+
+  const budgetStatus=p.budget_status==="over"?"over":p.budget_status==="warn"?"warn":"good";
+  const leadsStatus=p.leads_status==="over"?"over":p.leads_status==="warn"?"warn":"good";
+
+  let html=`<div class="tiles">
+    ${tile("","Xərc (bu ay)",fmoney(sym,t.spend),"Meta Ads")}
+    ${tile("","Lead",t.leads??"–",`${fmoney(sym,t.cpl)} / lead`)}
+    ${tile(budgetStatus==="over"?"warn":"","Büdcə istifadəsi",(p.budget_used_pct??"–")+"%",fmoney(sym,p.spend_so_far)+" / "+fmoney(sym,p.budget))}
+    ${tile(leadsStatus==="over"?"warn":"","Lead hədəfi",(p.lead_attainment_pct??"–")+"%",(p.leads_so_far??"–")+" / "+(p.target_leads??"–"))}
+  </div>
+  <section class="card pad">
+    <h3>Büdcə Pacing & Ay Sonu Proqnozu</h3>
+    <div class="finrow"><span>Büdcə istifadəsi</span><b>${fmoney(sym,p.spend_so_far)} / ${fmoney(sym,p.budget)}</b></div>
+    ${pbar(p.budget_used_pct,budgetStatus)}
+    <div class="finrow" style="margin-top:12px"><span>Proqnoz ay-sonu xərc</span><b>${fmoney(sym,p.projected_spend)}</b></div>
+    <div class="finrow"><span>Lead hədəfi</span><b>${p.leads_so_far??"–"} / ${p.target_leads??"–"}</b></div>
+    ${pbar(p.lead_attainment_pct,leadsStatus)}
+    <div class="finrow" style="margin-top:12px"><span>Proqnoz CPL</span><b>${fmoney(sym,p.projected_cpl)} <span class="muted">/ limit ${fmoney(sym,p.max_cpl)}</span></b></div>
+  </section>
+  <section class="card pad">
+    <h3>Üzvi (organic) auditoriya <span class="lnk" onclick="showTab('neticeler')" style="cursor:default;color:var(--mut)">Facebook + Instagram</span></h3>
+    <div class="tiles">
+      ${tile("","FB izləyici",(org.facebook&&org.facebook.fan_count!=null)?org.facebook.fan_count:"–",esc(org.facebook&&org.facebook.name||""))}
+      ${tile("","IG izləyici",(org.instagram&&org.instagram.followers_count!=null)?org.instagram.followers_count:"–",org.instagram&&org.instagram.username?"@"+esc(org.instagram.username):"")}
+    </div>
+    ${(org.facebook&&org.facebook.insights_error)?`<div class="muted" style="font-size:12px">⚠ FB: ${esc(org.facebook.insights_error)}</div>`:""}
+    ${(org.instagram&&org.instagram.insights_error)?`<div class="muted" style="font-size:12px">⚠ IG: ${esc(org.instagram.insights_error)}</div>`:""}
+  </section>`;
+  box.innerHTML=html;
+}
+
+/* ── TRENDLƏR — research-lab marketing radar ── */
+async function loadTrends(){
+  const box=$("trendList");
+  let r;
+  try{r=await j("/api/trends");}catch(e){box.innerHTML=`<div class="muted">radar oxunmadı</div>`;return;}
+  const findings=r.findings||[], proposals=r.proposals||[];
+  const open=findings.filter(f=>f.status==="new");
+  $("trendCnt").textContent=open.length||"";
+  $("trendMeta").innerHTML=`<b>${open.length}</b> açıq tapıntı · ${findings.length} cəmi`;
+
+  $("trendProposalsWrap").style.display=proposals.length?"block":"none";
+  $("trendProposals").innerHTML=proposals.map(p=>`<div class="find">
+      <span class="lvl info">tikinti</span>
+      <div><div>${esc(p.title)}</div><div class="d">${esc(p.status)}</div></div>
+    </div>`).join("");
+
+  if(!findings.length){box.innerHTML=`<div class="muted">Tapıntı yoxdur.</div>`;return;}
+  box.classList.remove("muted");
+  box.innerHTML=findings.map(f=>`
+    <div class="trendcard ${f.status!=="new"?f.status:""}">
+      <div class="hd">
+        <span class="trendscore">${f.score}/10</span>
+        <span class="trendtitle">${esc(f.title)}</span>
+        <span class="trenddate">${esc(f.date)}</span>
+      </div>
+      ${f.idea?`<div class="trendidea">→ ${esc(f.idea)}</div>`:""}
+      ${f.status==="new"?`<div class="trendactions">
+          <button class="btn good" onclick="trendAction('${esc(f.title).replace(/'/g,"\\\\'")}','adopt',this)">✓ Qəbul et</button>
+          <button class="btn danger" onclick="trendAction('${esc(f.title).replace(/'/g,"\\\\'")}','reject',this)">✕ Rədd et</button>
+        </div>`:`<div class="trendactions"><span class="badge">${f.status==="adopted"?"✓ qəbul edilib":"✕ rədd edilib"}</span></div>`}
+    </div>`).join("");
+}
+async function trendAction(title,action,btn){
+  if(btn) btn.closest(".trendactions").querySelectorAll("button").forEach(b=>b.disabled=true);
+  try{
+    const r=await j(`/api/trends/${action}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title})});
+    toast(r.ok?(action==="adopt"?"✓ qəbul edildi":"✕ rədd edildi"):"əməliyyat alınmadı",!r.ok);
+    loadTrends();
+  }catch(e){toast("əməliyyat alınmadı",true);}
+}
+
 /* ── voice input — Web Speech API, az-AZ (Chrome; localhost = secure context) ── */
 let _rec=null,_recOn=false;
 const _SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1115,9 +1331,12 @@ refresh();
 loadChat();
 loadDeliverables();
 loadRadar(0);
+loadFinance();
+loadTrends();
 setInterval(refresh, 15000);
 setInterval(loadChat, 12000);
 setInterval(loadDeliverables, 60000);
+setInterval(loadFinance, 90000);
 </script>
 </body></html>"""
 
