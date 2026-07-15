@@ -22,6 +22,7 @@ from pathlib import Path
 
 PANEL_PORT = os.getenv("PANEL_PORT", "8890")
 DASH_PORT = os.getenv("DASHBOARD_PORT", "7733")
+ADS_PORT = os.getenv("ADS_STUDIO_PORT", "8800")
 
 # --- Windows: everything runs locally, so just open localhost -------------
 _WIN = {
@@ -29,6 +30,8 @@ _WIN = {
         f'@echo off\r\nstart "" "http://localhost:{PANEL_PORT}/"\r\n',
     "🗺 Canli Xerite.bat":
         f'@echo off\r\nstart "" "http://localhost:{PANEL_PORT}/map"\r\n',
+    "📈 Ads Studio.bat":
+        f'@echo off\r\nstart "" "http://localhost:{ADS_PORT}/"\r\n',
     "📊 Dashboard.bat":
         f'@echo off\r\nstart "" "http://localhost:{DASH_PORT}/"\r\n',
     "🔑 Beyin Girisi (Claude).bat":
@@ -39,11 +42,11 @@ _WIN = {
 }
 
 # --- Mac: thin console -> tunnel to the VPS -------------------------------
-def _mac_tunnel(path: str) -> str:
+def _mac_tunnel(path: str, port: str = PANEL_PORT) -> str:
     return (
         "#!/bin/bash\n"
-        f'PORT={PANEL_PORT}; URL="http://127.0.0.1:$PORT{path}"\n'
-        'up(){ curl -s --max-time 2 "http://127.0.0.1:'f'{PANEL_PORT}''/api/health" | grep -q \'"ok":true\'; }\n'
+        f'PORT={port}; URL="http://127.0.0.1:$PORT{path}"\n'
+        f'up(){{ curl -s --max-time 2 "http://127.0.0.1:{port}/api/health" | grep -q \'"ok":true\'; }}\n'
         'if ! up; then ssh -f -N -L "$PORT:127.0.0.1:$PORT" -o ExitOnForwardFailure=yes hetzner-agents || { echo "tunel alinmadi"; sleep 3; exit 1; }\n'
         '  for _ in {1..10}; do up && break; sleep 1; done\nfi\n'
         'open -a "Google Chrome" "$URL" 2>/dev/null || open "$URL"\n'
@@ -53,6 +56,7 @@ def _mac_tunnel(path: str) -> str:
 _MAC = {
     "🎛 İdarəetmə Mərkəzi.command": _mac_tunnel("/"),
     "🗺 Canlı Xəritə.command": _mac_tunnel("/map"),
+    "📈 Ads Studio.command": _mac_tunnel("/", ADS_PORT),
     "🔑 Beyin Girişi (Claude).command": (
         "#!/bin/bash\n"
         'echo "Claude hesab(lar) əlavə edirik (2 hesab tövsiyə olunur)..."\n'
