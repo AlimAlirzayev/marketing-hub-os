@@ -89,7 +89,12 @@ class ConversationalDefault(_IsolatedJobsDB):
         self.assertIn("Salam, buyur!", out["result"])
         self.assertIn("chat:", out["result"])
         # with the conversational persona + the ONE shared thread:
-        self.assertIs(seen["system"], executor._CHAT_SYSTEM)
+        # The chat persona must be what drives this path (not the council/tools
+        # persona) AND the self-card must ride along: without it the free floor
+        # invents a system for itself (proven 2026-07-15 — it claimed GitLab and
+        # GPT-4o). Identity-check was too strict once the card was appended.
+        self.assertIn(executor._CHAT_SYSTEM, seen["system"])
+        self.assertIn("GROUND TRUTH ABOUT YOURSELF", seen["system"])
         self.assertEqual(seen["thread"], mic.MIC_THREAD)
 
     def test_council_is_off_by_default(self):
