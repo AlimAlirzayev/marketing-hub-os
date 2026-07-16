@@ -37,6 +37,24 @@ from config import (
 
 _BASE = "https://graph.facebook.com"
 _TIMEOUT = 30
+_ROOT_ENV = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
+
+
+def _access_token() -> str:
+    """Read the current token without requiring a service restart.
+
+    The encrypted-vault sync runs in a separate process, so its os.environ
+    changes cannot reach this already-running API. Reading one named line from
+    the local .env makes rotations effective on the next Meta request.
+    """
+    try:
+        with open(_ROOT_ENV, encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip().startswith("META_ACCESS_TOKEN="):
+                    return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return META_ACCESS_TOKEN
 
 # --- Resilience knobs (env-overridable) -------------------------------------
 # A live report fires several Insights calls per dashboard load (report +
@@ -75,7 +93,7 @@ class MetaNotConfigured(RuntimeError):
 
 def _acc(account_id: str | None) -> str:
     acc = account_id or DEFAULT_ACCOUNT_ID
-    if not META_ACCESS_TOKEN:
+    if not _access_token():
         raise MetaNotConfigured("META_ACCESS_TOKEN not set")
     if not acc:
         raise MetaNotConfigured("No ad account configured")
@@ -84,8 +102,9 @@ def _acc(account_id: str | None) -> str:
 
 def _sanitize(text: str) -> str:
     """Strip the access token out of anything we might surface (errors, logs)."""
-    if META_ACCESS_TOKEN and META_ACCESS_TOKEN in text:
-        return text.replace(META_ACCESS_TOKEN, "<REDACTED>")
+    token = _access_token()
+    if token and token in text:
+        return text.replace(token, "<REDACTED>")
     return text
 
 
@@ -200,7 +219,7 @@ def _get(path: str, params: dict, use_cache: bool = True) -> dict:
         if cached is not None:
             return cached
     data = _request(f"{_BASE}/{META_API_VERSION}/{path}",
-                    {**params, "access_token": META_ACCESS_TOKEN})
+                    {**params, "access_token": _access_token()})
     if key:
         _cache_put(key, data)
     return data

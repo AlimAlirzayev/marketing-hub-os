@@ -18,6 +18,7 @@ only needs instagram_basic, already granted) and nothing is fabricated.
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from datetime import date, timedelta
@@ -35,6 +36,21 @@ _BASE = "https://graph.facebook.com"
 _TIMEOUT = 20
 _MAX_RETRIES = 2
 _session = requests.Session()
+_ROOT_ENV = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
+
+
+def _token() -> str:
+    values = {}
+    try:
+        with open(_ROOT_ENV, encoding="utf-8") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith(("META_GRAPH_ACCESS_TOKEN=", "META_ACCESS_TOKEN=")):
+                    key, value = stripped.split("=", 1)
+                    values[key] = value.strip()
+    except OSError:
+        pass
+    return values.get("META_GRAPH_ACCESS_TOKEN") or values.get("META_ACCESS_TOKEN") or META_GRAPH_ACCESS_TOKEN
 
 # Page Insights metrics still valid on v21+ (Meta deprecated page_fans,
 # page_impressions*, page_engaged_users in the 2024 metrics cleanup).
@@ -46,8 +62,9 @@ class OrganicNotConfigured(RuntimeError):
 
 
 def _sanitize(text: str) -> str:
-    if META_GRAPH_ACCESS_TOKEN and META_GRAPH_ACCESS_TOKEN in text:
-        return text.replace(META_GRAPH_ACCESS_TOKEN, "<REDACTED>")
+    token = _token()
+    if token and token in text:
+        return text.replace(token, "<REDACTED>")
     return text
 
 
@@ -79,24 +96,27 @@ def _get(path: str, params: dict, token: str) -> dict:
 
 def _page_access_token(page_id: str) -> str:
     """Page-level insights require a Page Access Token, not the app/user token."""
-    d = _get(page_id, {"fields": "access_token"}, META_GRAPH_ACCESS_TOKEN)
-    return d.get("access_token") or META_GRAPH_ACCESS_TOKEN
+    token = _token()
+    d = _get(page_id, {"fields": "access_token"}, token)
+    return d.get("access_token") or token
 
 
 def configured() -> dict:
+    token = _token()
     return {
-        "facebook": bool(META_GRAPH_ACCESS_TOKEN and META_FACEBOOK_PAGE_IDS),
-        "instagram": bool(META_GRAPH_ACCESS_TOKEN and META_INSTAGRAM_BUSINESS_IDS),
+        "facebook": bool(token and META_FACEBOOK_PAGE_IDS),
+        "instagram": bool(token and META_INSTAGRAM_BUSINESS_IDS),
     }
 
 
 def facebook_page(page_id: str | None = None, days: int = 30) -> dict:
     """Current fan count + a daily engagement/views series for the last N days."""
     pid = page_id or (META_FACEBOOK_PAGE_IDS[0] if META_FACEBOOK_PAGE_IDS else None)
-    if not (META_GRAPH_ACCESS_TOKEN and pid):
+    token = _token()
+    if not (token and pid):
         raise OrganicNotConfigured("META_FACEBOOK_PAGE_IDS / META_GRAPH_ACCESS_TOKEN not set")
 
-    info = _get(pid, {"fields": "name,fan_count"}, META_GRAPH_ACCESS_TOKEN)
+    info = _get(pid, {"fields": "name,fan_count"}, token)
     out = {
         "page_id": pid, "name": info.get("name"), "fan_count": info.get("fan_count", 0),
         "daily": [], "insights_error": None,
@@ -134,10 +154,11 @@ def facebook_page(page_id: str | None = None, days: int = 30) -> dict:
 def instagram_business(ig_id: str | None = None) -> dict:
     """Current follower/media snapshot; reach/impressions trend when permitted."""
     iid = ig_id or (META_INSTAGRAM_BUSINESS_IDS[0] if META_INSTAGRAM_BUSINESS_IDS else None)
-    if not (META_GRAPH_ACCESS_TOKEN and iid):
+    token = _token()
+    if not (token and iid):
         raise OrganicNotConfigured("META_INSTAGRAM_BUSINESS_IDS / META_GRAPH_ACCESS_TOKEN not set")
 
-    info = _get(iid, {"fields": "username,followers_count,media_count"}, META_GRAPH_ACCESS_TOKEN)
+    info = _get(iid, {"fields": "username,followers_count,media_count"}, token)
     out = {
         "ig_id": iid,
         "username": info.get("username"),
@@ -151,7 +172,7 @@ def instagram_business(ig_id: str | None = None) -> dict:
         until = date.today().isoformat()
         d = _get(f"{iid}/insights", {
             "metric": "reach", "period": "day", "since": since, "until": until,
-        }, META_GRAPH_ACCESS_TOKEN)
+        }, token)
         series = []
         for entry in d.get("data", []):
             for point in entry.get("values", []):

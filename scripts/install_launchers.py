@@ -23,9 +23,12 @@ from pathlib import Path
 PANEL_PORT = os.getenv("PANEL_PORT", "8890")
 DASH_PORT = os.getenv("DASHBOARD_PORT", "7733")
 ADS_PORT = os.getenv("ADS_STUDIO_PORT", "8800")
+ROOT = Path(__file__).resolve().parent.parent
 
 # --- Windows: everything runs locally, so just open localhost -------------
 _WIN = {
+    "Secure API Key.bat":
+        f'@echo off\r\ncd /d "{ROOT}"\r\ncall SECURE_KEY.bat\r\n',
     "🎛 Idareetme Merkezi.bat":
         f'@echo off\r\nstart "" "http://localhost:{PANEL_PORT}/"\r\n',
     "🗺 Canli Xerite.bat":
@@ -54,6 +57,12 @@ def _mac_tunnel(path: str, port: str = PANEL_PORT) -> str:
 
 
 _MAC = {
+    "Təhlükəsiz API Açarı.command": (
+        "#!/bin/bash\n"
+        'ssh -t hetzner-agents "cd /opt/marketing-hub-os && '
+        'PY=./.venv/bin/python; [ -x \\\"$PY\\\" ] || PY=python3; '
+        '\\\"$PY\\\" scripts/secure_key.py"\n'
+    ),
     "🎛 İdarəetmə Mərkəzi.command": _mac_tunnel("/"),
     "🗺 Canlı Xəritə.command": _mac_tunnel("/map"),
     "📈 Ads Studio.command": _mac_tunnel("/", ADS_PORT),

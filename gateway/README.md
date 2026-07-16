@@ -32,6 +32,10 @@ Security is the highest law. The gateway has a central guard in
 `gateway/security.py` and refuses unsafe autonomous actions before tool use.
 
 - Job pre-flight blocks secret exposure, destructive actions, and payments.
+- API-key rotation uses the local hidden-prompt courier (`SECURE_KEY.bat KEY_NAME`
+  or `python3 scripts/secure_key.py KEY_NAME`). It writes locally, encrypts,
+  pushes, verifies upstream, and leaves a private receipt on receiving twins.
+  Telegram `/setkey` is disabled by default and remains break-glass only.
 - Browser navigation blocks localhost, private IPs, metadata IPs, and URLs with
   embedded credentials.
 - Studio automation can only run allowlisted scripts; path traversal and unknown

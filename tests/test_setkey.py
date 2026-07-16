@@ -57,7 +57,7 @@ class SetKeyCommand(unittest.TestCase):
             # REAL vault and auto-pushes it — which actually happened (the
             # tripwire's post-pull test run poisoned RAPIDAPI_KEY on 2026-07-10).
             mock.patch.object(bot.keyvault, "enabled", return_value=False),
-            mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "42"}),
+            mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "42", "ALLOW_TELEGRAM_SETKEY": "1"}),
         ]
         for p in self._patches:
             p.start()
@@ -78,6 +78,13 @@ class SetKeyCommand(unittest.TestCase):
         self.bot._handle_message(self._msg("/setkey X_KEY val", chat=999))
         self.assertFalse(self.env.exists())
         self.assertTrue(any("Unauthorized" in r for r in self.sent))
+
+    def test_telegram_setkey_is_disabled_by_default(self):
+        with mock.patch.dict(os.environ, {"ALLOW_TELEGRAM_SETKEY": "0"}):
+            self.bot._handle_message(self._msg("/setkey X_KEY secret"))
+        self.assertFalse(self.env.exists())
+        self.assertEqual(self.deleted, [(42, 7)])
+        self.assertTrue(any("SECURE_KEY" in r for r in self.sent))
 
     def test_bad_key_name_gets_usage_not_write(self):
         self.bot._handle_message(self._msg("/setkey lower-case val"))

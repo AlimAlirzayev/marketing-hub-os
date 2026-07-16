@@ -143,6 +143,13 @@ strictly a coach; it never takes exams or answers live exam questions.
 Runtime knowledge state lives under `data/certification_coach/` and is
 regenerable/local.
 
+## Safe API-key rotation
+
+Never paste API keys into chat or Telegram. Use `SECURE_KEY.bat KEY_NAME` on
+Windows or `python3 scripts/secure_key.py KEY_NAME` on macOS/Linux. The hidden
+local prompt writes the key locally, encrypts it for the twins, verifies upstream
+delivery, and every sync re-applies the vault. See `docs/SYNC.md`.
+
 ## Setup order
 
 ### Step 1: Install Docker Desktop

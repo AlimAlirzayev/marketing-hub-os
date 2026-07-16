@@ -314,6 +314,24 @@
       ]
     },
     {
+      "id": "local_secret_courier",
+      "name": "Local Secret Courier",
+      "owner": "Ramin-OS owner",
+      "status": "approved_local_interactive",
+      "permissions": ["approval_required"],
+      "allowed_inputs": ["API key name", "secret entered through a local hidden terminal prompt"],
+      "blocked_inputs": ["secrets from chat", "secrets from Telegram", "customer data", "payment card data"],
+      "allowed_outputs": ["masked success status", "encrypted vault blob", "commit id", "machine-private receipt"],
+      "blocked_actions": ["print secret values", "log secret values", "accept secrets in argv", "accept secrets over HTTP", "send secrets through Telegram", "sync machine-identity credentials"],
+      "required_controls": [
+        "Secret values are accepted only through getpass on the machine that receives them.",
+        "KEY_VAULT_SECRET is stored with Windows CurrentUser DPAPI or a Unix 0600 user-only file, never in Git.",
+        "The encrypted vault commit must be pushed and verified against upstream before success is reported.",
+        "Receiving twins re-apply the vault on every sync and write a private receipt containing names and a vault digest, never values.",
+        "Telegram /setkey remains disabled by default and requires an explicit break-glass environment flag."
+      ]
+    },
+    {
       "id": "ai_council_executor",
       "name": "AI Council Executor",
       "owner": "Ramin-OS",

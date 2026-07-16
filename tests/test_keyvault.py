@@ -23,6 +23,7 @@ class _VaultSandbox(unittest.TestCase):
             mock.patch.object(keyvault, "VAULT_PATH", d / "keys.vault"),
             mock.patch.object(keyvault, "ENV_PATH", d / ".env"),
             mock.patch.dict(os.environ, {"KEY_VAULT_SECRET": "test-master-pass"}),
+            mock.patch("gateway.secret_store.load_master", return_value=None),
         ]
         for p in self._patches:
             p.start()
@@ -30,6 +31,11 @@ class _VaultSandbox(unittest.TestCase):
 
 
 class VaultCrypto(_VaultSandbox):
+    def test_native_store_is_used_when_env_master_is_absent(self):
+        with mock.patch.dict(os.environ, {"KEY_VAULT_SECRET": ""}), \
+             mock.patch("gateway.secret_store.load_master", return_value="native-master"):
+            self.assertTrue(self.kv.enabled())
+
     def test_roundtrip(self):
         self.assertTrue(self.kv.put("RAPIDAPI_KEY", "secret-value-123"))
         self.assertEqual(self.kv.load()["RAPIDAPI_KEY"]["v"], "secret-value-123")
@@ -111,7 +117,7 @@ class SetkeyMailsTheVault(_VaultSandbox):
             mock.patch.object(bot.telegram, "delete_message"),
             mock.patch.object(bot.sense, "emit"),
             mock.patch.object(self.kv, "commit_and_push", return_value=True),
-            mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "42"}),
+            mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "42", "ALLOW_TELEGRAM_SETKEY": "1"}),
         ]
         for p in more:
             p.start()

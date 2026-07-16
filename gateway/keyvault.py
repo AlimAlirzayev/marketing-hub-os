@@ -49,6 +49,12 @@ _SCRYPT = dict(n=2**15, r=8, p=1, dklen=32, maxmem=64 * 1024 * 1024)
 
 def _secret() -> str | None:
     val = (os.getenv("KEY_VAULT_SECRET") or "").strip()
+    if not val:
+        try:
+            from .secret_store import load_master
+            val = (load_master() or "").strip()
+        except Exception:
+            val = ""
     return val or None
 
 
@@ -168,6 +174,34 @@ def apply_to_env() -> list[str]:
     return applied
 
 
+def set_local(key: str, value: str) -> bool:
+    """Write one key locally without printing or returning its value."""
+    if not syncable(key):
+        return False
+    lines = _read_env_lines()
+    previous = _env_value(lines, key)
+    lines = _write_env(key, value, lines)
+    ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.environ[key] = value
+    return previous != value
+
+
+def receipt(applied: list[str]) -> None:
+    """Write machine-private proof that a vault version was checked/applied."""
+    try:
+        digest = hashlib.sha256(VAULT_PATH.read_bytes()).hexdigest() if VAULT_PATH.exists() else None
+        path = ROOT / "data" / "private_context" / "keyvault_receipt.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "vault_sha256": digest,
+            "applied_names": sorted(applied),
+            "available_names": names(),
+        }, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
 # --- pushing the vault into the post office (git) ---------------------------
 
 def commit_and_push() -> bool:
@@ -181,7 +215,13 @@ def commit_and_push() -> bool:
                        cwd=str(ROOT), check=True, capture_output=True, timeout=30)
         subprocess.run(["git", "push", "origin", "HEAD"], cwd=str(ROOT), check=True,
                        capture_output=True, timeout=60)
-        return True
+        local = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT), check=True,
+                               capture_output=True, text=True, timeout=15,
+                               encoding="utf-8", errors="replace").stdout.strip()
+        remote = subprocess.run(["git", "rev-parse", "@{u}"], cwd=str(ROOT), check=True,
+                                capture_output=True, text=True, timeout=15,
+                                encoding="utf-8", errors="replace").stdout.strip()
+        return bool(local and local == remote)
     except Exception:
         return False
 
@@ -193,8 +233,16 @@ if __name__ == "__main__":  # tiny CLI for the SessionStart hook + manual use
         pass
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
     if cmd == "apply":
+        try:
+            from .secret_store import migrate_legacy_env
+            migrated = migrate_legacy_env(ENV_PATH)
+        except Exception:
+            migrated = False
         applied = apply_to_env()
+        receipt(applied)
         print(f"[keyvault] applied {len(applied)} key(s): {', '.join(applied) or '—'}")
+        if migrated:
+            print("[keyvault] master secret moved from .env to the OS-local secret store")
     elif cmd == "status":
         if not enabled():
             print("[keyvault] locked (set KEY_VAULT_SECRET to enable)")

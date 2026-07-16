@@ -131,6 +131,11 @@ def sync(*, pull: bool = True, push: bool = True, quiet: bool = False) -> str:
     if _rev("@{u}") is None:
         return say("no upstream set (run once: git push -u origin master) -- skipped")
 
+    # Reconcile the already-present encrypted vault on EVERY sync, not only
+    # after a new pull. This repairs a previously missed/locked apply without
+    # waiting for another Git commit and migrates the master out of .env.
+    _apply_vault_keys()
+
     # A session may have appended a shared handoff without committing it, which
     # would leave the tree dirty and silently block the ff-pull. Checkpoint that
     # one safe file first so the mailbox never jams on it.

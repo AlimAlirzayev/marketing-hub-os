@@ -64,7 +64,7 @@ _HELP = (
     "  /approve N  - approve a parked risky job (owner only)\n"
     "  /reject N   - reject a parked risky job (owner only)\n"
     "  /update     - pull the latest engine from GitHub (owner only)\n"
-    "  /setkey K V - write an API key into THIS machine's .env (owner only)\n"
+    "  /setkey - disabled by default; use local SECURE_KEY (owner only)\n"
     "  /setfile N  - attach a file with this caption to courier it in (owner only)\n"
     "  /keys       - masked status of critical keys (owner only)\n"
     "  /help       - this message"
@@ -344,6 +344,18 @@ def _handle_message(msg: dict) -> None:
     if text.split()[0] == "/setkey":
         if not _is_owner(chat_id):
             telegram.send_message(chat_id, "Not authorized for ops commands.")
+            return
+        if os.getenv("ALLOW_TELEGRAM_SETKEY", "0").casefold() not in {"1", "true", "yes", "on"}:
+            try:
+                telegram.delete_message(chat_id, msg["message_id"])
+            except Exception:
+                pass
+            telegram.send_message(
+                chat_id,
+                "🔒 Telegram ilə açar qəbulu təhlükəsizlik üçün bağlıdır. "
+                "Açarı serverin öz terminalında SECURE_KEY / scripts/secure_key.py ilə daxil et. "
+                "Mesajı çatdan silməyə çalışdım.",
+            )
             return
         pieces = text.split(None, 2)
         if len(pieces) < 3 or not _KEY_RE.match(pieces[1]):

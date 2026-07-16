@@ -142,3 +142,16 @@ python -m unittest discover -s tests
 If a useful feature requires a risky action, build a checkpoint first. The
 checkpoint must show the exact action, the target, and the risk in plain
 language before a human approves it.
+
+## Secret Rotation And Twin Delivery
+
+Shared API keys must be entered only through the machine-local hidden prompt:
+`SECURE_KEY.bat KEY_NAME` on Windows or `python3 scripts/secure_key.py KEY_NAME`
+on macOS/Linux. The value must never be pasted into an AI chat, Telegram, shell
+argument, URL, log, or tracked file. Success requires encrypted-vault commit,
+push, and upstream verification. Receiving twins re-apply the vault on every
+sync and record only key names plus a vault digest in a private receipt.
+
+Telegram `/setkey` is disabled by default and is not the normal secret path.
+Enabling `ALLOW_TELEGRAM_SETKEY=1` is break-glass only because deletion from
+chat history is best-effort and cannot prove removal from every provider log.

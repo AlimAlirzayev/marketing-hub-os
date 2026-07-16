@@ -48,31 +48,52 @@ message, the SessionStart hook has already synced. If it prints
 
 ## Keys travel too — but only ENCRYPTED (the vault)
 
+### Current safe operator path
+
+Do **not** paste API keys into Codex/Claude chats or Telegram. On the machine
+where a key is created or rotated, run:
+
+```powershell
+.\SECURE_KEY.bat META_ACCESS_TOKEN
+```
+
+macOS/Linux use the same cross-platform core:
+
+```bash
+python3 scripts/secure_key.py META_ACCESS_TOKEN
+```
+
+The value is accepted only through a hidden local terminal prompt. The courier
+writes it to the local `.env`, encrypts it into `secrets/keys.vault`, commits,
+pushes, and verifies the upstream commit before reporting success. Other twins
+re-check and apply the vault on every sync, even when Git is already up to date,
+and write a machine-private receipt under `data/private_context/`.
+
+The vault master is stored with Windows CurrentUser DPAPI or in a Unix user-only
+`0600` file outside the repository. Legacy `KEY_VAULT_SECRET` values are migrated
+out of `.env` automatically. Telegram `/setkey` is disabled by default; it is a
+break-glass compatibility path only (`ALLOW_TELEGRAM_SETKEY=1`).
+
 Plaintext keys never touch git (`.env` stays ignored). But keys still flow
 between the friends automatically, the way SOPS/git-crypt do it: as ciphertext.
 
 * `secrets/keys.vault` — git-TRACKED encrypted blob (Fernet: AES + HMAC, scrypt
   key derivation). Anyone reading the repo sees noise — no values, no key names.
-* `KEY_VAULT_SECRET` — the master passphrase, set ONCE per machine in `.env`
-  (same value on both). It never travels and is never committed.
+* The vault master is entered once per machine and stored by the machine-local
+  secret store. The same master unlocks the shared ciphertext, but never travels.
 
-One-time bootstrap on EACH machine (owner-only, message auto-deleted):
+From then on each rotation is one local hidden-prompt operation:
 
-    /setkey KEY_VAULT_SECRET <your-passphrase>
+    secure_key.py RAPIDAPI_KEY  →  written to THIS .env
+                                →  encrypted into the vault
+                                →  committed + pushed + upstream verified
+    …other friend's next sync   →  sync brain decrypts + merges into ITS .env
 
-From then on the flow is fully automatic:
-
-    /setkey RAPIDAPI_KEY abc123...  →  written to THIS .env
-                                    →  encrypted into the vault
-                                    →  committed + pushed (mail sent)
-    …other friend's next sync       →  sync brain decrypts + merges into ITS .env
-
-`sync_engine.py` applies newly-arrived vault keys after every pull, so every
+`sync_engine.py` applies vault keys on every sync, so every
 trigger (session open, boot, PULL.bat, `/update`, the supervisor's hourly tick)
 also delivers keys. Machine-identity keys (`KEY_VAULT_SECRET` itself,
 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_CHAT_ID`) are hard-excluded from syncing.
-`/keys` shows masked local status + which keys ride the vault. Replies are
-always masked; the carrying Telegram message is deleted.
+`/keys` remains a masked status view only; it does not accept secret values.
 
 ## Flow in one line
 
