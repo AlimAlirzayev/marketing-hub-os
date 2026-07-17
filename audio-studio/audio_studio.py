@@ -103,6 +103,10 @@ EDGE_VOICES = {
 # path to *natural* Azerbaijani speech: the timbre comes from a real human sample, not a
 # synthetic engine. The lang code -> the Space's dropdown label.
 HF_CLONE_SPACE = os.environ.get("AUDIO_HF_CLONE_SPACE", "k2-fsa/OmniVoice").strip()
+# The house reference voice: used when `clone` is called without --ref. Points to the
+# owner's approved recording in voices/ (git-ignored — each machine records its own).
+DEFAULT_REF = (os.environ.get("AUDIO_DEFAULT_REF") or "").strip() or str(
+    STUDIO / "voices" / "ramin_ref.wav")
 CLONE_LANG_NAMES = {
     "az": "Azerbaijani", "en": "English", "ru": "Russian", "tr": "Turkish",
     "auto": "Auto",
@@ -925,6 +929,8 @@ def cmd_doctor(args) -> None:
     print(f"\n  HF music space: {HF_MUSIC_SPACE}")
     print(f"  HF sfx space:   {HF_SFX_SPACE}")
     print(f"  HF clone space: {HF_CLONE_SPACE}  (clone needs --ref <human voice clip>)")
+    ref_ok = Path(DEFAULT_REF).is_file()
+    print(f"  default ref:    {DEFAULT_REF}  [{'READY' if ref_ok else 'missing'}]")
     print(f"  output dir:     {DEFAULT_OUT}")
 
 
@@ -967,7 +973,9 @@ def main(argv=None) -> int:
     # clone: speak text in a *cloned* human voice (the path to natural Azerbaijani).
     cl = sub.add_parser("clone", help="clone a human voice from a reference clip and speak text")
     cl.add_argument("prompt", help="text to speak in the cloned voice")
-    cl.add_argument("--ref", required=True, help="reference audio: a 20-30s clean human voice clip")
+    cl.add_argument("--ref", default=None,
+                    help="reference audio: a 20-30s clean human voice clip "
+                         f"(default: AUDIO_DEFAULT_REF or {DEFAULT_REF})")
     cl.add_argument("--ref-text", dest="ref_text", default="",
                     help="transcript of the reference clip (improves fidelity)")
     cl.add_argument("--lang", default="az")
@@ -996,13 +1004,23 @@ def main(argv=None) -> int:
     if args.cmd == "doctor":
         return cmd_doctor(args) or 0
 
+    # clone without --ref falls back to the house voice (AUDIO_DEFAULT_REF / ramin_ref.wav).
+    ref = getattr(args, "ref", None)
+    if args.cmd == "clone" and not ref:
+        if Path(DEFAULT_REF).is_file():
+            ref = DEFAULT_REF
+            log(f"   using default reference voice: {Path(ref).name}")
+        else:
+            p.error(f"no --ref given and default reference not found: {DEFAULT_REF}\n"
+                    "record one (see voices/RECORDING_GUIDE.md) or pass --ref <clip>")
+
     job = {
         "prompt": args.prompt,
         "out": Path(args.out),
         "lang": args.lang,
         "duration": getattr(args, "duration", None),
         "voice": getattr(args, "voice", None),
-        "ref": getattr(args, "ref", None),
+        "ref": ref,
         "ref_text": getattr(args, "ref_text", ""),
         "speed": getattr(args, "speed", 1.0),
         "instruct": getattr(args, "instruct", ""),

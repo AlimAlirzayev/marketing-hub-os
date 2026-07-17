@@ -63,6 +63,7 @@ _HELP = (
     "  /jobs       - list recent jobs\n"
     "  /approve N  - approve a parked risky job (owner only)\n"
     "  /reject N   - reject a parked risky job (owner only)\n"
+    "  /danis TEXT - speak TEXT in the owner's own cloned voice (owner only)\n"
     "  /update     - pull the latest engine from GitHub (owner only)\n"
     "  /setkey - disabled by default; use local SECURE_KEY (owner only)\n"
     "  /setfile N  - attach a file with this caption to courier it in (owner only)\n"
@@ -243,6 +244,50 @@ def _handle_couriered_file(chat_id: int, msg: dict, doc: dict) -> None:
     )
 
 
+def _render_house_voice(chat_id: int, say: str) -> None:
+    """Clone the house voice (audio-studio default ref) for `say` and deliver it
+    as a Telegram voice note. Honest on failure: the free Space has a daily
+    ZeroGPU quota and can be down — the error is reported, never swallowed."""
+    import json as _json
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-X", "utf8", str(_ROOT / "audio-studio" / "audio_studio.py"),
+             "clone", say, "--lang", "az", "--json"],
+            capture_output=True, text=True, encoding="utf-8", timeout=420, cwd=str(_ROOT),
+        )
+        result = {}
+        for line in (proc.stdout or "").strip().splitlines()[::-1]:
+            if line.startswith("{"):
+                try:
+                    result = _json.loads(line)
+                except Exception:
+                    pass
+                break
+        path = result.get("path")
+        if not path or not Path(path).is_file():
+            detail = (proc.stderr or proc.stdout or "").strip()[-300:]
+            sense.emit("tts", "house-voice clone failed", {"detail": detail})
+            telegram.send_message(
+                chat_id,
+                "⚠️ Səs klonu alınmadı (pulsuz Space növbəsi/limiti ola bilər).\n"
+                f"Texniki səbəb: {detail or 'naməlum'}",
+            )
+            return
+        ogg = voice.file_to_ogg(path)
+        if ogg:
+            telegram.send_voice(chat_id, ogg, caption="🎙 Sənin səsinlə")
+        else:
+            # ffmpeg missing/failed — still deliver the audio as a document.
+            telegram.send_document(chat_id, path, caption="🎙 Sənin səsinlə (wav)")
+        sense.emit("tts", "house-voice note delivered", {"chars": len(say)})
+    except Exception as exc:  # noqa: BLE001 — a voice failure must never kill the bot
+        sense.emit("tts", f"house-voice error: {exc}")
+        try:
+            telegram.send_message(chat_id, f"⚠️ Səs hazırlanarkən xəta: {exc}")
+        except Exception:
+            pass
+
+
 def _extract_task(msg: dict) -> tuple[str | None, bool]:
     """Return (task_text, was_voice). Text wins; else transcribe voice/audio."""
     text = (msg.get("text") or "").strip()
@@ -335,6 +380,24 @@ def _handle_message(msg: dict) -> None:
             mark = {"awaiting_approval": "⏸", "done": "✅", "error": "⚠️", "rejected": "🚫"}
             lines = [f"{mark.get(j.status, '·')} #{j.id} [{j.status}] {j.task[:50]}" for j in jobs]
             telegram.send_message(chat_id, "\n".join(lines))
+        return
+
+    # /danis: speak the given text in the OWNER's own cloned voice (the house
+    # reference in audio-studio/voices/) and send it back as a voice note.
+    # Runs in a background thread because the free clone Space takes ~1-2 min —
+    # the polling loop must keep serving other messages meanwhile.
+    if text.split()[0] in ("/danis", "/speak"):
+        if not _is_owner(chat_id):
+            telegram.send_message(chat_id, "Not authorized for ops commands.")
+            return
+        say = text.split(None, 1)[1].strip() if len(text.split(None, 1)) > 1 else ""
+        if not say:
+            telegram.send_message(chat_id, "İstifadə: /danis <söyləniləcək mətn>")
+            return
+        telegram.send_message(
+            chat_id, "🎙 Sənin səsinlə hazırlayıram (pulsuz klon ~1-2 dəq çəkir)...")
+        import threading
+        threading.Thread(target=_render_house_voice, args=(chat_id, say), daemon=True).start()
         return
 
     # Key courier receiving end: the OWNER hands this machine a new API key so

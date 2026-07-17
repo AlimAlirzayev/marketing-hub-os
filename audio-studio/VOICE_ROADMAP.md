@@ -19,7 +19,7 @@ corporate Win11, **no local ML training** → free hosted GPU (Colab/Kaggle/Fal)
 |------|------|-------|------|--------|
 | **0 — Tune OmniVoice** | sweep `--ns 64 --gs 2.5 --by-sentence`, correct `du`; A/B vs defaults | existing `clone` | $0 | leverages built flags |
 | **1 — Bake-off + auto-judge** | add VoxCPM2 (Turkish slot) + Qwen3-TTS clone rungs; pick best take by ASR-CER | gradio_client, Gemini ASR | $0 (ZeroGPU) | **judge BUILT** (`--best-of N`); rungs TODO |
-| **2 — Record the corpus** | 30–60 min clean AZ from the target speaker; segment + transcribe → `wav\|text\|speaker` | mic, ffmpeg, Whisper/Gemini | $0 | **GATING — needs the user** |
+| **2 — Record the corpus** | 30–60 min clean AZ from the target speaker; segment + transcribe → `wav\|text\|speaker` | mic, ffmpeg, Whisper/Gemini | $0 | **STARTED** — first 36 s ref recorded 2026-07-17 (`voices/ramin_ref.wav`, now the clone default); 30–60 min still needed for the finetune |
 | **3 — XTTS-v2 personal finetune** | extend_vocab(az) → finetune GPT on free T4 → wire `xtts-personal` rung | Colab/Kaggle T4, anhnh2002 recipe | $0 | after Phase 2 |
 | **4 — Frontier (optional)** | replicate X-Voice (F5-TTS + espeak-ng `az` IPA) on our data; seed-vc timbre polish | X-Voice/F5, espeak-ng | $0 | optional, highest ceiling |
 | **5 — Prosody-by-purpose** | style presets (ad/warning/support) via instruct prompts + reference-style bank | already started (`--purpose/--brief`) | $0 | **layer BUILT**, extend |

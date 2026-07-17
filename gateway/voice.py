@@ -134,12 +134,11 @@ def _despeechify(text: str) -> str:
 
 
 def replies_enabled() -> bool:
-    """Voice REPLIES are gated behind VOICE_REPLIES=1. Reason: as of 2026-07-12
-    every FREE Azerbaijani TTS route is blocked (ElevenLabs free tier forbids API
-    TTS; the Gemini keys in .env are invalid). Rather than fire a guaranteed-fail
-    API call on every voice turn, the talk-back stays OFF until a working TTS is
-    configured — a paid ElevenLabs plan or a valid Gemini key — then flip this on.
-    Hearing (STT) is always on and needs no flag."""
+    """Voice REPLIES are gated behind VOICE_REPLIES=1. The gate exists so a broken
+    TTS config never fires a guaranteed-fail API call on every voice turn. Since
+    2026-07-15 the Gemini keys are valid again (see the key-rotation lesson), so
+    the flag is ON in .env; flip it off if TTS breaks. Hearing (STT) is always on
+    and needs no flag."""
     return (os.getenv("VOICE_REPLIES") or "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
@@ -156,7 +155,9 @@ def _tts_gemini(text: str) -> bytes | None:
     try:
         client = genai.Client(api_key=key)
         resp = client.models.generate_content(
-            model=os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts"),
+            # 3.1 flash TTS is the most natural synthetic AZ we have (proven in
+            # audio-studio); 2.5-preview kept only as an env override.
+            model=os.getenv("GEMINI_TTS_MODEL", "gemini-3.1-flash-tts-preview"),
             contents=text,
             config=types.GenerateContentConfig(
                 response_modalities=["AUDIO"],
@@ -210,14 +211,27 @@ def synthesize(text: str) -> bytes | None:
     return None
 
 
+def _ffmpeg() -> str | None:
+    """ffmpeg for voice-note transcodes. The corporate box has NO ffmpeg on PATH —
+    only the portable build bundled under video-studio/tools — so PATH-only lookup
+    silently killed every voice reply. Bundled first, PATH as fallback."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bundled = os.path.join(root, "video-studio", "tools",
+                           "ffmpeg-8.1.1-essentials_build", "bin", "ffmpeg.exe")
+    if os.path.isfile(bundled):
+        return bundled
+    return shutil.which("ffmpeg")
+
+
 def _pcm_to_ogg(pcm: bytes, rate: int = 24000) -> bytes | None:
     """Wrap raw s16le mono PCM (Gemini TTS output) into ogg/opus via ffmpeg."""
-    if not pcm or not shutil.which("ffmpeg"):
+    ff = _ffmpeg()
+    if not pcm or not ff:
         return None
     with tempfile.TemporaryDirectory() as d:
         dst = os.path.join(d, "a.ogg")
         proc = subprocess.run(
-            ["ffmpeg", "-y", "-f", "s16le", "-ar", str(rate), "-ac", "1",
+            [ff, "-y", "-f", "s16le", "-ar", str(rate), "-ac", "1",
              "-i", "pipe:0", "-c:a", "libopus", "-b:a", "48k", dst],
             input=pcm, capture_output=True, timeout=60,
         )
@@ -230,15 +244,33 @@ def _pcm_to_ogg(pcm: bytes, rate: int = 24000) -> bytes | None:
 def _mp3_to_ogg(mp3: bytes) -> bytes | None:
     """Transcode mp3 -> ogg/opus so Telegram shows a real voice bubble. Needs
     ffmpeg; returns None (caller falls back to mp3) if it's missing."""
-    if not shutil.which("ffmpeg"):
+    ff = _ffmpeg()
+    if not ff:
         return None
     with tempfile.TemporaryDirectory() as d:
         src, dst = os.path.join(d, "a.mp3"), os.path.join(d, "a.ogg")
         with open(src, "wb") as fh:
             fh.write(mp3)
         proc = subprocess.run(
-            ["ffmpeg", "-y", "-i", src, "-c:a", "libopus", "-b:a", "48k", dst],
+            [ff, "-y", "-i", src, "-c:a", "libopus", "-b:a", "48k", dst],
             capture_output=True, timeout=60,
+        )
+        if proc.returncode != 0 or not os.path.exists(dst):
+            return None
+        with open(dst, "rb") as fh:
+            return fh.read()
+
+
+def file_to_ogg(path: str) -> bytes | None:
+    """Transcode any audio file (e.g. a clone wav) to ogg/opus voice-note bytes."""
+    ff = _ffmpeg()
+    if not ff or not os.path.isfile(path):
+        return None
+    with tempfile.TemporaryDirectory() as d:
+        dst = os.path.join(d, "a.ogg")
+        proc = subprocess.run(
+            [ff, "-y", "-i", path, "-c:a", "libopus", "-b:a", "48k", dst],
+            capture_output=True, timeout=120,
         )
         if proc.returncode != 0 or not os.path.exists(dst):
             return None

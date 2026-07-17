@@ -32,6 +32,7 @@ atelier/data/browser_profiles/
 audio-studio/output/
 audio-studio/voices/*
 !audio-studio/voices/README.md
+!audio-studio/voices/RECORDING_GUIDE.md
 
 # Video Studio - heavy generated media + portable binaries (token-hygiene: the
 # agent should never scan these; they also must never be committed)
@@ -46,9 +47,9 @@ video-studio/remotion/node_modules/
 # Publisher - generated publish packages
 output/publish/
 
-# MediaForge - generated promo packages (brief/prompt/board are regenerable via
-# `python -m mediaforge "<sentence>"`; keep the tracked kasko reference campaign)
-output/mediaforge/
+# Media Studio - generated promo packages (brief/prompt/board are regenerable via
+# `python -m media_studio "<sentence>"`; keep the tracked kasko reference campaign)
+output/media_studio/
 
 # Generated heavy media anywhere under output/ (regenerable renders; ~12MB each).
 # Keep text deliverables (.md/.json/.html) and lighter images tracked.

@@ -74,12 +74,12 @@ State which provider actually ran, and why the ones above it were skipped.
 | 2 | **Flora** | metered | annual subscription / workspace credits | `python -m gateway.flora_ai doctor`, then FLORA run cost | `flora` MCP via `mcp-remote` / SDK | MCP registered in `scripts/setup-mcp.ps1`; OAuth first use. Draft-only, cost-check before batches. |
 | 3 | **Higgsfield** | free→paid | ~150 cr/mo | credit balance | Higgsfield MCP | Watermarked on free; premium quality. |
 
-> **Brief brain first — MediaForge (`python -m mediaforge "<cümlə>"`, port 8870).**
-> Before any provider above runs, MediaForge turns one sentence into a directed,
+> **Brief brain first — Media Studio (`python -m media_studio "<cümlə>"`, port 8870).**
+> Before any provider above runs, Media Studio turns one sentence into a directed,
 > schema-valid brief: story framework + emotional arc + cinematic technique +
 > honest model resolution (`seedance 2.5` → closest real model with a note) +
 > compiled FLORA prompt + SVG storyboard board. It stops at the cost gate — never
-> spends credits or posts. Providers 1–3 are the *pixels*; MediaForge is the
+> spends credits or posts. Providers 1–3 are the *pixels*; Media Studio is the
 > *director*. It always ships (deterministic fallback if the LLM is down).
 
 ### audio-gen — generate music / sound effects / voice from a prompt  *(`/sound`, built + proven)*
@@ -111,7 +111,7 @@ MCP server `elevenlabs`); free paths run first so we only spend its credits when
 |---|----------|------|-----------|-------------|-------------|-------|
 | 1 | **Edge Neural TTS** | free | unlimited | n/a | `audio_studio.py tts` (`edge-tts`) | **Native Azerbaijani** (`az-AZ-Babek/Banu`). Commercial-safe, unlimited — but robotic to a native ear. |
 | 2 | **Gemini 3.1 native-audio TTS** | free* | Gemini quota | key quota | `tts --provider gemini --voice <Kore/Charon/...>` | **Most natural synthetic AZ** (the reel's family). 30+ voices. *free output NOT licensed for commercial use → paid billing for production. |
-| 3 | **OmniVoice clone** | free | ZeroGPU (daily) | HF budget | `clone --ref <human clip>` | **Your own voice:** clones a real human (600+ langs incl. AZ). Best identity match; prosody < ElevenLabs. |
+| 3 | **OmniVoice clone** | free | ZeroGPU (daily) | HF budget | `clone "<text>"` (house voice by default) | **The owner's voice:** `AUDIO_DEFAULT_REF` = `voices/ramin_ref.wav` (recorded 2026-07-17); `--ref` overrides. From Telegram: **`/danis <text>`** → voice note in the owner's voice. Best identity match; prosody < ElevenLabs. |
 | 4 | **ElevenLabs** TTS | **paid** | none on free (402) | dashboard | same CLI / `elevenlabs` MCP | Free API blocks library voices; TTS/clone need a paid plan. |
 
 > Verified live (measured; naturalness is a **human-ear** call, never claimed by the agent):
@@ -120,6 +120,8 @@ MCP server `elevenlabs`); free paths run first so we only spend its credits when
 > ElevenLabs key = music + TTS (402). For natural AZ: try **Gemini 3.1 TTS** (synthetic,
 > natural) or **clone** (your voice). **Real-time dubbing/translation** → Gemini Live API
 > (`gemini-3.5-live-translate-preview`) is the roadmap for `azdub-extension`.
+> **Telegram talk-back live 2026-07-17:** `VOICE_REPLIES=1` (voice msg → voice answer via
+> Gemini 3.1 TTS; bundled-ffmpeg fix) and `/danis <text>` (owner's cloned house voice).
 
 ### image-gen — already implemented in `/post` step 7; mirror its cascade
 
@@ -138,7 +140,7 @@ IT installs VC++ redist) → HF `whisper-large-v3` Space (free). See
 |---|----------|------|-----------|-------------|-------------|-------|
 | 1 | **yt-dlp** (venv) | free | unlimited | n/a | `yt-dlp -x --audio-format mp3 --ffmpeg-location video-studio/tools/ffmpeg-8.1.1-essentials_build/bin <url>` | Works for YouTube/TikTok anonymously. Instagram = login wall; `--cookies-from-browser` fails while Edge/Chrome run (locked DB, issue #7271). |
 | 2 | **IG embed + Googlebot UA** | free | unlimited | n/a | GET `instagram.com/reel/<code>/embed/captioned/` with Googlebot UA → double-JSON-escaped `video_url` in HTML → download mp4 with browser UA + IG referer | **Proven.** Also yields og:title/description (caption, author) for content ID. See brain playbook `playbook-instagram-reel-download-without-login-embed-caption`. |
-| 3 | **Apify** `instagram-scraper` | metered | monthly platform credits | `GET /v2/users/me` then try run (403 `platform-feature-disabled` = limit hit) | run-sync-get-dataset-items | Account `ivory_hive` FREE plan hit its monthly hard limit 2026-07. Check before relying. |
+| 3 | **Apify** `instagram-scraper` | metered | monthly platform credits (cycle resets the 6th) | `GET /v2/users/me/usage/monthly` shows spend vs $5 free | run-sync-get-dataset-items | **Validated live 2026-07-17:** `apify~instagram-profile-scraper` with `{"usernames":[...]}` returned 4 profiles × 12 latest posts incl. `displayUrl` CDN links (downloadable with browser UA + IG referer). The 2026-07 "hard limit" cleared when the cycle reset on Jul 6 — always check usage first, don't trust stale limit notes. RapidAPI IG hosts are NOT subscribed (403) — Apify is the working profile/feed organ. |
 
 InstaFix mirrors (ddinstagram/kkinstagram) are DNS/cert-blocked on the corporate
 network — skip them. Audio extract afterwards: video-studio portable ffmpeg,

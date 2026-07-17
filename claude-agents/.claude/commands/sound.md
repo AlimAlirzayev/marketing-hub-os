@@ -47,6 +47,9 @@ when quality demands it, manual handoff if everything is exhausted. Never a sile
    `clone` needs a real human `--ref` clip (20-30s, clean) in `audio-studio/voices/`;
    passing `--ref-text` (the clip's transcript) improves fidelity. The clip is
    auto-converted to a clean wav. See `audio-studio/voices/README.md`.
+   **House voice:** if `--ref` is omitted, clone falls back to the owner's approved
+   reference (`AUDIO_DEFAULT_REF`, default `voices/ramin_ref.wav`, transcript cached in
+   the sibling `.txt`) — so `/sound clone "<text>"` alone speaks in the house voice.
 
 4. **Report** which provider actually ran and why the ones above it were skipped (the CLI
    prints this). Give the output path. **State only what's verifiable** (provider, length,
@@ -71,5 +74,6 @@ when quality demands it, manual handoff if everything is exhausted. Never a sile
 /sound music "cinematic insurance brand intro, hopeful strings, 15s sting" --duration 15
 /sound sfx "notification chime, soft, premium fintech" --duration 2
 /sound tts "Bayram təbrikinizi Xalq Sığorta ilə paylaşın." --lang az --voice az-AZ-BanuNeural
-/sound clone "Sığortanız bir kliklə uzadıldı." --ref audio-studio/voices/agent.m4a --lang az
+/sound clone "Sığortanız bir kliklə uzadıldı." --lang az   # house voice (ramin_ref)
+/sound clone "Sığortanız bir kliklə uzadıldı." --ref audio-studio/voices/agent_ref.wav --lang az
 ```

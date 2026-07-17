@@ -1,5 +1,10 @@
 # Reference voices for cloning
 
+**House voice: `ramin_ref.wav`** — the owner's own recording (2026-07-17, 36 s, WhatsApp
+source), enhanced to -18 LUFS mono with denoise; transcript cached in `ramin_ref.txt`,
+enhanced 48 kHz master in `ramin_ref_master48k.wav`, original in `ramin_raw_*.mp4`.
+`clone` uses it automatically when `--ref` is omitted (`AUDIO_DEFAULT_REF`).
+
 Drop a **real human voice recording** here, then clone it to speak any text in natural
 Azerbaijani (or another language). The cloned output copies the reference speaker's
 **timbre and style** — this is the path to natural AZ speech, because the base is a real

@@ -57,11 +57,16 @@ python audio-studio\audio_studio.py voices                          # list usabl
 The path to a non-robotic AZ voice: clone a **real human** recording.
 
 ```powershell
-# 1. Put a 20-30s clean human clip in audio-studio\voices\  (see that folder's README)
-# 2. Clone it (pass the clip's transcript with --ref-text for best fidelity):
+# House voice (voices\ramin_ref.wav + cached transcript) — no --ref needed:
+python audio-studio\audio_studio.py clone "Salam, Xalq Sigorta sizin yaninizdadir." --lang az
+
+# Or any other clip: put a 20-30s clean human clip in audio-studio\voices\ and pass it
+# (with --ref-text, its transcript, for best fidelity):
 python audio-studio\audio_studio.py clone "Salam, Xalq Sigorta sizin yaninizdadir." `
   --ref audio-studio\voices\my_voice.m4a --ref-text "<what the clip says>" --lang az
 ```
+
+The default reference comes from `AUDIO_DEFAULT_REF` (falls back to `voices\ramin_ref.wav`).
 
 Any container (mp3/m4a/wav/ogg) is auto-converted to a clean 24 kHz mono wav. Tune with
 `--speed` (0.8-1.2) and `--du <seconds>`. Engine: free OmniVoice HF Space
