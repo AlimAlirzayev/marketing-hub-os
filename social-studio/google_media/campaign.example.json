@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "campaign": {"slug":"travel-insurance-summer","name":"Yay səyahət sığortası","language":"az","owner":"Digital Marketing"},
+  "objective": {"goal":"Səyahət sığortası barədə maarifləndirmə və nəzərdən keçirmə","audience":"Xaricə yay səfəri planlayan Azərbaycan sakinləri","topic":"Səfərdən əvvəl səyahət sığortasını yoxlamaq","platforms":["instagram","facebook","linkedin"]},
+  "evidence": {"facts":[],"blocked_claims":["Təsdiqlənməmiş qiymət, endirim, statistika və hüquqi məcburiyyət yazma"]},
+  "creative": {"style":"editorial-documentary","tone":["sakit","dəqiq","insani"],"visual_world":"Təbii yay işığı, real səyyah, premium maliyyə reklamı, intizamlı qırmızı aksent","music_mood":"İsti, ümidli, yüngül ritmli instrumental; aqressiv reklam jingle-ı deyil","voice_delivery":"Səmimi, arxayın və aydın Azərbaycan dili; orta temp","cta":"Səfərdən əvvəl sığorta ehtiyacınızı yoxlayın"},
+  "outputs": {"copy":true,"image":true,"video":true,"music":true,"voice":true,"audio_overview":true},
+  "governance": {"data_classification":"approved_campaign","publish_mode":"draft_only","human_approval_required":true}
+}

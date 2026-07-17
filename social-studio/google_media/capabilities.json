@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-07-15",
+  "principle": "Use Google-account entitlements first; use paid APIs only for an approved final asset.",
+  "capabilities": [
+    {"id":"canvas_text","surface":"gemini_canvas","output":"text","cost_lane":"google_account_entitlement","integration":"native_add_gemini_features","docs":"https://support.google.com/gemini/answer/16047321"},
+    {"id":"canvas_image","surface":"gemini_canvas","output":"image","cost_lane":"google_account_entitlement","integration":"native_add_gemini_features","docs":"https://support.google.com/gemini/answer/16047321"},
+    {"id":"nano_banana_image","surface":"gemini_apps","output":"image","cost_lane":"google_account_entitlement","integration":"manual_handoff","docs":"https://support.google.com/gemini/answer/14286560"},
+    {"id":"gemini_omni_video","surface":"gemini_apps","output":"video_with_audio","cost_lane":"qualifying_google_plan","integration":"manual_handoff","docs":"https://support.google.com/gemini/answer/16126339"},
+    {"id":"lyria_music","surface":"gemini_apps","output":"music_30s","cost_lane":"google_account_entitlement","integration":"manual_handoff","docs":"https://support.google.com/gemini/answer/16901237"},
+    {"id":"audio_overview","surface":"gemini_canvas","output":"podcast_audio","cost_lane":"google_account_entitlement","integration":"canvas_create_menu","docs":"https://support.google.com/gemini/answer/16047373"},
+    {"id":"gemini_tts","surface":"ramin_os_audio_studio","output":"controlled_voiceover","cost_lane":"api_or_free_first_fallback","integration":"audio-studio/audio_studio.py","approval":"required_before_paid_run","docs":"https://ai.google.dev/gemini-api/docs/speech-generation"},
+    {"id":"video_understanding","surface":"gemini_api","output":"timestamped_analysis","cost_lane":"preview_or_api_quota","integration":"planned_read_only_analysis","approval":"required_before_private_upload","docs":"https://ai.google.dev/gemini-api/docs/video-understanding"}
+  ],
+  "safe_data_classes": ["public", "synthetic", "approved_campaign"],
+  "blocked_actions": [
+    "put an API key in Canvas or browser code",
+    "store customer or claims data in a shared Canvas app",
+    "publish, send, or spend without owner approval",
+    "claim that Gemini Apps limits are unlimited or guaranteed"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-15T05:39:39.529089+00:00",
+  "campaign": "travel-insurance-summer",
+  "status": "draft_only",
+  "human_approval_required": true,
+  "external_calls_performed": false,
+  "data_classification": "approved_campaign",
+  "approved_sources": [],
+  "facts_needing_review": [],
+  "artifacts": [
+    "campaign.json",
+    "canvas-operator-brief.md",
+    "handoffs/copy.md",
+    "handoffs/image.md",
+    "handoffs/video.md",
+    "handoffs/music.md",
+    "handoffs/voice.md",
+    "handoffs/audio-overview.md"
+  ],
+  "next_checkpoint": "Human selects one concept before any expensive media generation."
+}

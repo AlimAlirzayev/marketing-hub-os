@@ -180,3 +180,18 @@ Read the `/post` slash command first
 ([`claude-agents/.claude/commands/post.md`](../claude-agents/.claude/commands/post.md)).
 Everything else is its dependencies. The slash command tells the future
 session exactly how to run the pipeline.
+
+## Google / Gemini Canvas media lane
+
+[`google_media/`](google_media/) connects Social Studio to Gemini Canvas, Nano
+Banana, Gemini Omni/Veo, Lyria, Audio Overview, and Audio Studio without putting
+an API key in browser code. One evidence-locked campaign JSON produces
+draft-only handoffs for copy, image, video, music, and voice:
+
+```powershell
+python social-studio\google_media\planner.py doctor
+python social-studio\google_media\planner.py build social-studio\google_media\campaign.example.json
+```
+
+Google-account entitlement lanes are used first. API or paid work remains an
+explicit final-asset choice, and publishing always requires owner approval.
