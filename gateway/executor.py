@@ -206,6 +206,27 @@ _SELF_FACTS = (
     "(/opt/marketing-hub-os) is the always-on brain; they sync over git."
 )
 
+
+_ADS_FACT_OFF = (
+    "- Marketing data: you have NO live Meta/Google Ads pull unless credentials are "
+    "configured — say that plainly rather than inventing numbers.\n"
+)
+_ADS_FACT_ON = (
+    "- Marketing data: LIVE Meta Ads access IS configured on this machine "
+    "(gateway/ads_agent.py) — real campaign/spend reads are available through the ads "
+    "tools. Google Ads and TikTok have NO live credentials — say that plainly rather "
+    "than inventing numbers.\n"
+)
+
+
+def _self_facts() -> str:
+    """The self-card must stay truthful per-machine: the Meta line flips on live creds."""
+    import os
+
+    if os.environ.get("META_ACCESS_TOKEN"):
+        return _SELF_FACTS.replace(_ADS_FACT_OFF, _ADS_FACT_ON)
+    return _SELF_FACTS
+
 # Appended to _SYSTEM only in tools mode, where the agent has real hands
 # (workspace_agent: run_command / write_file / read_file / request_owner_approval).
 _WORKSPACE_ADDENDUM = (
@@ -437,7 +458,7 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
     # router picks the smart cascade while the call site stays mockable/testable.
     from orchestrator.router import ModelChoice
     choice = ModelChoice(provider="gemini", model="gemini-2.5-pro", reason="chat-smart")
-    sys_prompt = knowledge.augment_system(_CHAT_SYSTEM + _SELF_FACTS, task, thread)
+    sys_prompt = knowledge.augment_system(_CHAT_SYSTEM + _self_facts(), task, thread)
     text, used = llm.complete(choice, task, system=sys_prompt)
     return text, f"chat:{used.provider}:{used.model}"
 
