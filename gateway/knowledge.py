@@ -69,9 +69,17 @@ def recall_context(task: str, *, k: int = 4) -> str:
 
 
 def augment_system(system: str, task: str, thread_id: str | None = None) -> str:
-    """Append memory context to a system prompt. With a thread_id, use the full
-    hierarchical blackboard (L1 turns + L3 entities + L4 summary + L2 recall);
-    without one, fall back to plain L2 recall. Backward compatible (thread_id opt)."""
+    """Append self-identity + memory context to a system prompt. The self-card
+    (sense.system_card) goes in unconditionally — a brain that doesn't know what
+    Ramin-OS contains answers like a generic consultant (observed on Telegram/panel).
+    With a thread_id, memory is the full hierarchical blackboard (L1 turns + L3
+    entities + L4 summary + L2 recall); without one, plain L2 recall."""
+    try:
+        from . import sense
+
+        card = sense.system_card()
+    except Exception:
+        card = ""
     ctx = thread_context(task, thread_id) if thread_id else recall_context(task)
     # Lab yanaşması: yaddaşda tapşırığa uyğun hazır imkan varsa, sistem bunu
     # gizlətmir — operator "labda nə var" bilməlidir və yığım TƏKLİF olunmalıdır.
@@ -80,7 +88,12 @@ def augment_system(system: str, task: str, thread_id: str | None = None) -> str:
         "imkan, radar tapıntısı və ya keçmiş dərs varsa, cavabında bunu açıq de "
         "('labımızda bununla bağlı X var') və onları yığıb təhvil verməyi təklif et."
     )
-    return f"{system}\n\n{ctx}{lab_hint}" if ctx else system
+    parts = [system]
+    if card:
+        parts.append(card)
+    if ctx:
+        parts.append(f"{ctx}{lab_hint}")
+    return "\n\n".join(parts)
 
 
 def thread_context(task: str, thread_id: str | None, *, k: int = 4) -> str:

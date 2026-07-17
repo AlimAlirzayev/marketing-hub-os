@@ -46,6 +46,51 @@ def _redact(value):
         return value if isinstance(value, str) else json.dumps(value, default=str)
 
 
+# --- self-identity card ----------------------------------------------------
+
+_CARD_CACHE: tuple[float, str] | None = None
+
+
+def system_card() -> str:
+    """Compact self-identity card built from services.json (the single source of
+    truth for what this OS actually has). Injected into every LLM brain so a chat
+    question like "how do we improve the front?" is answered with OUR services and
+    agents by name — not generic consultant advice. The Telegram/panel brains were
+    observed answering context-free precisely because nothing told them what
+    Ramin-OS is. Cached by registry mtime; never raises."""
+    global _CARD_CACHE
+    reg = ROOT / "services.json"
+    try:
+        mtime = reg.stat().st_mtime
+        if _CARD_CACHE and _CARD_CACHE[0] == mtime:
+            return _CARD_CACHE[1]
+        data = json.loads(reg.read_text(encoding="utf-8"))
+        lines = [
+            "SYSTEM SELF-CARD — you ARE Ramin-OS, the operator's own marketing OS. "
+            "Everything below EXISTS today. Ground answers in it: name the concrete "
+            "service/agent that solves the ask (and how to open/invoke it) before "
+            "any general advice.",
+            "Services (live registry):",
+        ]
+        for s in data.get("services", []):
+            port = f" :{s['port']}" if s.get("port") else ""
+            lines.append(f"- {s.get('name', s.get('key', '?'))}{port} — {(s.get('desc') or '')[:90]}")
+        caps = data.get("capabilities", [])
+        if caps:
+            lines.append("Agent capabilities (how to invoke):")
+            for c in caps:
+                inv = (c.get("invoke") or "").replace("\n", " ")[:90]
+                lines.append(
+                    f"- {c.get('name', c.get('key', '?'))} — {(c.get('desc') or '')[:70]}"
+                    + (f" | {inv}" if inv else "")
+                )
+        card = "\n".join(lines)
+        _CARD_CACHE = (mtime, card)
+        return card
+    except Exception:
+        return ""
+
+
 # --- event bus (blinking lights) ------------------------------------------
 
 def emit(kind: str, summary: str, data: dict | None = None) -> None:
