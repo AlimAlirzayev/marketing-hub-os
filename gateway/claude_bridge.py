@@ -76,6 +76,47 @@ def _is_limit(text: str) -> bool:
     low = (text or "").lower()
     return any(cue in low for cue in _LIMIT_CUES)
 
+
+# A model is GONE (not just the account capped): needs pay-as-you-go credits, or
+# the id no longer exists. Distinct from _is_limit (a per-account usage cap) —
+# gone means step DOWN the model ladder; capped means rotate the account.
+_MODEL_GONE_CUES = ("usage credits are required", "out of usage credits",
+                    "no longer available", "not available", "model not found",
+                    "does not exist", "invalid model", "unknown model")
+
+# Chat prefers Fable (fast + cheap so it never eats the Opus cap the builders
+# need), then degrades. A dead rung is skipped for a while, then re-probed — so a
+# restored Fable is picked up automatically without restarting anything.
+_MODEL_RETRY_S = int(os.getenv("CLAUDE_MODEL_RETRY_MIN", "30")) * 60
+_model_cooldown: dict[str, float] = {}
+
+
+def _is_model_gone(text: str) -> bool:
+    low = (text or "").lower()
+    return any(cue in low for cue in _MODEL_GONE_CUES)
+
+
+def _full_ladder() -> list[str]:
+    pin = os.getenv("CLAUDE_BRIDGE_MODEL")
+    if pin:  # an explicit pin forces a single model, no laddering
+        return [pin]
+    raw = os.getenv("CLAUDE_CHAT_LADDER",
+                    "claude-fable-5,claude-sonnet-5,claude-sonnet-4-6,claude-haiku-4-5-20251001")
+    return [m.strip() for m in raw.split(",") if m.strip()]
+
+
+def _chat_ladder() -> list[str]:
+    """Rungs to try now, best-first, skipping any recently found gone. If every
+    rung is cooling down, try them all anyway (better a probe than no brain)."""
+    now = time.time()
+    full = _full_ladder()
+    ready = [m for m in full if _model_cooldown.get(m, 0) <= now]
+    return ready or full
+
+
+def _mark_model_gone(model: str) -> None:
+    _model_cooldown[model] = time.time() + _MODEL_RETRY_S
+
 _FRAMING = (
     "You are answering the operator through a microphone (Telegram/panel/CLI), "
     "not the terminal. Reply in the operator's language (Azerbaijani), concise and "
@@ -160,35 +201,52 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
     sid = _load_session(thread)
 
     last = ""
-    for attempt in range(2):
-        cmd = ["claude", "-p", "--output-format", "json", "--permission-mode", perm]
-        if sid and attempt == 0:  # only the first try resumes; retry is fresh
-            cmd += ["--resume", sid]
-        proc = subprocess.run(
-            cmd, input=f"{_FRAMING}\n\n{prompt}", cwd=str(cwd or ROOT),
-            capture_output=True, text=True, timeout=timeout or _TIMEOUT, env=env,
-            **_TEXT_IO,
-        )
-        out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
-        if proc.returncode != 0:
-            last = err or out or "empty output"
-            if _is_limit(last):
-                raise RuntimeError(f"claude -p capped: {last[:200]}")
-            continue  # transient / bad-session -> retry fresh
-        try:
-            data = json.loads(out)
-        except ValueError:
-            last = f"unparseable output: {out[:150]}"
-            continue
-        text = (data.get("result") or "").strip()
-        if data.get("is_error") or not text:
-            raise RuntimeError(f"claude -p error: {text or str(data)[:200]}")
-        new_sid = data.get("session_id")
-        if new_sid:
-            _save_session(thread, new_sid)
-        return text, {"session_id": new_sid, "cost_usd": data.get("total_cost_usd"),
-                      "num_turns": data.get("num_turns")}
-    raise RuntimeError(f"claude -p failed after retry: {last[:200]}")
+    ladder = _chat_ladder()
+    for mi, model in enumerate(ladder):
+        for attempt in range(2):
+            cmd = ["claude", "-p", "--output-format", "json",
+                   "--permission-mode", perm, "--model", model]
+            # Only the very first attempt of the top rung resumes the thread; a
+            # retry or a stepped-down model starts fresh (a session is tied to
+            # the model that created it).
+            if sid and mi == 0 and attempt == 0:
+                cmd += ["--resume", sid]
+            proc = subprocess.run(
+                cmd, input=f"{_FRAMING}\n\n{prompt}", cwd=str(cwd or ROOT),
+                capture_output=True, text=True, timeout=timeout or _TIMEOUT, env=env,
+                **_TEXT_IO,
+            )
+            out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
+            if proc.returncode != 0:
+                last = err or out or "empty output"
+                if _is_limit(last):
+                    raise RuntimeError(f"claude -p capped: {last[:200]}")  # rotate account
+                if _is_model_gone(last):
+                    _mark_model_gone(model)
+                    break  # step down to the next model rung
+                continue  # transient / bad-session -> retry fresh
+            try:
+                data = json.loads(out)
+            except ValueError:
+                last = f"unparseable output: {out[:150]}"
+                continue
+            text = (data.get("result") or "").strip()
+            if data.get("is_error") or not text:
+                detail = text or str(data)[:200]
+                last = detail
+                if _is_limit(detail):
+                    raise RuntimeError(f"claude -p capped: {detail[:200]}")
+                if _is_model_gone(detail):
+                    _mark_model_gone(model)
+                    break  # step down
+                raise RuntimeError(f"claude -p error: {detail[:200]}")
+            new_sid = data.get("session_id")
+            if new_sid:
+                _save_session(thread, new_sid)
+            return text, {"session_id": new_sid, "cost_usd": data.get("total_cost_usd"),
+                          "num_turns": data.get("num_turns"),
+                          "model": data.get("model") or model}
+    raise RuntimeError(f"claude -p failed on all model rungs: {last[:200]}")
 
 
 def ask(prompt: str, *, thread: str = "main", cwd: Path | None = None,
@@ -235,26 +293,36 @@ def _run_stateless(prompt: str, timeout: int | None, token: str | None) -> tuple
         env["CLAUDE_CODE_OAUTH_TOKEN"] = token
         for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
             env.pop(k, None)
-    cmd = ["claude", "-p", "--output-format", "json", "--permission-mode", "default"]
-    # Default = the account's newest model (today Fable); pin only if the operator
-    # sets CLAUDE_BRIDGE_MODEL. Never hardcode an id here — model names drift.
-    model_pin = os.getenv("CLAUDE_BRIDGE_MODEL")
-    if model_pin:
-        cmd += ["--model", model_pin]
-    proc = subprocess.run(
-        cmd, input=prompt, cwd=str(ROOT), capture_output=True, text=True,
-        timeout=timeout or _TIMEOUT, env=env, **_TEXT_IO,
-    )
-    out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
-    if proc.returncode != 0:
-        msg = err or out or "empty output"
-        raise RuntimeError(f"claude -p capped: {msg[:200]}" if _is_limit(msg)
-                           else f"claude -p failed: {msg[:200]}")
-    data = json.loads(out)
-    text = (data.get("result") or "").strip()
-    if data.get("is_error") or not text:
-        raise RuntimeError(f"claude -p error: {text or str(data)[:200]}")
-    return text, "claude-code/" + str(data.get("model") or model_pin or "subscription")
+    last = ""
+    for model in _chat_ladder():  # best-first; steps down on a per-model failure
+        cmd = ["claude", "-p", "--output-format", "json",
+               "--permission-mode", "default", "--model", model]
+        proc = subprocess.run(
+            cmd, input=prompt, cwd=str(ROOT), capture_output=True, text=True,
+            timeout=timeout or _TIMEOUT, env=env, **_TEXT_IO,
+        )
+        out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
+        if proc.returncode != 0:
+            msg = err or out or "empty output"
+            if _is_limit(msg):
+                raise RuntimeError(f"claude -p capped: {msg[:200]}")  # rotate account
+            if _is_model_gone(msg):
+                _mark_model_gone(model); last = msg; continue  # next rung
+            raise RuntimeError(f"claude -p failed: {msg[:200]}")
+        try:
+            data = json.loads(out)
+        except ValueError:
+            last = f"unparseable output: {out[:150]}"; continue
+        text = (data.get("result") or "").strip()
+        if data.get("is_error") or not text:
+            detail = text or str(data)[:200]
+            if _is_limit(detail):
+                raise RuntimeError(f"claude -p capped: {detail[:200]}")
+            if _is_model_gone(detail):
+                _mark_model_gone(model); last = detail; continue
+            raise RuntimeError(f"claude -p error: {detail[:200]}")
+        return text, "claude-code/" + str(data.get("model") or model)
+    raise RuntimeError(f"claude -p: all model rungs unavailable: {last[:150]}")
 
 
 def complete(prompt: str, *, system: str | None = None,
