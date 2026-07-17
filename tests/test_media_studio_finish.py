@@ -1,6 +1,6 @@
-"""Tests for mediaforge.finish — the free deterministic finishing layer.
+"""Tests for media_studio.finish — the free deterministic finishing layer.
 
-Kept in a separate file from test_mediaforge.py on purpose: finishing is its
+Kept in a separate file from test_media_studio.py on purpose: finishing is its
 own layer, and the main test file is under active parallel development.
 
 Pure-logic tests only (no ffmpeg execution, no network): overlay planning from
@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from mediaforge import finish  # noqa: E402
+from media_studio import finish  # noqa: E402
 
 
 def _brief(overlays: list[str] | None = None, aspect: str = "9:16") -> dict:

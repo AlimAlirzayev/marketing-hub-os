@@ -1,16 +1,16 @@
-"""Fire real FLORA work from a MediaForge package — the staged "işə sal" button.
+"""Fire real FLORA work from a Media Studio package — the staged "işə sal" button.
 
 v2 is the professional keyframes-first pipeline. Every stage that spends money
 sits behind --confirm; everything else is free and local:
 
-    python -m mediaforge.generate <slug>                     # PLAN: all stages + costs
-    python -m mediaforge.generate <slug> --frames --confirm  # 1) keyframes (~cents)
-    python -m mediaforge.generate <slug> --pick 1=2,3=1      # 2) choose variants (free)
-    python -m mediaforge.generate <slug> --animatic          # 3) FREE Ken Burns animatic
-    python -m mediaforge.generate <slug> --beats --confirm   # 4) beat videos + stitch (paid)
-    python -m mediaforge.generate <slug> --oner --confirm    # single-shot t2v (v1 mode)
-    python -m mediaforge.generate <slug> --finish            # 5) FREE branded finishing
-    python -m mediaforge.generate <slug> --pro --confirm     # 1→3→4→5 hands-free
+    python -m media_studio.generate <slug>                     # PLAN: all stages + costs
+    python -m media_studio.generate <slug> --frames --confirm  # 1) keyframes (~cents)
+    python -m media_studio.generate <slug> --pick 1=2,3=1      # 2) choose variants (free)
+    python -m media_studio.generate <slug> --animatic          # 3) FREE Ken Burns animatic
+    python -m media_studio.generate <slug> --beats --confirm   # 4) beat videos + stitch (paid)
+    python -m media_studio.generate <slug> --oner --confirm    # single-shot t2v (v1 mode)
+    python -m media_studio.generate <slug> --finish            # 5) FREE branded finishing
+    python -m media_studio.generate <slug> --pro --confirm     # 1→3→4→5 hands-free
 
 Stage flags combine with --confirm as the explicit spend authorization; the
 Claude Code harness additionally requires a human-authored permission rule, so
@@ -74,7 +74,7 @@ def latest_package() -> Path | None:
 def load_package(slug: str | None) -> dict[str, Any]:
     path = (CAMPAIGNS / slug / "package.json") if slug else latest_package()
     if not path or not path.exists():
-        raise SystemExit("Paket tapılmadı. Əvvəlcə: python -m mediaforge \"<cümlə>\"")
+        raise SystemExit("Paket tapılmadı. Əvvəlcə: python -m media_studio \"<cümlə>\"")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -154,26 +154,26 @@ def plan_stages(pkg: dict[str, Any], *, variants: int = 2) -> dict[str, Any]:
             {"stage": "frames", "what": f"{fplan['total_images']} keyframe ({fplan['model']})",
              "credits": fplan["estimated_credits"],
              "usd": round(fplan["estimated_credits"] * USD_PER_CREDIT, 2),
-             "cmd": f"python -m mediaforge.generate {pkg['slug']} --frames --confirm"},
+             "cmd": f"python -m media_studio.generate {pkg['slug']} --frames --confirm"},
             {"stage": "pick", "what": "kadr seçimi (contact-sheet.html)", "credits": 0, "usd": 0,
-             "cmd": f"python -m mediaforge.generate {pkg['slug']} --pick 1=1,2=2,..."},
+             "cmd": f"python -m media_studio.generate {pkg['slug']} --pick 1=1,2=2,..."},
             {"stage": "animatic", "what": "PULSUZ Ken Burns animatic (lokal ffmpeg)",
              "credits": 0, "usd": 0,
-             "cmd": f"python -m mediaforge.generate {pkg['slug']} --animatic"},
+             "cmd": f"python -m media_studio.generate {pkg['slug']} --animatic"},
             {"stage": "film (tövsiyə)", "what": f"TƏK multi-shot run × {FILM_MODEL} — native davamlılıq, stitch yox",
              "credits": models.CATALOG[FILM_MODEL].credits,
              "usd": round(models.CATALOG[FILM_MODEL].credits * USD_PER_CREDIT, 2),
-             "cmd": f"python -m mediaforge.generate {pkg['slug']} --film --confirm"},
+             "cmd": f"python -m media_studio.generate {pkg['slug']} --film --confirm"},
             {"stage": "beats", "what": f"{n_beats} beat × {BEAT_MODEL} + stitch (beat-level redo üçün)",
              "credits": n_beats * beat_cr,
              "usd": round(n_beats * beat_cr * USD_PER_CREDIT, 2),
-             "cmd": f"python -m mediaforge.generate {pkg['slug']} --beats --confirm"},
+             "cmd": f"python -m media_studio.generate {pkg['slug']} --beats --confirm"},
             {"stage": "oner (alternativ)", "what": f"tək fasiləsiz plan ({oner_model}; {oner_reason})",
              "credits": oner_cr, "usd": round(oner_cr * USD_PER_CREDIT, 2),
-             "cmd": f"python -m mediaforge.generate {pkg['slug']} --oner --confirm"},
+             "cmd": f"python -m media_studio.generate {pkg['slug']} --oner --confirm"},
             {"stage": "finish", "what": "PULSUZ finishing: AZ overlay + logo + CTA end-card + 1080p (lokal ffmpeg)",
              "credits": 0, "usd": 0,
-             "cmd": f"python -m mediaforge.generate {pkg['slug']} --finish"},
+             "cmd": f"python -m media_studio.generate {pkg['slug']} --finish"},
         ],
     }
 
@@ -388,8 +388,8 @@ def stage_oner(pkg: dict[str, Any], folder: Path, *, confirm: bool, model: str |
 def main(argv: list[str] | None = None) -> int:
     _fix_console()
     ap = argparse.ArgumentParser(
-        prog="mediaforge.generate",
-        description="Staged FLORA production from a MediaForge package (cost-gated).")
+        prog="media_studio.generate",
+        description="Staged FLORA production from a Media Studio package (cost-gated).")
     ap.add_argument("slug", nargs="?", default=None)
     ap.add_argument("--frames", action="store_true", help="Stage 1: generate keyframes (paid, cents).")
     ap.add_argument("--variants", type=int, default=2, help="Keyframe variants per beat (default 2).")

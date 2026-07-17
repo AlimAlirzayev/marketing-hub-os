@@ -5,7 +5,7 @@ its brain and returns a directed, professional promo package (concept, model
 decision, storyboard, cost-gated ready-to-fire command, visual board).
 
 Run:
-    uvicorn mediaforge.server:app --port 8870
+    uvicorn media_studio.server:app --port 8870
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ def health() -> JSONResponse:
     return JSONResponse(
         {
             "ok": True,
-            "service": "mediaforge",
+            "service": "media_studio",
             "display_name": "Media Studio",
             "version": "0.4.0",
         }

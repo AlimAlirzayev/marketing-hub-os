@@ -312,7 +312,7 @@ def evaluate_message(msg: SignalMessage) -> SignalFinding:
     ):
         status, score, topic = "do-now", 10, "child_image_safety"
         prototype_id = "publisher-privacy-guard"
-        module_fit = ["publisher", "atelier", "mediaforge", "config/agent_permissions.json"]
+        module_fit = ["publisher", "atelier", "media_studio", "config/agent_permissions.json"]
         risk_controls = [
             "Minor/family imagery requires human review before any public use.",
             "Prefer synthetic, blurred, cropped, or non-identifiable alternatives.",
@@ -322,7 +322,7 @@ def evaluate_message(msg: SignalMessage) -> SignalFinding:
     elif "muse image" in text or "muse video" in text:
         status, score, topic = "prototype", 8, "meta_muse"
         prototype_id = "creative-capability-audition"
-        module_fit = ["atelier", "mediaforge", "mediagen", "publisher"]
+        module_fit = ["atelier", "media_studio", "mediagen", "publisher"]
         risk_controls = [
             "Use synthetic or approved/licensed assets only.",
             "No Instagram/person/minor/customer imagery in external AI tests.",
@@ -332,7 +332,7 @@ def evaluate_message(msg: SignalMessage) -> SignalFinding:
     elif "nano banana" in text or "gemini omni" in text:
         status, score, topic = "prototype", 8, "google_media"
         prototype_id = "creative-capability-audition"
-        module_fit = ["mediagen", "mediaforge", "atelier"]
+        module_fit = ["mediagen", "media_studio", "atelier"]
         risk_controls = [
             "Verify model IDs, region, pricing, and API policy before any provider route.",
             "Use only synthetic briefs and approved assets for audition runs.",
@@ -454,7 +454,7 @@ PROTOTYPE_TEMPLATES: dict[str, dict[str, Any]] = {
                 "Produces a draft-only report; no provider route is added automatically.",
             ],
         },
-        "dependencies": ["atelier", "mediagen", "mediaforge", "publisher"],
+        "dependencies": ["atelier", "mediagen", "media_studio", "publisher"],
         "risks": ["private asset leakage", "minor imagery", "unlicensed references", "paid generation cost"],
         "next_action": "Define 5 synthetic benchmark briefs and expected scoring fields.",
     },
@@ -473,7 +473,7 @@ PROTOTYPE_TEMPLATES: dict[str, dict[str, Any]] = {
                 "External AI editing/generation with minor imagery is blocked unless explicitly approved.",
             ],
         },
-        "dependencies": ["publisher", "atelier", "mediaforge", "config/agent_permissions.json"],
+        "dependencies": ["publisher", "atelier", "media_studio", "config/agent_permissions.json"],
         "risks": ["AI manipulation harm", "consent gap", "public reposting risk", "brand safety failure"],
         "next_action": "Add this checklist to the next Publisher or Media Studio safety pass.",
     },

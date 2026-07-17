@@ -3,7 +3,7 @@
 This is the missing link that makes "işə sal" real: it drives the official FLORA
 remote MCP (via `mcp-remote`) using the OAuth token already cached in
 ~/.mcp-auth, and exposes the two FLORA tools — `search_docs` and `execute` — as
-plain Python calls. MediaForge uses it to ground the model catalog, check
+plain Python calls. Media Studio uses it to ground the model catalog, check
 run_cost, and run a generation.
 
 Governance: this only *talks* to FLORA. It does not decide to spend. The caller
@@ -212,7 +212,7 @@ def _main(argv: list[str]) -> int:
         except Exception:  # noqa: BLE001
             pass
     if not argv or (argv[0] != "ping" and len(argv) < 2):
-        print("usage: python -m mediaforge.flora_client {docs <query> | exec <js> | ping}")
+        print("usage: python -m media_studio.flora_client {docs <query> | exec <js> | ping}")
         return 2
     mode = argv[0]
     payload = " ".join(argv[1:])

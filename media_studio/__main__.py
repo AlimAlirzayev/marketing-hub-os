@@ -1,8 +1,8 @@
 """Media Studio CLI.
 
-    python -m mediaforge "mənə seedance 2.5 ilə 10 saniyəlik səyahət sığortası promo videosu hazırla"
-    python -m mediaforge --no-llm "..."      # deterministic only (offline)
-    python -m mediaforge --json "..."         # machine-readable package
+    python -m media_studio "mənə seedance 2.5 ilə 10 saniyəlik səyahət sığortası promo videosu hazırla"
+    python -m media_studio --no-llm "..."      # deterministic only (offline)
+    python -m media_studio --json "..."         # machine-readable package
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     parser = argparse.ArgumentParser(
-        prog="mediaforge",
+        prog="media_studio",
         description="Media Studio: one sentence -> a directed, production-ready media package.",
     )
     parser.add_argument("sentence", nargs="*", help="Natural-language request (AZ or EN).")

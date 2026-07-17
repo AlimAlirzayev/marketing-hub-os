@@ -1,4 +1,4 @@
-"""AI UGC campaign-pack mode for MediaForge.
+"""AI UGC campaign-pack mode for Media Studio.
 
 This is the Ramin-OS version of the Doruk-style "AI influencer agency" flow:
 one brief becomes a synthetic creator persona, a short UGC script, voice route,
@@ -6,7 +6,7 @@ video prompts, unit economics, landing-page wireframe, QA, and a final handoff.
 
 It is intentionally draft-only. It does not spend FLORA credits, generate
 payments, post anything, or browse credentialed systems. The paid video step
-stays behind the existing MediaForge cost gate.
+stays behind the existing Media Studio cost gate.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ PERSONAS: dict[str, dict[str, str]] = {
 
 
 def create(sentence: str, *, use_llm: bool = True) -> dict[str, Any]:
-    """Create a normal MediaForge package and augment it with UGC deliverables."""
+    """Create a normal Media Studio package and augment it with UGC deliverables."""
     base = pipeline.create(sentence, use_llm=use_llm)
     folder = pipeline.CAMPAIGNS / base["slug"]
     pack_dir = folder / "ugc-pack"
@@ -234,8 +234,9 @@ def _voice_route(brief: dict[str, Any], persona: dict[str, str]) -> dict[str, An
             "the spend. Doruk lesson: local-language voice quality must be ear-tested."
         ),
         "audio_command_template": (
-            'python audio-studio\\audio_studio.py clone "<SCRIPT_TEXT>" '
-            '--ref audio-studio\\voices\\<approved_voice>.m4a --ref-text "<reference transcript>" --lang az'
+            'python audio-studio\\audio_studio.py clone "<SCRIPT_TEXT>" --lang az'
+            "  # defaults to the house voice (AUDIO_DEFAULT_REF -> voices\\ramin_ref.wav);"
+            " pass --ref to override"
         ),
     }
 
@@ -344,7 +345,7 @@ def _handoff(brief: dict[str, Any], package: dict[str, Any]) -> dict[str, Any]:
             f"Run Publisher dry-run on the final MP4 and campaign caption package for slug {slug}."
         ),
         "manual_command_template": (
-            f'python publisher\\run.py "output\\mediaforge\\campaigns\\{slug}\\<final>.mp4" '
+            f'python publisher\\run.py "output\\media_studio\\campaigns\\{slug}\\<final>.mp4" '
             "--to instagram,tiktok,linkedin --dry-run"
         ),
         "gates": [

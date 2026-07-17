@@ -44,7 +44,7 @@ reference (frames on disk), not in secondhand description.
 - **Polarization is fuel.** The genre splits rooms ("möcüzə" vs "saçma");
   the argument is distribution. (Bernbach: stand for something.)
 
-## Scene grammar (operational, for mediaforge)
+## Scene grammar (operational, for media_studio)
 
 ```
 [Establish miniature world, tilt-shift, crisis in motion — 2-3s]

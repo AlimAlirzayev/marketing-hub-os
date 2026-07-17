@@ -77,7 +77,7 @@ _RSS_FEEDS = [
 
 # Həzm zamanı modelə verilən orqan xəritəsi — təkliflər bura calanmalıdır.
 _ORGANS = (
-    "social-studio (şəkil/post), mediaforge (video, FLORA üstündən Seedance/"
+    "social-studio (şəkil/post), media_studio (video, FLORA üstündən Seedance/"
     "Kling/Runway/Sora/Veo), audio-studio (səs/TTS/musiqi), copy-studio (mətn səsi), "
     "seo (audit/kontent), ads-studio (Meta performans), price-hunter (qiymət kəşfiyyatı), "
     "influencer-hunter, meta-capi (konversiya göndərişi), doit (kredensial), "

@@ -49,7 +49,7 @@ CAPABILITY_PATHS = [
     ("Publisher", "publisher", "Publish package planning and Postiz/manual routing."),
     ("Audio Studio", "audio-studio", "Music, SFX, TTS, voice references, and audio generation workflows."),
     ("Video Studio", "video-studio", "Video editing, Remotion, motion graphics, and clip pipeline."),
-    ("Media Studio / AI UGC Pack", "mediaforge", "Directed FLORA video packages plus draft-only AI UGC persona, script, voice, economics, QA, safe resource readiness, browser-run checkpoints, and dry-run handoff."),
+    ("Media Studio / AI UGC Pack", "media_studio", "Directed FLORA video packages plus draft-only AI UGC persona, script, voice, economics, QA, safe resource readiness, browser-run checkpoints, and dry-run handoff."),
     ("Claude Code control plane", "claude-agents", "Claude subagents, MCP setup, slash command conventions."),
 ]
 

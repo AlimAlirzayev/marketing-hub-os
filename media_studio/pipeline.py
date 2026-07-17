@@ -1,6 +1,6 @@
 """One-command orchestrator: sentence -> full production package.
 
-Ties MediaForge's brain to the existing FLORA prompt compiler and campaign
+Ties Media Studio's brain to the existing FLORA prompt compiler and campaign
 folder structure. Produces everything up to the single paid generation step:
     - a schema-valid brief.json in the campaign folder
     - a compiled FLORA prompt (reusing scripts/compile_generative_ad.py)
@@ -28,9 +28,9 @@ ROOT = Path(__file__).resolve().parent.parent
 # Generated packages are regenerable runtime artifacts → keep them out of the
 # tracked video-studio/generative_ads/campaigns dir (which holds hand-authored
 # reference campaigns like kasko-qurban-2026). This whole tree is gitignored.
-CAMPAIGNS = ROOT / "output" / "mediaforge" / "campaigns"
+CAMPAIGNS = ROOT / "output" / "media_studio" / "campaigns"
 COMPILE_SCRIPT = ROOT / "scripts" / "compile_generative_ad.py"
-RUN_LOG = ROOT / "output" / "mediaforge" / "runs.jsonl"
+RUN_LOG = ROOT / "output" / "media_studio" / "runs.jsonl"
 
 
 def _rel(path: Path) -> str:
@@ -137,9 +137,9 @@ def _generation_plan(result: dict[str, Any], compiled_path: Path) -> dict[str, A
         )
 
     slug = brief["campaign"]["slug"]
-    fire_command = f"python -m mediaforge.generate {slug} --pro --confirm"
+    fire_command = f"python -m media_studio.generate {slug} --pro --confirm"
     mcp_instruction = (
-        f"Peşəkar yol: `python -m mediaforge.generate {slug}` planı göstərir; "
+        f"Peşəkar yol: `python -m media_studio.generate {slug}` planı göstərir; "
         f"`--frames --confirm` (keyframe-lər, ~qəpiklər) → contact-sheet-də seç → "
         f"`--animatic` (pulsuz) → `--beats --confirm` (beat videolar + stitch). "
         f"Hamısı bir yerdə: `{fire_command}`."
@@ -160,7 +160,7 @@ def _generation_plan(result: dict[str, Any], compiled_path: Path) -> dict[str, A
         "primary_model": res["model_id"],
         "second_variant": res["partner_id"],
         "fire_command": fire_command,
-        "plan_command": f"python -m mediaforge.generate {slug}",
+        "plan_command": f"python -m media_studio.generate {slug}",
         "mcp_instruction": mcp_instruction,
         "cli_commands": cli_cmds,
         "manual_step": "FLORA OAuth artıq tamamlanıb (token cache-də) — birbaşa fire komandası işləyir.",
@@ -225,12 +225,12 @@ Model: **{r['label']}** (`{r['model_id']}`) · Müddət: {r['duration_s']}s · X
 
 ## Peşəkar pipeline (keyframes-first)
 ```powershell
-python -m mediaforge.generate {slug}                     # plan + bütün mərhələ xərcləri
-python -m mediaforge.generate {slug} --frames --confirm  # 1) keyframe-lər (~qəpiklər)
+python -m media_studio.generate {slug}                     # plan + bütün mərhələ xərcləri
+python -m media_studio.generate {slug} --frames --confirm  # 1) keyframe-lər (~qəpiklər)
 # frames/contact-sheet.html-də kadrları seç →
-python -m mediaforge.generate {slug} --pick 1=2,3=1      # 2) seçim (pulsuz)
-python -m mediaforge.generate {slug} --animatic          # 3) PULSUZ animatic (vaxtlama təsdiqi)
-python -m mediaforge.generate {slug} --beats --confirm   # 4) beat videolar + stitch (ödənişli)
+python -m media_studio.generate {slug} --pick 1=2,3=1      # 2) seçim (pulsuz)
+python -m media_studio.generate {slug} --animatic          # 3) PULSUZ animatic (vaxtlama təsdiqi)
+python -m media_studio.generate {slug} --beats --confirm   # 4) beat videolar + stitch (ödənişli)
 {fire_command}   # və ya hamısı bir yerdə
 ```
 `--confirm` real kredit xərcləyir; nəticələr paket qovluğuna enir
@@ -355,7 +355,7 @@ def _remember(package: dict[str, Any]) -> None:
             f"Media Studio promo package: {package['concept'].get('name','')} "
             f"({package['resolution']['model_id']}, {package['request']['category']}). "
             f"Slug {package['slug']}.",
-            tags=["mediaforge", "video", package["request"]["category"]],
+            tags=["media_studio", "video", package["request"]["category"]],
         )
     except Exception:  # noqa: BLE001
         pass

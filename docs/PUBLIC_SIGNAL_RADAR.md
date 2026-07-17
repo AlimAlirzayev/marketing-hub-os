@@ -64,7 +64,7 @@ trackable engine material because they represent reusable capability decisions.
 | Signal type | Route |
 |---|---|
 | ChatGPT Work / workflow products | `gateway`, `workspace_agent`, `panel`, permissions |
-| Media model releases such as Muse or Nano Banana | `mediaforge` / Media Studio, `atelier`, `mediagen` |
+| Media model releases such as Muse or Nano Banana | `media_studio` / Media Studio, `atelier`, `mediagen` |
 | Child/minor image safety | `publisher`, `atelier`, Media Studio, permissions |
 | Sensor or ambient-agent demos | `lab/prototypes`, gateway approval rails, `brain` |
 | New coding/agent models | `gateway/agent_radar`, `llm_router` watch only |

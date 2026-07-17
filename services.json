@@ -167,7 +167,7 @@
       "order": 21
     },
     {
-      "key": "mediaforge",
+      "key": "media_studio",
       "name": "Media Studio",
       "desc": "Rejissor səviyyəli video, UGC, voice, QA və publish-ready media paketi",
       "port": 8870,
@@ -175,7 +175,7 @@
       "venv": ".venv",
       "cwd": ".",
       "launch": "uvicorn",
-      "target": "mediaforge.server:app",
+      "target": "media_studio.server:app",
       "health": "/api/health",
       "icon": "🎬",
       "cat": "Kontent",

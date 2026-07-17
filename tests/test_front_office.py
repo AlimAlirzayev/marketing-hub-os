@@ -103,10 +103,10 @@ class OrganCoverage(unittest.TestCase):
         self.assertEqual(org["unaccounted"], ["mystery-studio"])
 
     def test_dir_dot_service_home_resolved_from_target(self):
-        """dir='.' services (mediaforge, seo, …) must still account for their
+        """dir='.' services (media_studio, seo, …) must still account for their
         module dir via the uvicorn target."""
         dirs = audit_services._service_dirs(_registry()["services"])
-        self.assertIn("mediaforge", dirs)
+        self.assertIn("media_studio", dirs)
         self.assertIn("seo", dirs)
         self.assertIn("gateway", dirs)
 

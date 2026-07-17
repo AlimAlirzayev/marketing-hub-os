@@ -1,4 +1,4 @@
-"""Tests for MediaForge — the creative-director brain and pipeline.
+"""Tests for Media Studio — the creative-director brain and pipeline.
 
 These run fully offline (use_llm=False) so they are deterministic and never
 depend on an LLM key or network. The pipeline test redirects output into a temp
@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mediaforge import director, knowledge, models, pipeline, resources, runs, ugc
+from media_studio import director, knowledge, models, pipeline, resources, runs, ugc
 
 
 class ParseTests(unittest.TestCase):
@@ -217,7 +217,7 @@ class ResourceReadinessTests(unittest.TestCase):
         }
         status = resources.build_status(pkg, now=1_800_000_000)
 
-        self.assertEqual(status["commands"]["plan"], "python -m mediaforge.generate t")
+        self.assertEqual(status["commands"]["plan"], "python -m media_studio.generate t")
         self.assertIn("--film --confirm", status["commands"]["doruk_like_single_film"])
         self.assertIn("--frames --confirm", status["commands"]["first_paid_probe"])
         self.assertFalse(status["live_result_guaranteed"])
@@ -292,7 +292,7 @@ class GenerateTests(unittest.TestCase):
     def test_oner_prompt_follows_seedance_official_formula(self):
         # Seedance 2.0 official guide: subject/action/environment + ONE camera
         # instruction + lighting-led style + avoid-list; rhythm words, no lens jargon.
-        from mediaforge import generate
+        from media_studio import generate
         pkg = self._pkg()
         prompt = generate.build_prompt(pkg["brief"], category="travel")
         self.assertIn("[Hero:", prompt)
@@ -303,7 +303,7 @@ class GenerateTests(unittest.TestCase):
         self.assertNotIn("Cinematic ", prompt)   # bare "cinematic" is an official anti-pattern
 
     def test_no_reference_image_picks_text_to_video_model(self):
-        from mediaforge import generate
+        from media_studio import generate
         pkg = self._pkg()
         model_id, reason = generate.choose_model(pkg["brief"], None)
         # brief recommends an i2v reference model, but there is no reference
@@ -313,7 +313,7 @@ class GenerateTests(unittest.TestCase):
 
     def test_plan_only_never_spends(self):
         # choose_model + plan must produce a cost estimate without any network.
-        from mediaforge import generate
+        from media_studio import generate
         pkg = self._pkg()
         model_id, reason = generate.choose_model(pkg["brief"], None)
         pl = generate.plan(pkg, model_id, reason, "prompt")
@@ -329,7 +329,7 @@ class KeyframePipelineTests(unittest.TestCase):
                 "brief": out["brief"], "resolution": out["resolution"], "meta": out["meta"]}
 
     def test_beat_time_parsing(self):
-        from mediaforge import frames
+        from media_studio import frames
         pkg = self._pkg()
         durs = frames.parse_beat_seconds(pkg["brief"]["storyboard"])
         self.assertEqual(len(durs), 4)
@@ -337,7 +337,7 @@ class KeyframePipelineTests(unittest.TestCase):
         self.assertAlmostEqual(durs[0], 1.5, places=1)
 
     def test_keyframe_prompt_carries_style_bible_and_no_text(self):
-        from mediaforge import knowledge
+        from media_studio import knowledge
         p = knowledge.compose_keyframe_prompt("travel", "a passport on a tray table")
         self.assertIn("35mm", p)                      # style bible look
         self.assertIn("No readable text", p)          # compliance
@@ -345,7 +345,7 @@ class KeyframePipelineTests(unittest.TestCase):
         self.assertIn("9:16", p)
 
     def test_beat_video_prompt_has_continuity_lock(self):
-        from mediaforge import knowledge
+        from media_studio import knowledge
         beat = {"visual": "traveler at a skyline", "motion": "slow push-in"}
         p = knowledge.compose_beat_video_prompt("travel", beat, beat_index=2,
                                                 total_beats=4, prev_visual="a calm hand")
@@ -354,7 +354,7 @@ class KeyframePipelineTests(unittest.TestCase):
         self.assertIn("No readable text", p)
 
     def test_frames_plan_costs_and_prompts(self):
-        from mediaforge import frames
+        from media_studio import frames
         pkg = self._pkg()
         plan = frames.plan_frames(pkg, variants=2)
         self.assertEqual(plan["total_images"], 8)
@@ -363,7 +363,7 @@ class KeyframePipelineTests(unittest.TestCase):
         self.assertTrue(all("No readable text" in b["prompt"] for b in plan["beats"]))
 
     def test_contact_sheet_saves_picks_through_studio_api(self):
-        from mediaforge import frames
+        from media_studio import frames
         pkg = self._pkg()
         html_out = frames.render_contact_sheet(pkg, frames.plan_frames(pkg, variants=1))
 
@@ -372,7 +372,7 @@ class KeyframePipelineTests(unittest.TestCase):
         self.assertNotIn("terminalda", html_out)
 
     def test_stage_plan_lists_all_stages_with_costs(self):
-        from mediaforge import generate
+        from media_studio import generate
         pkg = self._pkg()
         sp = generate.plan_stages(pkg)
         names = [s["stage"] for s in sp["stages"]]
@@ -388,7 +388,7 @@ class KeyframePipelineTests(unittest.TestCase):
         self.assertIn("--film", film["cmd"])
 
     def test_film_prompt_is_multishot_kling_dialect(self):
-        from mediaforge import knowledge
+        from media_studio import knowledge
         pkg = self._pkg()
         p = knowledge.compose_film_prompt("travel", pkg["brief"]["storyboard"], duration_s=10)
         for i in range(1, 5):
@@ -399,7 +399,7 @@ class KeyframePipelineTests(unittest.TestCase):
         self.assertIn("Hold the final shot stable", p)
 
     def test_primary_camera_move_is_single_and_slow(self):
-        from mediaforge import knowledge
+        from media_studio import knowledge
         # chained storyboard motion must collapse to ONE slow instruction
         move = knowledge.primary_camera_move("slow push-in, hero wide → detail; motion already alive")
         self.assertEqual(move, "slow push-in")
@@ -408,7 +408,7 @@ class KeyframePipelineTests(unittest.TestCase):
 
     def test_pick_selection_roundtrip(self):
         import tempfile
-        from mediaforge import frames
+        from media_studio import frames
         with tempfile.TemporaryDirectory() as td:
             folder = Path(td)
             sel = frames.apply_picks(folder, "1=2,3=1")
@@ -419,7 +419,7 @@ class KeyframePipelineTests(unittest.TestCase):
             self.assertEqual(loaded[3], 1)            # default for unpicked beats
 
     def test_animatic_clip_command_is_exact_length(self):
-        from mediaforge import animatic
+        from media_studio import animatic
         cmd = animatic.beat_clip_cmd("ffmpeg", Path("kf.png"), Path("out.mp4"),
                                      seconds=2.5, zoom_in=True)
         self.assertIn("-t", cmd)

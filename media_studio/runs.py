@@ -1,4 +1,4 @@
-"""Studio-runner for MediaForge generation stages.
+"""Studio-runner for Media Studio generation stages.
 
 This gives the web UI a real button workflow without hiding the safety gate:
 paid FLORA stages require an explicit stage/slug/credit approval payload before
@@ -134,7 +134,7 @@ def build_command(slug: str, stage: str, *, picks: str | None = None) -> list[st
     stage = stage.casefold()
     if stage not in ALL_STAGES:
         raise ValueError(f"unknown stage: {stage}")
-    cmd = [sys.executable, "-m", "mediaforge.generate", safe]
+    cmd = [sys.executable, "-m", "media_studio.generate", safe]
     if stage == "pick":
         if not picks:
             raise ValueError("pick stage requires picks")

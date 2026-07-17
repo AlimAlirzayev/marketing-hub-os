@@ -3,7 +3,7 @@
 The craft science under every video concept — Eisenstein's montage,
 Murch's editing hierarchy, gestalt composition, measured sound-image
 congruence, Pixar color scripting — compressed into rules a creative
-director (or mediaforge's director brain) can apply to a 15–60s brand
+director (or media_studio's director brain) can apply to a 15–60s brand
 video. This is the layer that turns "generated clips" into the felt
 harmony the caring-hand / artful-ugc genres run on.
 
@@ -47,7 +47,7 @@ harmony the caring-hand / artful-ugc genres run on.
   of line/shape/direction across cuts, and closure — suggest, don't
   show; the audience co-authors the meaning.
 
-## Devices (operational — usable as mediaforge prompt/edit instructions)
+## Devices (operational — usable as media_studio prompt/edit instructions)
 
 | Device | Instruction | Proof |
 |---|---|---|
@@ -75,7 +75,7 @@ harmony the caring-hand / artful-ugc genres run on.
 ✗ Showing everything — no closure left for the viewer to complete
 ```
 
-## How mediaforge should consume this
+## How media_studio should consume this
 
 1. Concept locked (via `/idea` + rubric) → draw the **arousal curve**
    and the **3-beat color script** before any generation.

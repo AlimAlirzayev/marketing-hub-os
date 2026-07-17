@@ -74,8 +74,8 @@ Son kadr gag-ı: külək end-card-ın öz hərflərini də yüngülcə əyir.
 
 | Variant | Nə | Büdcə | Bizim studiyalar | Rol |
 |---|---|---|---|---|
-| **A. HERO spot** | Yuxarıdakı 30s, praktiki külək (fan) + səs dizaynı + VFX-lite (uçan salfet/toz praktiki, lövhə montajla) | Orta (prodakşn) | mediaforge (rejissura) + audio-studio (külək səsi) + prodakşn tərəfdaş | Brend/anthem |
-| **B. FOOH teaser** | CGI "fake out-of-home": Bakı landmarkı üzərində nəhəng "XƏZRİ GƏLİR" xəbərdarlıq lövhəsi küləkdə qopub uçur, altında KASKO mesajı | Aşağı | social-studio + mediaforge (artful-ugc-shortform DNA) | Sosial partlayış |
+| **A. HERO spot** | Yuxarıdakı 30s, praktiki külək (fan) + səs dizaynı + VFX-lite (uçan salfet/toz praktiki, lövhə montajla) | Orta (prodakşn) | media_studio (rejissura) + audio-studio (külək səsi) + prodakşn tərəfdaş | Brend/anthem |
+| **B. FOOH teaser** | CGI "fake out-of-home": Bakı landmarkı üzərində nəhəng "XƏZRİ GƏLİR" xəbərdarlıq lövhəsi küləkdə qopub uçur, altında KASKO mesajı | Aşağı | social-studio + media_studio (artful-ugc-shortform DNA) | Sosial partlayış |
 | **C. Meme şablonu** | "Sakitəm. Xalq Sığortadayam." reaksiya formatı: telefon çəkilişi, gündəlik Bakı xaosu (tıxac, çala, külək, park "ustası") + kameraya sakit baxış + mantra. Hər kəs öz versiyasını çəkə bilir | ~Sıfır | /post + copy-studio; icma remiks edir | **Trend mühərriki** |
 
 ## 4. Rubrika qiyməti (dürüst)

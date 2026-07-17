@@ -109,7 +109,7 @@ def referenced_ports(lo: int, hi: int) -> set[int]:
 def _service_dirs(services: list[dict]) -> set[str]:
     """Top-level dir each service occupies. dir='.' services live at the root —
     their real home is the first module segment of the uvicorn target
-    (e.g. 'mediaforge.server:app' → 'mediaforge')."""
+    (e.g. 'media_studio.server:app' → 'media_studio')."""
     dirs: set[str] = set()
     for s in services:
         d = (s.get("dir") or "").strip()

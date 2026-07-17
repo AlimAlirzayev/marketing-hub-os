@@ -1,5 +1,5 @@
 ---
-description: Creative-direction pass — one sentence of intent in, N scored big-idea concepts out; the winner becomes the creative brief that /post and mediaforge execute
+description: Creative-direction pass — one sentence of intent in, N scored big-idea concepts out; the winner becomes the creative brief that /post and media_studio execute
 argument-hint: <natural-language intent>  [--tradition <slug>]  [--count <n>]  [--for <post|video|both>]
 ---
 
@@ -55,7 +55,7 @@ tables), not the same idea re-skinned. Format per concept:
 ```
 CONCEPT <n>: <one-line pitch>
 insight / tension / device+tradition
-execution sketch: visual (social-studio style), video (mediaforge, 2-3
+execution sketch: visual (social-studio style), video (media_studio, 2-3
 scene beats), copy angle (copy-studio voice), sound cue (audio-studio)
 meme potential: <what's remixable about it>
 ```
@@ -69,7 +69,7 @@ exists to say no.
 ### 5. Expand the winner into the creative brief
 
 One page: the idea, the one truth, the device, per-studio direction
-(`/post --style X --voice Y` flags included, mediaforge scene grammar if
+(`/post --style X --voice Y` flags included, media_studio scene grammar if
 video, audio brief), and what would make it fail (the anti-patterns to
 watch from the tradition's dna.md).
 

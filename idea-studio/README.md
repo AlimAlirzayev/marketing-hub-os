@@ -1,7 +1,7 @@
 # `idea-studio/` — the creative-direction layer
 
 The **big-idea brain** of the marketing OS. Every other studio *executes*
-(social-studio renders images, copy-studio writes words, mediaforge
+(social-studio renders images, copy-studio writes words, media_studio
 directs video, audio-studio makes sound). This studio decides **what is
 worth executing**: the insight, the tension, the artistic device, the
 emotional arc — the concept that makes a piece feel like art and travel
@@ -23,13 +23,13 @@ intent (1 sentence)
 └─────────────────────────────────────────────┘
    │  winning concept = the creative brief
    ▼
-social-studio (image) · copy-studio (words) · mediaforge (video) · audio-studio (sound)
+social-studio (image) · copy-studio (words) · media_studio (video) · audio-studio (sound)
    │
    ▼
 critique layers → output → /publish
 ```
 
-`/post` and mediaforge keep working without it (a concept is optional),
+`/post` and media_studio keep working without it (a concept is optional),
 but any campaign that needs to *feel* rather than just inform should
 start here.
 
@@ -53,7 +53,7 @@ start here.
    meme potential.
 4. Score every concept with `critique/idea_rubric.md`. Kill the weak.
 5. Expand the winner into a **creative brief** the execution studios
-   accept (`/post`, mediaforge director, audio).
+   accept (`/post`, media_studio director, audio).
 
 ## Registry
 

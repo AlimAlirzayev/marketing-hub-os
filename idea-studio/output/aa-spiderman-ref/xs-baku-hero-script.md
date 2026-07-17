@@ -5,7 +5,7 @@
 > replika 10 kadrlıq frame-analizdən + Whisper transkriptindən (CANLI)
 > birbaşa köçürülüb. Dəyişən yalnız: şəhər = Bakı, brend = Xalq Sığorta,
 > dil = Azərbaycanca.
-> Render reli: MediaForge paketi `auto-meta-20260716-155814`.
+> Render reli: Media Studio paketi `auto-meta-20260716-155814`.
 
 ## Personajlar (continuity)
 
@@ -65,7 +65,7 @@ kafe ambiyansı → TV xəbər tonu → dərin bas gurultu → panika →
 
 | Addım | Əmr | Xərc |
 |---|---|---|
-| 12 keyframe | `python -m mediaforge.generate auto-meta-20260716-155814 --frames --confirm` | ~$0.30 |
+| 12 keyframe | `python -m media_studio.generate auto-meta-20260716-155814 --frames --confirm` | ~$0.30 |
 | Animatic | `--animatic` | pulsuz |
 | Film (Kling v3 multi-shot) | `--film --confirm` | ~$0.53 |
 | Finishing (AZ subtitle+loqo+end-card) | `--finish` | pulsuz |

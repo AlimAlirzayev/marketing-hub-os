@@ -43,7 +43,7 @@ In Azerbaijani, give the user:
   (name the creative_dna tradition each pattern echoes, if any)
 - **Bizə körpü** — 2–3 concrete "adapt this structure for Xalq Sigorta"
   angles, each tagged with which studio would execute (/idea → /post,
-  mediaforge, copy-studio)
+  media_studio, copy-studio)
 
 Every claim traces to a campaign in the digest (link it). The digest is
 CANLI/DEMO-labeled — say which. If the user picks an angle, hand off to

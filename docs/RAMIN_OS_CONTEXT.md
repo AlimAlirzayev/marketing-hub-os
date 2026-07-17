@@ -34,7 +34,7 @@ a disconnected side project.
 | atelier | Kreativ Studiya | 8820 | Kontent | uvicorn | atelier.app:app | /api/health |
 | price | Qiymət Kəşfiyyatı | 8830 | Kəşfiyyat | uvicorn | server:app | /api/health |
 | seo | SEO Studiyası | 8860 | Kontent | uvicorn | seo.server:app | /api/health |
-| mediaforge | Media Studio | 8870 | Kontent | uvicorn | mediaforge.server:app | /api/health |
+| media_studio | Media Studio | 8870 | Kontent | uvicorn | media_studio.server:app | /api/health |
 | certcoach | Sertifikat Mentoru | 8880 | Təlim | uvicorn | certification_coach.server:app | /api/health |
 | panel | İdarəetmə Mərkəzi | 8890 | İş masası | uvicorn | gateway.panel:app | /api/health |
 | rag | Bilik Bazası | 8895 | İş masası | uvicorn | gateway.rag_server:app | /api/health |
@@ -72,7 +72,7 @@ a disconnected side project.
 | Publisher | `publisher` | yes | Publish package planning and Postiz/manual routing. |
 | Audio Studio | `audio-studio` | yes | Music, SFX, TTS, voice references, and audio generation workflows. |
 | Video Studio | `video-studio` | yes | Video editing, Remotion, motion graphics, and clip pipeline. |
-| Media Studio / AI UGC Pack | `mediaforge` | yes | Directed FLORA video packages plus draft-only AI UGC persona, script, voice, economics, QA, safe resource readiness, browser-run checkpoints, and dry-run handoff. |
+| Media Studio / AI UGC Pack | `media_studio` | yes | Directed FLORA video packages plus draft-only AI UGC persona, script, voice, economics, QA, safe resource readiness, browser-run checkpoints, and dry-run handoff. |
 | Claude Code control plane | `claude-agents` | yes | Claude subagents, MCP setup, slash command conventions. |
 
 ## Agent Governance State

@@ -81,7 +81,7 @@ def _flora_gateway_readiness() -> dict[str, Any]:
     """Reuse the existing FLORA governance doctor when available.
 
     gateway.flora_ai is also local/offline and intentionally does not inspect
-    credentials. If it is unavailable, MediaForge still reports its own local
+    credentials. If it is unavailable, Media Studio still reports its own local
     file checks.
     """
     try:
@@ -123,8 +123,8 @@ def local_readiness() -> dict[str, Any]:
             "intentionally not inspected by this audit."
         ),
         "flora": {
-            "client_exists": _exists("mediaforge/flora_client.py"),
-            "generator_exists": _exists("mediaforge/generate.py"),
+            "client_exists": _exists("media_studio/flora_client.py"),
+            "generator_exists": _exists("media_studio/generate.py"),
             "models_catalog_count": len(models.CATALOG),
             "catalog_refreshed": models.CATALOG_REFRESHED,
             "portable_npx_available": bool(npx) or shutil.which("npx") is not None,
@@ -196,8 +196,8 @@ def capabilities(readiness: dict[str, Any]) -> list[dict[str, Any]]:
     fallbacks = readiness["fallbacks"]
 
     flora_missing = _missing([
-        ("mediaforge/flora_client.py", flora["client_exists"]),
-        ("mediaforge/generate.py", flora["generator_exists"]),
+        ("media_studio/flora_client.py", flora["client_exists"]),
+        ("media_studio/generate.py", flora["generator_exists"]),
         ("portable npx or PATH npx", flora["portable_npx_available"]),
         ("FLORA MCP project settings", flora["gateway_settings_has_flora"]),
         ("FLORA MCP command available", flora["gateway_command_available"]),
@@ -242,7 +242,7 @@ def capabilities(readiness: dict[str, Any]) -> list[dict[str, Any]]:
             "ready_with_human_cost_gate" if not flora_missing else "needs_setup",
             "Generates stills first so the look is approved before expensive motion.",
             blockers=flora_missing,
-            next_step="python -m mediaforge.generate <slug> --frames --confirm",
+            next_step="python -m media_studio.generate <slug> --frames --confirm",
             approval_required=True,
             paid=True,
             external=True,
@@ -253,7 +253,7 @@ def capabilities(readiness: dict[str, Any]) -> list[dict[str, Any]]:
             "ready" if not finish_missing else "needs_setup",
             "FFmpeg/Remotion path for animatic, stitching, overlays, captions, and final polish.",
             blockers=finish_missing,
-            next_step="python -m mediaforge.generate <slug> --animatic",
+            next_step="python -m media_studio.generate <slug> --animatic",
         ),
         _capability(
             "draft_voice",
@@ -270,8 +270,8 @@ def capabilities(readiness: dict[str, Any]) -> list[dict[str, Any]]:
             "Uses a consented local reference clip with OmniVoice; quality is a human-ear call.",
             blockers=clone_missing,
             next_step=(
-                'python audio-studio\\audio_studio.py clone "<script>" '
-                '--ref audio-studio\\voices\\<approved_ref>.wav --lang az'
+                'python audio-studio\\audio_studio.py clone "<script>" --lang az'
+                "  # house voice (AUDIO_DEFAULT_REF) by default; --ref overrides"
             ),
             external=True,
         ),
@@ -321,12 +321,12 @@ def build_status(package: dict[str, Any] | None = None, *, now: float | None = N
     if package:
         slug = package["slug"]
         commands = {
-            "plan": f"python -m mediaforge.generate {slug}",
-            "first_paid_probe": f"python -m mediaforge.generate {slug} --frames --confirm",
-            "free_timing_animatic": f"python -m mediaforge.generate {slug} --animatic",
-            "doruk_like_single_film": f"python -m mediaforge.generate {slug} --film --confirm",
-            "controlled_beats": f"python -m mediaforge.generate {slug} --beats --confirm",
-            "full_pro_pipeline": f"python -m mediaforge.generate {slug} --pro --confirm",
+            "plan": f"python -m media_studio.generate {slug}",
+            "first_paid_probe": f"python -m media_studio.generate {slug} --frames --confirm",
+            "free_timing_animatic": f"python -m media_studio.generate {slug} --animatic",
+            "doruk_like_single_film": f"python -m media_studio.generate {slug} --film --confirm",
+            "controlled_beats": f"python -m media_studio.generate {slug} --beats --confirm",
+            "full_pro_pipeline": f"python -m media_studio.generate {slug} --pro --confirm",
         }
         try:
             from . import generate

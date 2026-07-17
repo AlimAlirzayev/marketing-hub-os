@@ -16,7 +16,7 @@ this is judgment encoded, not taste.
 | 4 | **Emotional charge** | A felt human truth or act of care; the viewer completes the feeling themselves | Information wearing a story costume; corporate-poetry formula | W+K (human truth over feature); caring-hand (tenderness engine) |
 | 5 | **Retell test** (earned media) | A civilian would describe it at dinner unprompted; the idea IS the media plan | Needs paid spend to exist; peers-only appeal | Droga ("great if the real world thinks you're good") |
 | 6 | **Meme potential** | Remixable skeleton; format others can hijack with their twist; in-group signal | Sealed, finished, un-riffable artifact | internet-native-meme (Shifman: shared pathways) |
-| 7 | **Execution feasibility** (KILL) | Our studios can produce it at quality NOW (mediaforge dialects, social-studio, audio) with honest cost | Requires capabilities we don't have; quality would betray the idea | House rule: craft flex is part of the signal — a badly-made big idea is a small idea |
+| 7 | **Execution feasibility** (KILL) | Our studios can produce it at quality NOW (media_studio dialects, social-studio, audio) with honest cost | Requires capabilities we don't have; quality would betray the idea | House rule: craft flex is part of the signal — a badly-made big idea is a small idea |
 | 8 | **Job clarity: brand vs activation** | The concept knows which job it does (fame/feeling = brand; conversion = activation) and its metric matches | A hybrid asked to build the brand AND convert — it under-delivers on both | Binet & Field (`idea_kit/evidence.md`): the two jobs work on different timescales via different mechanisms |
 
 ## Scoring notes
