@@ -139,3 +139,8 @@ data/skills/
 
 # Browser profiles used by lab/QA automation - contain cookies and sessions, never track
 data/canvas-lab-profile/
+
+# Ads plan queue - private ops data (intent already stated in gateway/ads_agent.py)
+data/ads_plans/
+# Chat replies are conversations, not deliverables (see tests/test_deliverables_are_work.py)
+output/replies/

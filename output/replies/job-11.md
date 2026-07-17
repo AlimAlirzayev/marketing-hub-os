@@ -1,1 +1,0 @@
-Salam! Necə yardımçı ola bilərəm? Yaddaş kontekstinə nəzər saldıqda, AI RADAR-la bağlı məlumatlar var. Əgər bu mövzuda suallarınız varsa, cavab verməyə hazıram.
