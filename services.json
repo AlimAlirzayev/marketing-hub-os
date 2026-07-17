@@ -327,6 +327,18 @@
       "docs": "publisher/README.md"
     },
     {
+      "key": "trello-work-board",
+      "name": "Trello İş Board-u",
+      "desc": "Xalq Insurance iş board-u: oxu və hesabat sərbəst, hər dəyişiklik dəqiq plan təsdiqi ilə",
+      "icon": "📋",
+      "cat": "İş masası",
+      "home": "gateway",
+      "kind": "cli",
+      "invoke": "python -m gateway.trello doctor | report | snapshot | plan | apply",
+      "docs": "docs/TRELLO_WORK_BOARD.md",
+      "note": "Canlı giriş üçün insan Trello icazəsi lazımdır; silmə və üzv/visibility dəyişiklikləri bağlıdır."
+    },
+    {
       "key": "brain",
       "name": "Knowledge Core",
       "desc": "Öyrənmə dövrəsi: işdən əvvəl recall, işdən sonra reflect — korporativ yaddaş",

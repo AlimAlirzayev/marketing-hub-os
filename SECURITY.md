@@ -123,6 +123,16 @@ capability must have an entry in `config/agent_permissions.json`. The manifest
 must state allowed inputs, blocked inputs, allowed outputs, blocked actions, and
 required controls. Unknown agents fail closed.
 
+## Trello Work Board
+
+The Trello connector is restricted to the allowlisted Xalq Insurance board
+`RRlLCaSG`. Read-only board snapshots may run after operator authorization.
+Every create, move, update, due-date, or comment action must first produce a
+local review plan and then receive the exact plan approval code. Card/list/board
+deletion, member changes, visibility changes, and cross-board access are
+blocked. Trello tokens must stay in the local environment or approved secret
+store and must never appear in chat, commits, reports, audit logs, or card text.
+
 ## CX Resolution Agent Sandbox
 
 The CX Resolution Agent is approved only as a draft-only sandbox workflow. It

@@ -10,6 +10,23 @@
   },
   "agents": [
     {
+      "id": "google_media_canvas",
+      "name": "Google Media Canvas Handoff",
+      "owner": "Ramin-OS Social Studio",
+      "status": "approved_draft_only",
+      "permissions": ["read_only", "draft_only", "approval_required"],
+      "allowed_inputs": ["public data", "synthetic briefs", "approved campaign facts", "public HTTPS sources"],
+      "blocked_inputs": ["secrets", "API keys", "tokens", "cookies", "customer data", "claims data", "policy data", "payment data", "private strategy"],
+      "allowed_outputs": ["Canvas operator briefs", "copy drafts", "image prompts", "video handoffs", "music handoffs", "voice-over scripts", "draft manifests"],
+      "blocked_actions": ["store credentials in browser code", "publish", "send", "spend", "login", "write production data", "upload private data", "use shared Canvas as a private database"],
+      "required_controls": [
+        "Use Gemini Canvas native Add Gemini features instead of exposing an API key client-side.",
+        "Only approved facts may become factual claims; unknown numbers, prices, dates, discounts, testimonials, and legal claims are omitted.",
+        "Generate cheap text concepts first; media generation happens only after human selection.",
+        "Every output remains draft_only until the owner approval rail is satisfied."
+      ]
+    },
+    {
       "id": "context7_docs_grounding",
       "name": "Context7 Docs Grounding",
       "owner": "Ramin-OS",
@@ -141,6 +158,58 @@
         "Login, deploy, env set/push/pull, OAuth start, real sync triggers, and webhook URL handling require human approval.",
         "Webhooks must verify provider signatures before processing payloads.",
         "Syncs must be previewed before real writes and must use pacers for upstream APIs."
+      ]
+    },
+    {
+      "id": "trello_work_board",
+      "name": "Xalq Insurance Trello Work Board",
+      "owner": "Ramin-OS",
+      "status": "approval_gated_board_connector",
+      "permissions": ["read_only", "draft_only", "sandbox", "approval_required"],
+      "allowed_inputs": [
+        "allowlisted Trello board metadata",
+        "approved internal task titles and descriptions",
+        "list and card identifiers from the allowlisted board",
+        "due dates and completion flags",
+        "operator-approved card comments"
+      ],
+      "blocked_inputs": [
+        "secrets",
+        "API keys",
+        "tokens",
+        "cookies",
+        ".env content",
+        "customer data",
+        "claims data",
+        "policy data",
+        "payment data",
+        "authentication material in card content"
+      ],
+      "allowed_outputs": [
+        "read-only board snapshots",
+        "workload and due-date summaries",
+        "draft card change plans",
+        "approval codes for exact write plans",
+        "audited create, move, update, and comment results after approval"
+      ],
+      "blocked_actions": [
+        "read .env",
+        "print secrets",
+        "write without an exact approval code",
+        "delete cards, lists, or boards",
+        "invite or remove members",
+        "change board visibility or workspace ownership",
+        "create webhooks without approval",
+        "post publicly",
+        "send messages",
+        "handle payments"
+      ],
+      "required_controls": [
+        "Only the allowlisted board RRlLCaSG may be accessed by this connector.",
+        "Every Trello write must first be saved as a reviewable plan and requires its exact approval code.",
+        "Keep the API token in local environment or an approved secret store; never commit, print, log, or paste it into chat.",
+        "Start with a read-capable token and validate a snapshot before authorizing write scope.",
+        "Deletion, membership changes, visibility changes, and cross-board access remain fail-closed."
       ]
     },
     {
@@ -311,6 +380,105 @@
         "Sonarzum rule: every top-level organ must be a service, a capability card, or a justified audit_ignore_dirs entry.",
         "Writes limited to services.json, hub/, and claude-agents metadata; python audit_services.py must exit 0 before done.",
         "Every invoke line must be verified against a real entry point (command file, __main__, or gateway tool wiring)."
+      ]
+    },
+    {
+      "id": "brand_dossier",
+      "name": "Brand Dossier Engine",
+      "owner": "Ramin-OS",
+      "status": "approved_read_only",
+      "permissions": ["read_only", "sandbox"],
+      "allowed_inputs": [
+        "public web search results (Gemini google_search grounding)",
+        "public insurer web pages",
+        "public AZ insurance market and regulator news",
+        "bundled demo fixtures"
+      ],
+      "blocked_inputs": [
+        "secrets",
+        "API keys",
+        "tokens",
+        "cookies",
+        ".env content",
+        "customer data",
+        "claims data",
+        "policy data",
+        "payment data",
+        "private strategy",
+        "login-walled pages",
+        "Instagram scraping"
+      ],
+      "allowed_outputs": [
+        "weekly Azerbaijani brand dossier (markdown)",
+        "structured dossier JSON (stable schema v1)",
+        "compact summary block"
+      ],
+      "blocked_actions": [
+        "post publicly",
+        "send messages",
+        "handle payments",
+        "log in",
+        "scrape login-walled or private sources",
+        "fabricate facts or numbers",
+        "print or log API keys",
+        "write outside output/brand-dossier"
+      ],
+      "required_controls": [
+        "Every fact carries a source + date and a CANLI/DEMO/ƏLÇATMAZ label; anything unverified is marked ƏLÇATMAZ, never invented.",
+        "Only public HTTPS sources; failures are listed in the dossier, never silently dropped.",
+        "The Gemini key is read from env only, sent only in the x-goog-api-key header, and never printed or logged.",
+        "Dry-run output is labeled DEMO throughout and can never masquerade as CANLI."
+      ]
+    },
+    {
+      "id": "adsworld_swipe",
+      "name": "Ads of the World Swipe File",
+      "owner": "Ramin-OS Idea Studio",
+      "status": "approved_read_only",
+      "permissions": ["read_only", "sandbox"],
+      "allowed_inputs": [
+        "public adsoftheworld.com industry and campaign pages",
+        "industry slugs",
+        "campaign slugs",
+        "bundled test fixtures"
+      ],
+      "blocked_inputs": [
+        "secrets",
+        "API keys",
+        "tokens",
+        "cookies",
+        ".env content",
+        "customer data",
+        "claims data",
+        "policy data",
+        "payment data",
+        "private strategy",
+        "login-walled pages",
+        "non-adsoftheworld.com hosts"
+      ],
+      "allowed_outputs": [
+        "swipe-file markdown digests (idea-studio/swipe_file)",
+        "campaign cache JSON (data/adsworld, stable schema v1)",
+        "single-campaign JSON deep-dives",
+        "reference video + frame grabs (idea-studio/output/adsworld, site CDN only)"
+      ],
+      "blocked_actions": [
+        "post publicly",
+        "send messages",
+        "handle payments",
+        "log in",
+        "submit campaigns",
+        "fetch non-adsoftheworld.com hosts",
+        "fabricate campaigns or credits",
+        "write outside data/adsworld, idea-studio/swipe_file, and idea-studio/output/adsworld"
+      ],
+      "required_controls": [
+        "Only public https adsoftheworld.com pages; http_get fails closed on any other host.",
+        "Media downloads only from video./image.adsoftheworld.com CDN prefixes; download_media fails closed otherwise.",
+        "Every payload carries a CANLI/DEMO label; fixtures can never masquerade as live data.",
+        "Fetch failures are recorded in the payload and digest, never silently dropped.",
+        "Polite crawling: sequential requests with a sleep gap; reuse the 7-day cache unless --fresh.",
+        "Swipe material is reference for structure and craft — executions are never copied verbatim into deliverables."
       ]
     },
     {

@@ -160,6 +160,38 @@ has been tried.** The organs exist; coordinate them like a body.
 Escalate 1→5, stop at first success. If ALL fail, say exactly which organs
 were tried and why each failed — never a bare "I can't".
 
+### brand-dossier — weekly Xalq Sığorta brand + competitor intelligence  *(built 2026-07-16)*
+
+| # | Provider | Tier | Free quota | Quota check | How invoked | Notes |
+|---|----------|------|-----------|-------------|-------------|-------|
+| 1 | **Gemini + google_search grounding** | free | Gemini daily quota | `python llm_router.py --probe` | `python scripts/brand_dossier.py --run` | Direct REST `generateContent` with `tools:[{"google_search":{}}]` (llm_router has no tool support). Every fact = source + date + CANLI/ƏLÇATMAZ label; nothing invented. |
+| 2 | **Public HTTPS fetch** | free | unlimited | n/a | same run (secondary signals) | xalqsigorta.az + competitor public pages; login walls / Instagram skipped by design. |
+| 3 | **Offline DEMO fixtures** | free | unlimited | n/a | `python scripts/brand_dossier.py --dry-run` | Zero network; what the tests exercise. Output labeled DEMO, never CANLI. |
+
+Outputs → `output/brand-dossier/`: `dossier_YYYY-MM-DD.md` (full AZ dossier,
+primary human artifact) + `dossier_latest.json` (stable v1 schema — the machine
+contract other organs / a future brand-intelligence panel consume; documented in
+`docs/BRAND_DOSSIER.md`) + `canvas_paste.txt` (secondary compact summary block,
+≤2500 chars). Opportunity angles synthesize on `tier="smart"` (radar pattern).
+A weekly JOB, not a service: no port, no schedule, no services.json entry.
+Governance: `config/agent_permissions.json` → `brand_dossier`. verified: 2026-07-16.
+
+### ad-inspiration — real ad campaigns as grounded creative reference  *(built 2026-07-16)*
+
+The creative counterpart of Context7 docs grounding: before ideating, ground
+`/idea` and `/swipe` in real, current campaign work — never invent
+"award-winning references" from memory.
+
+| # | Provider | Tier | Free quota | Quota check | How invoked | Notes |
+|---|----------|------|-----------|-------------|-------------|-------|
+| 1 | **Ads of the World swipe file** | free | public pages | n/a | `python idea-studio/adsworld.py [--industry <slug>] [--pages N] [--deep N] [--fresh]` | stdlib scraper → `idea-studio/swipe_file/adsworld-<industry>.md` + `data/adsworld/<industry>.json` (schema v1, CANLI/DEMO label). Insurance = home industry; any AOTW industry slug works (think-all-labs: automotive, finance…). Needs a full browser UA (bare UA → 403 WAF). 7-day cache; `--campaign <slug>` deep-dives one campaign. **Autonomous:** gateway schedule #4 (daily 10:00, task `swipe həftəlik` → executor swipe rail; the cache makes it effectively weekly). |
+| 1b | **`--grab <slug>` video dive** | free | site CDN | n/a | `python idea-studio/adsworld.py --grab <slug> [--frames N]` | Downloads the campaign film (video.adsoftheworld.com only) + extracts frames via portable ffmpeg → `idea-studio/output/adsworld/<slug>/` (video.mp4, frame-N.jpg, detail.json). Then **Read the frames and LOOK** (never-say-cant rule: visual content is judged by eyes, not text). Proven live 2026-07-16 (Farmers "Honesty Is Our Policy"). |
+| 2 | **WebFetch direct** | free | n/a | n/a | fetch a campaign URL from the digest | for anything the scraper misses; page arrives markdown-converted. |
+| 3 | **manual browse** | — | — | — | adsoftheworld.com · lovethework.com · dandad.org | last resort; paste findings back into the swipe file so they persist. |
+
+Governance: `config/agent_permissions.json` → `adsworld_swipe` (read-only web,
+writes only cache + swipe file). verified: 2026-07-16.
+
 ### llm — reasoning, scoring, copy (the "brain" steps)
 
 **20/80 hybrid (the cost rule):** route ~20% — high-level planning, final

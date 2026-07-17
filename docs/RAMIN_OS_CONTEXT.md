@@ -1,6 +1,6 @@
 # RAMIN OS System Context
 
-Generated UTC: 2026-07-13T12:31:39Z
+Generated UTC: 2026-07-16T10:44:38Z
 
 ## Mission
 
@@ -59,6 +59,7 @@ a disconnected side project.
 | Hugging Face Opportunity Radar | `gateway/hf_radar.py` | yes | Governed HF model, MCP, Spaces, and private RAG opportunity scoring. |
 | FLORA AI Creative MCP | `gateway/flora_ai.py` | yes | Governed draft-media MCP bridge for FLORA Techniques, assets, and creative generation. |
 | Notion Workers | `gateway/notion_workers.py` | yes | Governed Notion Custom Agent tools for draft handoffs and action risk screening. |
+| Trello Work Board | `gateway/trello.py` | yes | Allowlisted Xalq Insurance board connector with read snapshots and exact-plan approval for writes. |
 | Marketing Certification Coach | `certification_coach` | yes | Ethical certification mentor with source-linked roadmaps, persistent Journey Engine, readiness gates, local vector knowledge index, learner memory, original mock tests, RAG answers, proof tasks, and approval checkpoints. |
 | CX Command Center | `cx-command-center` | yes | Customer complaint radar, AI triage, optional private HF sentiment, SLA, and draft-only resolution planning. |
 | Ads Studio | `ads-studio` | yes | Meta ads performance reporting and campaign analytics. |
