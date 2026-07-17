@@ -144,6 +144,11 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
     so a blip doesn't needlessly bounce the turn to the free brain."""
     perm = os.getenv("CLAUDE_BRIDGE_PERMISSION_MODE", "default")
     env = os.environ.copy()
+    # The child claude -p session inherits this repo's SessionStart/SessionEnd
+    # hooks (sync, capture, pulse). A headless brain turn must not fire them:
+    # they add seconds of latency, can touch git under the operator's feet, and
+    # their failure ("Hook cancelled") flips the exit code -> false free-fallback.
+    env["RAMIN_NO_HOOKS"] = "1"
     if token:
         env["CLAUDE_CODE_OAUTH_TOKEN"] = token
         # CRITICAL: claude -p prefers ANTHROPIC_API_KEY over the OAuth token, and
@@ -225,6 +230,7 @@ def _run_stateless(prompt: str, timeout: int | None, token: str | None) -> tuple
     the subscription's raw completion primitive for the router's smart tier, so it
     must not carry the mic persona or resume a chat thread. Returns (text, model)."""
     env = os.environ.copy()
+    env["RAMIN_NO_HOOKS"] = "1"  # see _run_once: no repo hooks on headless turns
     if token:
         env["CLAUDE_CODE_OAUTH_TOKEN"] = token
         for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
@@ -305,6 +311,7 @@ def build(task: str, workspace: Path, *, timeout: int = 900) -> str:
     last = ""
     for idx, acct in order:
         env = os.environ.copy()
+        env["RAMIN_NO_HOOKS"] = "1"  # see _run_once: no repo hooks on headless turns
         if acct.get("token"):
             env["CLAUDE_CODE_OAUTH_TOKEN"] = acct["token"]
             for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):

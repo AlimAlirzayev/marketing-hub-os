@@ -208,6 +208,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if os.getenv("RAMIN_NO_HOOKS"):
+        sys.exit(0)  # headless brain turn (claude_bridge) — repo hooks must not fire
     # Hooks must exit cleanly; we never propagate a non-zero status.
     try:
         sys.exit(main())

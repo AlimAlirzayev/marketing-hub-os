@@ -18,7 +18,9 @@ göstərilir — səssiz itki yoxdur):
   - Hugging Face trending models + daily papers (açıq API)
   - GitHub: son 7 gündə yaranmış ulduzlu AI repoları (açıq axtarış API-si)
   - GitLab: AI mövzulu aktiv layihələr (açıq API)
-  - Lab blogları RSS: OpenAI, Google AI, Hugging Face, ElevenLabs, Stability
+  - Lab blogları RSS: OpenAI, Google AI, Hugging Face, DeepMind, The Verge AI,
+    Simon Willison (RSS-siz lablar — Anthropic, xAI, Meta — Verge/Willison
+    üstündən görünür)
 
 Brif brain korpusuna da damcılanır — beləcə EXISTING recall yolu
 (knowledge.recall_context) istənilən yeni tapşırıqda lab tapıntılarını
@@ -36,6 +38,7 @@ yeni orqan DƏRHAL commit olunmalıdır, yoxsa növbəti sync silir.
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import html as _html
 import json
 import os
@@ -50,6 +53,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 _RADAR_DIR = _ROOT / "data" / "radar"
 _LAST_RUN = _RADAR_DIR / "last_run.txt"
 _LAST_PULSE = _RADAR_DIR / "last_pulse.txt"
+_SEEN = _RADAR_DIR / "seen.json"  # görülmüş siqnal barmaq izləri — təkrar alert olmasın
+_SEEN_CAP = 600
 _CAPABILITIES = _ROOT / "claude-agents" / ".claude" / "capabilities.md"
 _UA = {"User-Agent": "Mozilla/5.0 (ramin-os-ai-radar/2.0)"}
 _TIMEOUT = 25
@@ -62,8 +67,12 @@ _RSS_FEEDS = [
     ("OpenAI", "https://openai.com/news/rss.xml"),
     ("Google AI", "https://blog.google/technology/ai/rss/"),
     ("HuggingFace Blog", "https://huggingface.co/blog/feed.xml"),
-    ("ElevenLabs", "https://elevenlabs.io/blog/rss.xml"),
-    ("Stability", "https://stability.ai/news?format=rss"),
+    # ElevenLabs/Stability RSS-ləri öldü (2026-07-15 yoxlanıb: bütün variantlar 404).
+    # Əvəz: DeepMind (lab), The Verge AI (RSS-siz labların — Anthropic/xAI/Meta —
+    # xəbərləri bura düşür), Simon Willison (agent/alət xəttinin nəbzi).
+    ("DeepMind", "https://deepmind.google/blog/rss.xml"),
+    ("The Verge AI", "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"),
+    ("Simon Willison", "https://simonwillison.net/atom/everything/"),
 ]
 
 # Həzm zamanı modelə verilən orqan xəritəsi — təkliflər bura calanmalıdır.
@@ -273,6 +282,35 @@ def digest(items: list[dict], failures: list[str]) -> tuple[str, str]:
     return header + "\n" + text.strip(), model
 
 
+def _fp(item: dict) -> str:
+    raw = (item.get("src", "") + "|" + (item.get("title") or "")[:120]).encode("utf-8")
+    return hashlib.sha1(raw).hexdigest()[:16]
+
+
+def _load_seen() -> list[str]:
+    try:
+        data = json.loads(_SEEN.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _mark_seen(items: list[dict]) -> None:
+    """Bu siqnalları 'görülmüş' kimi qeyd et (FIFO, _SEEN_CAP ilə məhdud)."""
+    seen = _load_seen()
+    known = set(seen)
+    for it in items:
+        f = _fp(it)
+        if f not in known:
+            seen.append(f)
+            known.add(f)
+    try:
+        _RADAR_DIR.mkdir(parents=True, exist_ok=True)
+        _SEEN.write_text(json.dumps(seen[-_SEEN_CAP:]), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 — seen anbarı itsə də radar dayanmır
+        print("[radar] seen.json yazıla bilmədi: %s" % exc)
+
+
 def _read_date(path: Path) -> _dt.date | None:
     try:
         return _dt.date.fromisoformat(path.read_text(encoding="utf-8").strip())
@@ -345,6 +383,7 @@ def run(force: bool = False, send: bool = False) -> str:
     brief, _model = digest(items, failures)
     report = _save_outputs(brief)
     _write_today(_LAST_RUN)
+    _mark_seen(items)  # həftəlik brifə düşən siqnal sabahkı nəbzdə təkrar alert olmasın
     if send:
         _send_owner(brief)
     return brief + "\n\n(hesabat: %s)" % report
@@ -361,6 +400,14 @@ def pulse(force: bool = False, send: bool = False) -> str:
     items, failures = collect_fast()
     if not items:
         return "_[radar-nəbz]_ sürətli mənbələrdən siqnal alınmadı: " + "; ".join(failures)
+
+    # Dedup: dünən kritik sayılan xəbər kanalın son mesajlarında bu gün də durur —
+    # hakim yalnız GÖRÜLMƏMİŞ siqnalları mühakimə edir, təkrar alert yoxdur.
+    seen = set(_load_seen())
+    fresh = [it for it in items if _fp(it) not in seen]
+    if not fresh:
+        _write_today(_LAST_PULSE)
+        return "_[radar-nəbz]_ yeni siqnal yoxdur (%d siqnal artıq görülüb)" % len(items)
 
     import llm_router
     system = (
@@ -379,14 +426,15 @@ def pulse(force: bool = False, send: bool = False) -> str:
     )
     # Deciding what counts as CRITICAL is a judgement call -> smart tier (Claude).
     text, model = llm_router.complete(
-        json.dumps(items, ensure_ascii=False), system=system,
+        json.dumps(fresh, ensure_ascii=False), system=system,
         tier="smart", temperature=0.2, max_tokens=400,
     )
     _write_today(_LAST_PULSE)
+    _mark_seen(items)
 
     if "NO_ALERT" in text.upper():
-        return "_[radar-nəbz]_ sakit gün (%d siqnal baxıldı, kritik yoxdur; həzm: %s)" % (
-            len(items), model)
+        return "_[radar-nəbz]_ sakit gün (%d yeni siqnal baxıldı, kritik yoxdur; həzm: %s)" % (
+            len(fresh), model)
 
     alert = "🚨 RADAR XƏBƏRDARLIĞI (%s)\n\n%s" % (_dt.date.today().isoformat(), text.strip())
     if failures:

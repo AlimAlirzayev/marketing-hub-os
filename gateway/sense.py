@@ -87,9 +87,10 @@ def recent(n: int = 20, kind: str | None = None) -> list[dict]:
 
 # --- the reflex: read .env reality now, masked ----------------------------
 
-def env_status(keys=CRITICAL_ENV, env_path: str | None = None) -> dict[str, str]:
-    """Live, masked status of credentials straight from .env — the anti-stale-
-    memory reflex. Use this BEFORE asserting whether a key exists."""
+def _dotenv_values(env_path: str | None = None) -> dict[str, str]:
+    """Raw key→value straight from the .env file (no masking). The anti-stale
+    reflex: read the file, don't trust os.environ — a hook process (session_pulse)
+    may never have called load_env(), so os.getenv would lie."""
     values: dict[str, str] = {}
     path = Path(env_path or (ROOT / ".env"))
     try:
@@ -102,6 +103,19 @@ def env_status(keys=CRITICAL_ENV, env_path: str | None = None) -> dict[str, str]
                 values[k.strip()] = v.strip().strip('"').strip("'")
     except Exception:
         pass
+    return values
+
+
+def env_value(key: str, default: str = "", env_path: str | None = None) -> str:
+    """One raw env value, .env first then os.getenv — for behaviour flags like
+    MIC_BRAIN that the pulse must read truthfully even without load_env()."""
+    return _dotenv_values(env_path).get(key) or os.getenv(key, default)
+
+
+def env_status(keys=CRITICAL_ENV, env_path: str | None = None) -> dict[str, str]:
+    """Live, masked status of credentials straight from .env — the anti-stale-
+    memory reflex. Use this BEFORE asserting whether a key exists."""
+    values = _dotenv_values(env_path)
     out: dict[str, str] = {}
     for k in keys:
         v = values.get(k, os.getenv(k))
@@ -280,7 +294,7 @@ def pulse() -> str:
     # and the system silently served Groq for weeks (MIC_BRAIN defaulted to 'free',
     # so executor._converse never called claude_bridge). Surface it so "why is it
     # dumb" is answerable at a glance, not after tracing the call path.
-    mic = os.getenv("MIC_BRAIN", "free").strip().lower()
+    mic = env_value("MIC_BRAIN", "free").strip().lower()
     if mic == "claude":
         lines.append("BEYİN:     🟢 claude-code (premium) — söhbət Claude-a gedir")
     else:

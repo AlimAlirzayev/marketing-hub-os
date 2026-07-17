@@ -138,6 +138,22 @@ python -m gateway.notion_workers report
 Login, deploy, worker secrets, OAuth, real sync triggers, and webhook URL
 handling require a human checkpoint. See `docs/NOTION_WORKERS.md`.
 
+## Trello Work Board
+
+The Xalq Insurance board is connected through `gateway.trello`. Reading is
+limited to the allowlisted `RRlLCaSG` board. Every create, move, edit, due-date,
+or comment write is saved as a reviewable plan and requires that exact plan's
+approval code. Deletion and member/visibility changes remain blocked.
+
+```powershell
+python -m gateway.trello doctor
+python -m gateway.trello report
+python -m gateway.trello snapshot
+```
+
+Authorization is a human checkpoint and credentials stay in the local process
+environment or approved secret store. See `docs/TRELLO_WORK_BOARD.md`.
+
 ## Use it today (CLI, no setup)
 
 ```powershell

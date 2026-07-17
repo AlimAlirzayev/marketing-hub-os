@@ -49,12 +49,17 @@ def plan_frames(pkg: dict[str, Any], *, variants: int = 2,
     """Build the keyframe generation plan (no network, no spend)."""
     brief = pkg["brief"]
     category = pkg["request"]["category"]
+    # Optional per-campaign character override (brief["character_direction"]) —
+    # lets non-protagonist concepts (giant hand, mascot, product-as-hero) veto
+    # the style bible's default human character.
+    character = brief.get("character_direction")
     shots = ["hero wide establishing shot", "medium shot, handheld intimacy",
              "close-up on the human moment", "medium-wide, stable settled framing"]
     beats = []
     for i, beat in enumerate(brief["storyboard"]):
         prompt = knowledge.compose_keyframe_prompt(
-            category, beat["visual"], wide_or_close=shots[i % len(shots)]
+            category, beat["visual"], wide_or_close=shots[i % len(shots)],
+            character=character,
         )
         beats.append({
             "index": i,
@@ -71,7 +76,7 @@ def plan_frames(pkg: dict[str, Any], *, variants: int = 2,
         "total_images": len(beats) * variants,
         "estimated_credits": len(beats) * variants * per_image,
         "style_bible": knowledge.style_bible_for(category)["name"],
-        "character": knowledge.character_block(category),
+        "character": character or knowledge.character_block(category),
     }
 
 

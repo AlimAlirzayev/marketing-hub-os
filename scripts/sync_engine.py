@@ -29,6 +29,7 @@ reads cleanly back into chat ("engine up to date" / "pulled 3 new commits").
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -213,6 +214,8 @@ def _main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    if os.getenv("RAMIN_NO_HOOKS"):
+        sys.exit(0)  # headless brain turn (claude_bridge) — repo hooks must not fire
     try:
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     except Exception:

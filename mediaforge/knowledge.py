@@ -356,13 +356,20 @@ def hero_anchor(category: str) -> str:
     return f"[Hero: {block}]"
 
 
-def compose_keyframe_prompt(category: str, beat_visual: str, *, wide_or_close: str = "") -> str:
-    """One beat's storyboard visual -> a fully directed still-photography prompt."""
+def compose_keyframe_prompt(category: str, beat_visual: str, *, wide_or_close: str = "",
+                            character: str | None = None) -> str:
+    """One beat's storyboard visual -> a fully directed still-photography prompt.
+
+    ``character`` overrides the category's default protagonist block — concepts
+    whose hero is not a person (e.g. the caring-hand miniature genre) must not
+    inherit the style bible's human protagonist into every frame.
+    """
     sb = style_bible_for(category)
     shot = f" {wide_or_close}." if wide_or_close else ""
+    char = character if character is not None else character_block(category)
     return (
         f"Cinematic film still, vertical 9:16.{shot} {beat_visual}. "
-        f"{character_block(category)}. "
+        f"{char}. "
         f"Look: {sb['look']}. Palette: {sb['palette']}. "
         f"Composition: {sb['composition']}. Texture: {sb['texture']}. "
         f"{NO_TEXT_RULES} Photorealistic, premium advertising photography, emotionally resonant."
