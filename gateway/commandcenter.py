@@ -22,6 +22,16 @@ import time
 
 from . import sense
 
+# Ads Studio (port 8800) is a separate, always-on FastAPI process — it never
+# routes through mic/queue/executor, so it has no sense.recent() events to
+# classify. Alim's ask (2026-07-15): the map should show the WHOLE organism,
+# not just the agent-task pipeline, so its live pulse is polled here directly
+# and cached briefly to keep /api/flow's 2.5s tick cheap even if Ads Studio
+# is slow or down.
+_ADS = "http://127.0.0.1:8800"
+_MKT_TTL = 15.0
+_mkt_cache: dict = {"ts": 0.0, "data": {}}
+
 # --- the architecture, as the operator should see it ----------------------
 # group = which lane/column the node sits in. Order matters for layout.
 _NODES = [
@@ -50,6 +60,12 @@ _NODES = [
     ("gateway", "Model Gateway", "backend"),
     ("studios", "Studios", "backend"),
     ("memory", "Shared Memory", "backend"),
+    # Marketing OS (8800) — a standalone live dashboard, not part of the task
+    # pipeline above. Only genuine link in: Trendlər reads shared memory.
+    ("mkt_ads", "Meta Ads (canlı)", "marketing"),
+    ("mkt_organic", "Orqanik Sosial", "marketing"),
+    ("mkt_finance", "Maliyyə Pacing", "marketing"),
+    ("mkt_radar", "Trend Radar", "marketing"),
 ]
 
 _EDGES = [
@@ -66,6 +82,7 @@ _EDGES = [
     ("m_tools", "studios"), ("m_content", "studios"), ("m_browser", "studios"),
     ("m_converse", "memory"), ("m_fanout", "memory"), ("m_tools", "memory"),
     ("checkpoint", "memory"),
+    ("memory", "mkt_radar"), ("mkt_ads", "mkt_finance"), ("mkt_organic", "mkt_finance"),
 ]
 
 
@@ -124,6 +141,51 @@ def _state_for(age_s: float | None, warn: bool) -> str:
     return "idle"
 
 
+def _marketing_state() -> dict[str, dict]:
+    """Best-effort live pulse of Ads Studio. Every call is short-timeout and
+    swallowed on failure — a dead/slow Ads Studio just shows idle here, it
+    never blocks or breaks the rest of the map."""
+    now = time.time()
+    if now - _mkt_cache["ts"] < _MKT_TTL:
+        return _mkt_cache["data"]
+    out = {
+        "mkt_ads": {"state": "idle", "last": "əlaqə yoxdur"},
+        "mkt_organic": {"state": "idle", "last": ""},
+        "mkt_finance": {"state": "idle", "last": ""},
+        "mkt_radar": {"state": "idle", "last": ""},
+    }
+    try:
+        import requests
+        h = requests.get(f"{_ADS}/api/health", timeout=1.5).json()
+        if h.get("ok"):
+            out["mkt_ads"] = {"state": "active",
+                               "last": f"{h.get('data_mode','')} · {h.get('accounts',0)} hesab"}
+        org = requests.get(f"{_ADS}/api/organic", timeout=2).json()
+        fb, ig = org.get("facebook") or {}, org.get("instagram") or {}
+        err = fb.get("insights_error") or ig.get("insights_error")
+        out["mkt_organic"] = {
+            "state": "warn" if err else "active",
+            "last": err or f"{fb.get('fan_count','–')} FB · {ig.get('followers_count','–')} IG",
+        }
+        fin = requests.get(f"{_ADS}/api/finance", timeout=2).json()
+        if fin.get("ok"):
+            p = fin.get("pacing") or {}
+            over = p.get("budget_status") == "over" or p.get("leads_status") == "over"
+            out["mkt_finance"] = {"state": "warn" if over else "active",
+                                   "last": f"büdcə {p.get('budget_used_pct','–')}%"}
+        # Self-loopback: this panel already serves /api/trends on the port it's
+        # bound to. An HTTP round-trip (vs. importing panel.py here) sidesteps
+        # a circular import — panel.py already imports this module to register it.
+        trd = requests.get("http://127.0.0.1:8890/api/trends", timeout=2).json()
+        open_findings = [f for f in trd.get("findings", []) if f.get("status") == "new"]
+        out["mkt_radar"] = ({"state": "warn", "last": f"{len(open_findings)} açıq tapıntı"}
+                             if open_findings else {"state": "active", "last": "açıq tapıntı yoxdur"})
+    except Exception:
+        pass
+    _mkt_cache["ts"], _mkt_cache["data"] = now, out
+    return out
+
+
 def flow_state() -> dict:
     """The full live topology + KPIs for one poll of the command center."""
     snap = sense.snapshot()
@@ -161,8 +223,14 @@ def flow_state() -> dict:
     if int(q.get("error", 0) or 0):
         warn_nodes["queue"] = f"{q.get('error')} uğursuz iş"
 
+    mkt = _marketing_state()
     nodes = []
     for nid, label, group in _NODES:
+        if nid in mkt:
+            nodes.append({"id": nid, "label": label, "group": group,
+                          "state": mkt[nid]["state"], "age_s": None, "hits": 0,
+                          "last": mkt[nid]["last"]})
+            continue
         ts = last_ts.get(nid)
         age = (now - ts) if ts else None
         warn = nid in warn_nodes
@@ -292,7 +360,7 @@ svg{display:block;width:100%;height:100%;min-width:900px;min-height:560px}
 </header>
 <div class="kpis" id="kpis"></div>
 <div class="main">
-  <div class="mapwrap"><svg id="svg" viewBox="0 0 1070 620" preserveAspectRatio="xMidYMid meet"></svg></div>
+  <div class="mapwrap"><svg id="svg" viewBox="0 0 1300 620" preserveAspectRatio="xMidYMid meet"></svg></div>
   <div class="side">
     <h2>Canlı axın</h2>
     <div class="banner" id="banner"></div>
@@ -309,8 +377,7 @@ svg{display:block;width:100%;height:100%;min-width:900px;min-height:560px}
 </div>
 <script>
 // layout: fixed columns by group, real architecture left→right
-const COLS = {channel:30, intake:250, brain:455, lane:665, backend:895};
-const GY = {channel:0, intake:0, brain:0, lane:0, backend:0};
+const COLS = {channel:30, intake:250, brain:455, lane:665, backend:895, marketing:1115};
 const NW=150, NH=46, VGAP=16;
 let LAYOUT=null;
 
@@ -337,7 +404,7 @@ function draw(d){
   const seen={};
   d.nodes.forEach(n=>{if(!seen[n.group]){seen[n.group]=1;
     const x=(COLS[n.group]||500);
-    g+=`<text class="grouplbl" x="${x}" y="24">${({channel:'KANALLAR',intake:'QƏBUL',brain:'BEYİN',lane:'İXTİSAS XƏTLƏRİ',backend:'ARXA SERVİS'})[n.group]||n.group}</text>`;
+    g+=`<text class="grouplbl" x="${x}" y="24">${({channel:'KANALLAR',intake:'QƏBUL',brain:'BEYİN',lane:'İXTİSAS XƏTLƏRİ',backend:'ARXA SERVİS',marketing:'MARKETİNQ OS · 8800'})[n.group]||n.group}</text>`;
   }});
   // edges
   d.edges.forEach(([a,b])=>{
@@ -350,9 +417,12 @@ function draw(d){
   d.nodes.forEach(n=>{
     const p=pos[n.id]; if(!p)return;
     const sub=(n.last||'').slice(0,18);
-    g+=`<g class="node ${n.state}" transform="translate(${p.x},${p.y})">
+    const clickable=n.group==='marketing';
+    g+=`<g class="node ${n.state}" transform="translate(${p.x},${p.y})"
+      ${clickable?`style="cursor:pointer" onclick="window.open('http://'+location.hostname+':8800/','_blank')"`:''}>
+      ${clickable?`<title>Ads Studio-nu aç (8800)</title>`:''}
       <rect width="${NW}" height="${NH}" rx="9"></rect>
-      <text x="12" y="19">${esc(n.label)}</text>
+      <text x="12" y="19">${esc(n.label)}${clickable?' ↗':''}</text>
       <text class="sub" x="12" y="34">${esc(sub)||'&#8203;'}</text>
       ${n.hits?`<text class="hit" x="${NW-10}" y="16" text-anchor="end">${n.hits}</text>`:''}
       ${n.age_s!=null?`<text class="hit" x="${NW-10}" y="34" text-anchor="end">${ago(n.age_s)}</text>`:''}

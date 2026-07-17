@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -22,9 +23,8 @@ assert meta._access_token() == 'fresh-paid-token'
 assert organic._token() == 'fresh-graph-token'
 print('ok')
 """.replace("ENV_PATH", str(env_file).replace("\\", "\\\\"))
-    python = ROOT / ".venv" / "Scripts" / "python.exe"
     proc = subprocess.run(
-        [str(python), "-c", code], cwd=ADS, capture_output=True, text=True,
+        [sys.executable, "-c", code], cwd=ADS, capture_output=True, text=True,
         encoding="utf-8", errors="replace", timeout=30,
     )
     assert proc.returncode == 0, proc.stderr
