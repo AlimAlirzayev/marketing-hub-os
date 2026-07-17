@@ -37,6 +37,13 @@ class PlanAndRun(unittest.TestCase):
                                return_value=[{"lane": "reason", "goal": "x"}]):
             self.assertIsNone(executor._plan_and_run(_Job("bir addımlıq iş"), "t"))
 
+    def test_all_reason_plan_falls_back(self):
+        # Pure-thinking chains stay on the normal chat path — the planner must
+        # never hijack a conversational turn just because it phrased steps.
+        steps = [{"lane": "reason", "goal": "düşün"}, {"lane": "reason", "goal": "cavabla"}]
+        with mock.patch.object(executor, "_decompose", return_value=steps):
+            self.assertIsNone(executor._plan_and_run(_Job("əvvəlcə düşün sonra cavabla"), "t"))
+
     def test_runs_steps_in_order_and_threads_context(self):
         steps = [{"lane": "research", "goal": "son trendləri tap"},
                  {"lane": "reason", "goal": "onlardan strategiya çıxar"}]

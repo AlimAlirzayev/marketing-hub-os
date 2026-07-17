@@ -863,8 +863,11 @@ def _plan_and_run(job, thread: str):
     except Exception as exc:  # noqa: BLE001
         sense.emit("llm", f"planner decompose failed: {exc}")
         return None
-    if len(steps) < 2:
-        return None  # a single step is just the normal path — don't wrap it
+    # Engage ONLY for a genuine multi-lane chain. A single step, or an all-"reason"
+    # plan (pure thinking — a strong single _converse handles that just as well), is
+    # left to the normal path, so the planner never hijacks a quick chat turn.
+    if len(steps) < 2 or all(s["lane"] == "reason" for s in steps):
+        return None
 
     results = []
     context = ""
