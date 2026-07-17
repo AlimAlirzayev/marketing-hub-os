@@ -37,9 +37,14 @@ _WS_RE = re.compile(r"workspace:\s*([^\s)]+)")
 # asymmetry. One env, one default (override with MODEL_AGENT in .env).
 AGENT_MODEL = os.getenv("MODEL_AGENT", "gemini-2.5-flash")
 
-# Task wording that requires triggering internal studio automation tools
+# Task wording that requires triggering internal studio automation tools.
+# NOTE: only ACTION cues belong here, never bare topic nouns. "kampaniya" was
+# removed 2026-07-17 — it is a topic word that appears in ordinary questions
+# ("kampaniyalar necə gedir?") and was wrongly diverting plain chat turns into
+# the build lane (observed on job #95). A real "create a campaign" request still
+# routes via its action verb ("yarat"/"generate"/"hazırla").
 _TOOL_HINTS = (
-    "studio", "kreativ", "kampaniya", "yarat", "skript", "script",
+    "studio", "kreativ", "yarat", "skript", "script",
     "avtomatlaşdırma", "generate", "run ads", "make a video", "alət",
     # build/coding intent -> the workspace agent (real hands). Multi-word phrases
     # stay precise so they don't over-trigger on ordinary words.
@@ -443,14 +448,33 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
     """Answer one conversational turn. Prefers real Claude Code when MIC_BRAIN=
     claude and the CLI is available; otherwise the free brain with shared history.
     Falls back to free if the bridge errors, so a chat never goes unanswered."""
+    capped_note = ""  # set only when the premium brain is capped -> honest downgrade
     if _mic_brain() == "claude":
         try:
             from . import claude_bridge
             if claude_bridge.is_available():
-                text, meta = claude_bridge.ask(task, thread=thread)
+                # Context equality: give the premium brain the SAME grounding the
+                # free path gets (self-facts + system card + recalled memory), so
+                # Telegram "knows the system" as well as this chat does. The bridge
+                # resumes its OWN claude session for turn history, so we inject only
+                # identity + long-term memory (thread_id=None -> no turn duplication),
+                # not the raw blackboard turns. Before this the bridge answered from
+                # a 2-line framing alone and drifted off what the system actually is.
+                grounding = knowledge.augment_system(_self_facts(), task)
+                primed = f"{grounding}\n\n---\nOPERATORUN MESAJI:\n{task}"
+                text, meta = claude_bridge.ask(primed, thread=thread)
                 return text, f"chat:claude-code (sid={str(meta.get('session_id'))[:8]})"
         except Exception as exc:  # never let the premium brain break delivery
             sense.emit("llm", f"claude bridge fell back to free: {exc}")
+            # Honesty over silence: when every Claude account is capped the answer
+            # silently dropped to the weaker free floor and the operator could not
+            # tell why the bot "got dumber". Surface it — but only for a real cap,
+            # not a transient blip.
+            low = str(exc).lower()
+            if any(c in low for c in ("cap", "limit", "quota", "429",
+                                       "credit", "session limit", "exceeded")):
+                capped_note = ("⚠️ Claude hesabları müvəqqəti limitdədir — bu cavab "
+                               "pulsuz beyindədir, ona görə daha səthi ola bilər.\n\n")
     # The one-microphone conversation is where quality matters most, so it runs
     # on the SMART cascade (best free model first, Groq floor) rather than the
     # cheap default — a real step up for nuanced Azerbaijani. We force it through
@@ -460,7 +484,7 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
     choice = ModelChoice(provider="gemini", model="gemini-2.5-pro", reason="chat-smart")
     sys_prompt = knowledge.augment_system(_CHAT_SYSTEM + _self_facts(), task, thread)
     text, used = llm.complete(choice, task, system=sys_prompt)
-    return text, f"chat:{used.provider}:{used.model}"
+    return capped_note + text, f"chat:{used.provider}:{used.model}"
 
 
 # --- specialist fan-out --------------------------------------------------
@@ -740,6 +764,133 @@ def _execute_after_council(task: str) -> tuple[str, str]:
     return label, text + "\n\nAPI fallback is disabled. Set AI_COUNCIL_ALLOW_API_FALLBACK=1 to allow legacy API execution."
 
 
+# ============================ multi-step planner ==============================
+# The one real capability gap (2026-07-17): the live path picks ONE lane per
+# task. A marketer's real ask is often a CHAIN — "research the latest X, THEN
+# draft posts about it". This planner decomposes such a task into ordered steps,
+# runs each through an EXISTING lane (research / content / reason), threads each
+# result into the next, and synthesises one deliverable. Reinforcement, not a new
+# framework: it only orchestrates lanes we already have, and it runs AFTER the
+# outward-action checkpoint, so it only ever researches and drafts — never posts.
+
+_PLAN_CUES = ("sonra", "sonrasında", "ardınca", "əvvəlcə", "addım-addım",
+              "addım addım", "then", "after that", "afterwards", "növbəti mərhələ",
+              "birinci ", "ikinci ", "üçüncü ", "step by step", "və nəticədə",
+              "daha sonra", "ondan sonra")
+
+
+def _wants_plan(task: str) -> bool:
+    """Cheap prefilter: only long-ish tasks that read as a sequence get sent to
+    the decomposer. A false positive is harmless — the decomposer returns 1 step
+    and the planner falls back to normal single-lane handling."""
+    low = (task or "").lower()
+    if len(low) < 25:
+        return False
+    return any(cue in low for cue in _PLAN_CUES)
+
+
+_PLAN_PROMPT = (
+    'Break the operator request into an ORDERED list of at most 4 concrete steps. '
+    'Each step names exactly ONE lane:\n'
+    '  research — needs live/current web facts (trends, news, prices, what is new)\n'
+    '  content  — produce a brand-voiced social post / caption\n'
+    '  reason   — think, synthesise, compare, plan or write using prior results\n'
+    'Return ONLY JSON: {{"steps":[{{"lane":"research|content|reason","goal":"<one concrete instruction>"}}]}}. '
+    'If the request is truly a single action, return exactly one step. Keep each '
+    'goal specific and written in Azerbaijani.\n\nREQUEST:\n{task}'
+)
+
+
+def _decompose(task: str) -> list[dict]:
+    """task -> ordered [{lane, goal}]. Cheap tier: decomposition is mechanical, so
+    it must not spend the thinking cap. Returns [] on any problem (caller falls back)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from llm_router import complete_json
+    data, _ = complete_json(_PLAN_PROMPT.format(task=task), tier="cheap", temperature=0.3)
+    steps: list[dict] = []
+    for s in (data.get("steps") or [])[:4]:
+        goal = str(s.get("goal") or "").strip()
+        lane = str(s.get("lane") or "reason").strip().lower()
+        if lane not in ("research", "content", "reason"):
+            lane = "reason"
+        if goal:
+            steps.append({"lane": lane, "goal": goal})
+    return steps
+
+
+def _research_grounded(task: str, thread: str) -> str:
+    """Live Google-search-grounded answer. Extracted from execute()'s research
+    mode so the planner reuses the exact same lane (single source of truth)."""
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    resp = client.models.generate_content(
+        model=AGENT_MODEL,
+        contents=task,
+        config=types.GenerateContentConfig(
+            system_instruction=knowledge.augment_system(_SYSTEM, task, thread)
+            + " Dəqiq və ən son aktual məlumatlar üçün mütləq Google Axtarışdan istifadə et."
+            + skills.relevant(task),
+            temperature=0.2,
+            tools=[{"google_search": {}}],
+        ),
+    )
+    return resp.text or "Axtarış nəticə vermədi."
+
+
+def _run_step(lane: str, goal: str, context: str, thread: str) -> str:
+    """Run one planned step through its existing lane, with prior results as context."""
+    prompt = f"{goal}\n\nƏvvəlki addımların nəticələri:\n{context}" if context else goal
+    if lane == "research":
+        return _research_grounded(goal, thread)  # research needs the raw goal, not the running context
+    if lane == "content":
+        try:
+            data, _m = _content_generate(prompt)
+            return _render_post(data)
+        except Exception:
+            text, _l = _converse(prompt, thread)
+            return text
+    text, _l = _converse(prompt, thread)  # reason / write / synthesise
+    return text
+
+
+def _plan_and_run(job, thread: str):
+    """Decompose a multi-step task, run the lanes in sequence threading each result
+    into the next, and synthesise one deliverable. Returns (text, label), or None
+    to fall back to single-lane handling (not actually multi-step / decompose failed)."""
+    try:
+        steps = _decompose(job.task)
+    except Exception as exc:  # noqa: BLE001
+        sense.emit("llm", f"planner decompose failed: {exc}")
+        return None
+    if len(steps) < 2:
+        return None  # a single step is just the normal path — don't wrap it
+
+    results = []
+    context = ""
+    for i, step in enumerate(steps, 1):
+        try:
+            out = _run_step(step["lane"], step["goal"], context, thread)
+        except Exception as exc:  # noqa: BLE001 — one bad step must not sink the chain
+            out = f"(bu addım alınmadı: {exc})"
+        results.append((i, step["goal"], out))
+        # Keep the running context bounded so a long chain can't blow the prompt.
+        context = (context + f"\n\n[Addım {i} — {step['goal']}]\n{out}").strip()[-6000:]
+        sense.emit("llm", f"plan step {i}/{len(steps)} ({step['lane']})", {"job": job.id})
+
+    digest = "\n\n".join(f"### Addım {i} — {goal}\n{out}" for i, goal, out in results)
+    synth = (
+        f"ƏSAS TAPŞIRIQ: {job.task}\n\nHər addımın nəticəsi aşağıdadır:\n\n{digest}\n\n"
+        "Bunları operator üçün BİR bitmiş, aydın Azərbaycan dilində cavaba birləşdir. "
+        "Addımların texniki adlarını sadalama; sadəcə yekun, hazır nəticəni təhvil ver."
+    )
+    try:
+        final, _l = _converse(synth, thread)
+    except Exception:  # noqa: BLE001 — synthesis is a bonus; the steps already ran
+        final = digest
+    return final, f"plan:{len(steps)}-addım"
+
+
 def execute(job: Job) -> dict:
     """Run a job to completion. Returns {'result': str, 'artifacts': [paths]}.
 
@@ -835,6 +986,17 @@ def execute(job: Job) -> dict:
                 )
                 return {"result": text, "artifacts": [], "needs_approval": True}
 
+        # Multi-step chain ("research X, then draft Y") -> orchestrate the existing
+        # lanes in sequence. Runs AFTER the checkpoint above, so it only researches
+        # and drafts. A non-multi-step task returns None here and falls through.
+        if _wants_plan(job.task):
+            planned = _plan_and_run(job, thread)
+            if planned is not None:
+                text, label = planned
+                artifact = _save_artifact(job.id, text)
+                sense.emit("llm", label, {"job": job.id, "mode": "plan"})
+                return {"result": f"_[{label}]_\n\n{text}", "artifacts": [artifact]}
+
         if _council_should_run(job.task):
             from . import council
             label, text = council.run(job.task, _execute_after_council)
@@ -908,22 +1070,10 @@ def execute(job: Job) -> dict:
             text = agent.run_browser_agent(job.task, model=agent_model)
             label = f"browser:{agent_model}"
         elif mode == "research":
-            from google import genai
-            from google.genai import types
-            # GOOGLE EKOSİSTEMİNİN ZİRVƏSİ: API daxilində Native Google Search Grounding
-            agent_model = AGENT_MODEL
-            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-            resp = client.models.generate_content(
-                model=agent_model,
-                contents=job.task,
-                config=types.GenerateContentConfig(
-                    system_instruction=knowledge.augment_system(_SYSTEM, job.task, thread) + " Dəqiq və ən son aktual məlumatlar üçün mütləq Google Axtarışdan istifadə et." + skills.relevant(job.task),
-                    temperature=0.2,
-                    tools=[{"google_search": {}}],  # Google-un rəsmi Search API-si birbaşa modelə bağlanır
-                )
-            )
-            text = resp.text or "Axtarış nəticə vermədi."
-            label = f"google-search-grounded:{agent_model}"
+            # GOOGLE EKOSİSTEMİNİN ZİRVƏSİ: Native Google Search Grounding, extracted
+            # to _research_grounded so the multi-step planner reuses the same lane.
+            text = _research_grounded(job.task, thread)
+            label = f"google-search-grounded:{AGENT_MODEL}"
         else:
             # The DEFAULT "one microphone" path: a single conversational brain
             # with the full shared history — like talking to the operator's
