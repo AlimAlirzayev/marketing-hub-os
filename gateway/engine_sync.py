@@ -103,6 +103,11 @@ def refresh(*, pull: bool = True, push: bool = True, announce: bool = True) -> s
     prev = _head()
     summary = _run_brain(pull, push)
     _touch_stamp()
+    try:  # hygiene watchdog: flag files the sync brain cannot carry (untracked)
+        from . import untracked_watch
+        untracked_watch.sweep()
+    except Exception as exc:
+        print(f'[engine_sync] untracked watch error: {exc}')
     if "pulled new engine" in summary:
         new = _head()
         report = None
