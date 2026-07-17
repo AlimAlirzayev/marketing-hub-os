@@ -39,6 +39,7 @@ start here.
 |---|---|
 | [`creative_dna/`](creative_dna/) | Named creative **traditions** — real schools of advertising art, each a structured `dna.md` (grounded in the actual people/work, never invented). The idea-level mirror of `copy-studio/voice_dna/`. |
 | [`idea_kit/`](idea_kit/) | The universal toolbox under every tradition: artistic **devices**, **meme mechanics**, **audiovisual harmony** rules, and the **effectiveness evidence** (why emotion wins — with numbers). |
+| [`swipe_file/`](swipe_file/) | **Real, current campaign reference** pulled from Ads of the World by [`adsworld.py`](adsworld.py) (`adsworld-<industry>.md`, CANLI/DEMO-labeled). The creative counterpart of Context7: ideas are grounded in what the world's agencies actually shipped this month — steal structure and craft, never executions. Auto-refreshed by gateway schedule #4 (daily `swipe həftəlik`, 7-day cache ⇒ weekly). `--grab <slug>` downloads a campaign film + frames into `output/adsworld/<slug>/` so the agent can LOOK at it. |
 | [`critique/`](critique/) | The idea rubric — concepts are scored before anything is rendered. Kill weak ideas while they're still cheap. |
 | [`output/`](output/) | Generated concept packages per campaign (`<slug>/concepts.md`). |
 

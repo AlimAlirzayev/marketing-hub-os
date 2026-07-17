@@ -20,6 +20,12 @@ execution studios accept.
   evidence; some are research-pending per index.json)
 - Active brand config + `copy-studio/copy_kit/lexicon.md` (banned words
   constrain concepts too)
+- `idea-studio/swipe_file/adsworld-<industry>.md` — real, current campaign
+  reference (Ads of the World; insurance is the home industry). If missing or
+  stale, refresh: `python idea-studio/adsworld.py --deep 5`. Use it two ways:
+  **freshness check** (has a major brand already shipped this idea?) and
+  **craft theft** (structures, devices, tensions worth adapting) — never copy
+  an execution.
 - `python -m brain recall "<intent>"` — past lessons before ideating
 
 ## Steps

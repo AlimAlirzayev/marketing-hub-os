@@ -118,6 +118,18 @@ def _is_radar_pulse(task: str) -> bool:
     return any(cue in low for cue in _RADAR_PULSE_CUES)
 
 
+# Swipe rail-i (idea-studio/adsworld.py): Ads of the World swipe faylının
+# təzələnməsi. Schedule hər gün çağırır; 7 günlük keş taktı özü qoruyur —
+# fayl təzədirsə skript şəbəkəyə çıxmadan dərhal qayıdır. Deterministik
+# skriptdir, LLM/council yoluna düşmür. Cues dar saxlanılıb.
+_SWIPE_CUES = ("swipe həftəlik", "swipe heftelik", "adsworld", "/swipe")
+
+
+def _is_swipe(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return any(cue in low for cue in _SWIPE_CUES)
+
+
 def _choose_mode(task: str) -> str:
     low = task.lower()
     if any(k in low for k in _TOOL_HINTS):
@@ -765,6 +777,23 @@ def execute(job: Job) -> dict:
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} radar", {"task": job.task[:80]})
             return {"result": f"_[radar]_\n\n{text}", "artifacts": [artifact]}
+
+        # Swipe rail-i: Ads of the World swipe faylı (idea-studio/adsworld.py).
+        # Günlük schedule çağırır; 7 günlük keş həftəlik taktı özü qoruyur.
+        if _is_swipe(job.task):
+            script = Path(__file__).resolve().parent.parent / "idea-studio" / "adsworld.py"
+            proc = subprocess.run(
+                [sys.executable, str(script), "--pages", "3", "--deep", "5"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=900, cwd=str(script.parent.parent),
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            )
+            text = (proc.stdout or "").strip()
+            if proc.returncode != 0:
+                text += "\n\nSTDERR:\n" + (proc.stderr or "").strip()
+            artifact = _save_artifact(job.id, text)
+            sense.emit("job", f"#{job.id} swipe", {"task": job.task[:80]})
+            return {"result": f"_[swipe]_\n\n{text}", "artifacts": [artifact]}
 
         # The human checkpoint (charter: outward actions never run silently).
         # A publish/send/call/deploy task parks for operator approval; once the
