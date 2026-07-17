@@ -6,4 +6,13 @@ if exist ".venv\Scripts\python.exe" (
 ) else (
   python scripts\secure_key.py %*
 )
+if errorlevel 1 goto :done
+if /I "%~1"=="META_ACCESS_TOKEN" (
+  if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" scripts\meta_relaunch.py
+  ) else (
+    python scripts\meta_relaunch.py
+  )
+)
+:done
 pause

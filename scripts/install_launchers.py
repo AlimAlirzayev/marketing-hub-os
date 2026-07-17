@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # --- Windows: everything runs locally, so just open localhost -------------
 _WIN = {
     "Secure API Key.bat":
-        f'@echo off\r\ncd /d "{ROOT}"\r\ncall SECURE_KEY.bat\r\n',
+        f'@echo off\r\ncd /d "{ROOT}"\r\ncall SECURE_KEY.bat META_ACCESS_TOKEN\r\n',
     "🎛 Idareetme Merkezi.bat":
         f'@echo off\r\nstart "" "http://localhost:{PANEL_PORT}/"\r\n',
     "🗺 Canli Xerite.bat":
@@ -61,7 +61,7 @@ _MAC = {
         "#!/bin/bash\n"
         'ssh -t hetzner-agents "cd /opt/marketing-hub-os && '
         'PY=./.venv/bin/python; [ -x \\\"$PY\\\" ] || PY=python3; '
-        '\\\"$PY\\\" scripts/secure_key.py"\n'
+        '\\\"$PY\\\" scripts/secure_key.py META_ACCESS_TOKEN"\n'
     ),
     "🎛 İdarəetmə Mərkəzi.command": _mac_tunnel("/"),
     "🗺 Canlı Xəritə.command": _mac_tunnel("/map"),

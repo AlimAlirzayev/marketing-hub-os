@@ -1,4 +1,4 @@
-"""Safest supported API-key rotation: hidden prompt -> vault -> verified push."""
+"""Safest supported API-key rotation: hidden prompt -> isolated vault push."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,9 +20,11 @@ from gateway.secret_store import migrate_legacy_env, store_master  # noqa: E402
 KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,80}$")
 
 
-def _git(*args: str) -> tuple[int, str]:
-    proc = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace", timeout=60)
+def _git(*args: str, cwd: Path = ROOT, timeout: int = 60) -> tuple[int, str]:
+    proc = subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=timeout,
+    )
     return proc.returncode, ((proc.stdout or "") + (proc.stderr or "")).strip()
 
 
@@ -39,39 +42,83 @@ def _ensure_master() -> None:
         raise RuntimeError("OS secret store açıla bilmədi")
 
 
-def _preflight_sync() -> None:
-    proc = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "sync_engine.py"), "--pull-only", "--quiet"],
-        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
-    )
-    output = ((proc.stdout or "") + (proc.stderr or "")).casefold()
-    if any(flag in output for flag in ("blocked", "diverged", "could not reach", "manual review")):
-        raise RuntimeError("Git preflight təhlükəsiz tamamlanmadı; açar qəbul edilmədi")
+def _upstream() -> tuple[str, str]:
+    """Return (remote ref, remote branch), without inspecting the dirty tree."""
+    code, ref = _git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+    ref = ref.splitlines()[0].strip() if not code and ref else "origin/master"
+    if "/" not in ref:
+        raise RuntimeError("Git upstream tapılmadı")
+    remote, branch = ref.split("/", 1)
+    if remote != "origin" or not branch:
+        raise RuntimeError("Yalnız origin upstream dəstəklənir")
+    return ref, branch
+
+
+def _publish_isolated(key: str, value: str) -> str:
+    """Publish only ciphertext from a clean detached worktree.
+
+    The user's current checkout may be dirty or divergent. It is never staged,
+    merged, reset, or otherwise modified by this operation.
+    """
+    upstream, branch = _upstream()
+    code, output = _git("fetch", "origin", "--prune", timeout=120)
+    if code:
+        raise RuntimeError(f"GitHub-a təhlükəsiz bağlantı alınmadı: {output[-180:]}")
+
+    temp_root = Path(tempfile.mkdtemp(prefix="ramin-keyvault-"))
+    worktree = temp_root / "repo"
+    original_vault = keyvault.VAULT_PATH
+    added = False
+    try:
+        code, output = _git("worktree", "add", "--detach", str(worktree), upstream, timeout=120)
+        if code:
+            raise RuntimeError(f"Təmiz vault sahəsi yaradıla bilmədi: {output[-180:]}")
+        added = True
+
+        keyvault.VAULT_PATH = worktree / "secrets" / "keys.vault"
+        if not keyvault.put(key, value):
+            raise RuntimeError("Şifrəli vault-a yazılmadı")
+
+        if _git("add", "--", "secrets/keys.vault", cwd=worktree)[0]:
+            raise RuntimeError("Vault stage edilmədi")
+        code, output = _git(
+            "commit", "-m", f"chore(keys): rotate {key} in encrypted vault",
+            "--", "secrets/keys.vault", cwd=worktree,
+        )
+        if code:
+            raise RuntimeError(f"Vault commit edilmədi: {output[-180:]}")
+        head = _git("rev-parse", "HEAD", cwd=worktree)[1].splitlines()[0]
+
+        code, output = _git("push", "origin", f"HEAD:{branch}", cwd=worktree, timeout=120)
+        if code:
+            raise RuntimeError(f"Şifrəli vault push edilmədi: {output[-180:]}")
+        code, remote = _git("ls-remote", "origin", f"refs/heads/{branch}", cwd=worktree)
+        remote_head = remote.split()[0] if not code and remote else ""
+        if remote_head != head:
+            raise RuntimeError("GitHub təsdiqi uyğun gəlmədi")
+        return head[:7]
+    finally:
+        keyvault.VAULT_PATH = original_vault
+        if added:
+            _git("worktree", "remove", "--force", str(worktree), timeout=120)
+        try:
+            temp_root.rmdir()
+        except OSError:
+            pass
 
 
 def publish(key: str) -> str:
-    _preflight_sync()
     _ensure_master()
     value = getpass.getpass(f"{key} dəyərini yapışdırın (görünməyəcək): ").strip()
     if not value:
         raise RuntimeError("Boş dəyər qəbul edilmir")
+
+    # Push first. A failed remote publication must not look globally complete.
+    head = _publish_isolated(key, value)
     keyvault.set_local(key, value)
-    if not keyvault.put(key, value):
-        raise RuntimeError("Şifrəli vault-a yazılmadı")
     del value
-    if _git("add", "--", "secrets/keys.vault")[0]:
-        raise RuntimeError("Vault stage edilmədi")
-    code, out = _git("commit", "-m", f"chore(keys): rotate {key} in encrypted vault", "--", "secrets/keys.vault")
-    if code:
-        raise RuntimeError("Vault commit edilmədi")
-    head = _git("rev-parse", "HEAD")[1].splitlines()[0]
-    if _git("push", "origin", "HEAD")[0]:
-        raise RuntimeError(f"Şifrəli commit yaradıldı ({head[:7]}), amma push alınmadı")
-    remote = _git("rev-parse", "@{u}")[1].splitlines()[0]
-    if remote != head:
-        raise RuntimeError("Upstream təsdiqi uyğun gəlmədi")
     keyvault.receipt([key])
-    return head[:7]
+    return head
 
 
 def main() -> int:
@@ -87,8 +134,8 @@ def main() -> int:
     except Exception as exc:
         print(f"Xəta: {exc}")
         return 1
-    print(f"Hazırdır: {key} lokal yazıldı, şifrələndi və upstream təsdiqləndi ({commit}).")
-    print("Digər twin növbəti avtomatik sync-də qəbul qəbzi yaradacaq.")
+    print(f"Hazırdır: {key} lokal yazıldı, şifrələndi və GitHub-da təsdiqləndi ({commit}).")
+    print("Digər twin növbəti avtomatik sync-də açarı qəbul edəcək.")
     return 0
 
 
