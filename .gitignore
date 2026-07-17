@@ -11,9 +11,12 @@ data/memory/*
 data/logs/*
 data/agent_radar/*
 data/signal_radar/
+data/radar/
 data/certification_coach/
 output/agent-radar/*
 output/signal-radar/
+output/*.log
+output/*.err.log
 tmp/
 !data/**/.gitkeep
 *.db
