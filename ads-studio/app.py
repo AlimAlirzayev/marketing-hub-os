@@ -220,6 +220,18 @@ def board_report() -> FileResponse:
     return FileResponse(os.path.join(BASE, "templates", "report.html"))
 
 
+@app.get("/travel-report")
+def travel_report_page() -> FileResponse:
+    """Board-ready travel report; CRM files stay inside the browser."""
+    return FileResponse(os.path.join(BASE, "templates", "travel_report.html"))
+
+
+@app.get("/api/travel-report")
+def travel_report_api() -> JSONResponse:
+    from travel_reporting import build_ytd_report
+    return JSONResponse(build_ytd_report())
+
+
 @app.get("/api/segments")
 def segments_endpoint(month: str, account: str | None = None) -> JSONResponse:
     """Placement, position, device, age, gender, region, hourly + day-of-week."""

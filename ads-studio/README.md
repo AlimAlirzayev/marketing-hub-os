@@ -31,6 +31,19 @@ Then open `http://localhost:8800`.
 PDF/print: the **PDF** button renders a clean, board-ready report (logo + period,
 chrome hidden) via the browser's print-to-PDF.
 
+## Səyahət YTD rəhbərlik hesabatı
+
+`/travel-report` səyahət sığortasını ayrıca məhsul xətti kimi göstərir. Ekran
+cari il üzrə Meta kampaniyalarını açar sözlərlə seçir, Purchase/gəlir olduqda
+CPA və ROAS hesablayır, yaş × cins, region, placement və cihaz seqmentlərini
+çıxarır. Demo fallback yoxdur: canlı Meta mənbəyi işləmirsə rəqəm əvəzinə
+mənbə statusu göstərilir.
+
+Real verilmiş polis sayı CRM CSV-dən brauzerdə hesablanır. Fayl serverə
+göndərilmir və PII saxlanmır; yalnız unikal polis sayı, premium cəmi və valyuta
+ekranda aqreqatlaşdırılır. Board versiyası brauzerin `PDF / Çap` düyməsi ilə
+saxlanır.
+
 ## Architecture
 
 ```
