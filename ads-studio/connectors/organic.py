@@ -6,9 +6,17 @@ the Graph API token + Page/IG IDs already provisioned for CX comment sync
 (cx-command-center). Nothing here spends money or writes anything — read-only.
 
 Activate by setting in .env (same vars cx-command-center already uses):
-    META_GRAPH_ACCESS_TOKEN=...       # or META_ACCESS_TOKEN as fallback
+    META_GRAPH_ACCESS_TOKEN=...       # optional override; META_ACCESS_TOKEN wins if both are set
     META_FACEBOOK_PAGE_IDS=111,222    # first is the default/primary page
     META_INSTAGRAM_BUSINESS_IDS=333
+
+META_ACCESS_TOKEN takes priority over META_GRAPH_ACCESS_TOKEN on purpose
+(2026-07-17): only META_ACCESS_TOKEN is tracked by the encrypted key vault's
+sync (gateway/keyvault.py), so it is the one that reliably gets rotated. A
+same-named-but-separately-set META_GRAPH_ACCESS_TOKEN silently went stale for
+two days because nothing ever re-synced it, while META_ACCESS_TOKEN kept
+working — this priority order means a routine rotation of the vault-tracked
+key fixes organic insights too, instead of requiring a second manual step.
 
 Instagram reach/impressions additionally need the `instagram_manage_insights`
 permission. When the app token lacks it, that one metric degrades to a
@@ -50,7 +58,7 @@ def _token() -> str:
                     values[key] = value.strip()
     except OSError:
         pass
-    return values.get("META_GRAPH_ACCESS_TOKEN") or values.get("META_ACCESS_TOKEN") or META_GRAPH_ACCESS_TOKEN
+    return values.get("META_ACCESS_TOKEN") or values.get("META_GRAPH_ACCESS_TOKEN") or META_GRAPH_ACCESS_TOKEN
 
 # Page Insights metrics still valid on v21+ (Meta deprecated page_fans,
 # page_impressions*, page_engaged_users in the 2024 metrics cleanup).

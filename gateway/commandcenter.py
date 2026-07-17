@@ -154,29 +154,43 @@ def _marketing_state() -> dict[str, dict]:
         "mkt_finance": {"state": "idle", "last": ""},
         "mkt_radar": {"state": "idle", "last": ""},
     }
+    # Each call is isolated: /api/organic alone takes ~3.3s (two live Graph API
+    # round-trips), so one shared try/except would let its timeout silently
+    # blank out the faster finance/radar calls that come after it.
+    import requests
     try:
-        import requests
-        h = requests.get(f"{_ADS}/api/health", timeout=1.5).json()
+        h = requests.get(f"{_ADS}/api/health", timeout=2).json()
         if h.get("ok"):
             out["mkt_ads"] = {"state": "active",
                                "last": f"{h.get('data_mode','')} · {h.get('accounts',0)} hesab"}
-        org = requests.get(f"{_ADS}/api/organic", timeout=2).json()
+    except Exception:
+        pass
+    try:
+        org = requests.get(f"{_ADS}/api/organic", timeout=6).json()
         fb, ig = org.get("facebook") or {}, org.get("instagram") or {}
-        err = fb.get("insights_error") or ig.get("insights_error")
+        err = fb.get("insights_error") or fb.get("error") or ig.get("insights_error") or ig.get("error")
         out["mkt_organic"] = {
             "state": "warn" if err else "active",
             "last": err or f"{fb.get('fan_count','–')} FB · {ig.get('followers_count','–')} IG",
         }
-        fin = requests.get(f"{_ADS}/api/finance", timeout=2).json()
+    except Exception:
+        pass
+    try:
+        # /api/finance lives on THIS panel (it cross-pulls Ads Studio itself),
+        # not on Ads Studio directly — self-loopback, same as the radar call.
+        fin = requests.get("http://127.0.0.1:8890/api/finance", timeout=4).json()
         if fin.get("ok"):
             p = fin.get("pacing") or {}
             over = p.get("budget_status") == "over" or p.get("leads_status") == "over"
             out["mkt_finance"] = {"state": "warn" if over else "active",
                                    "last": f"büdcə {p.get('budget_used_pct','–')}%"}
+    except Exception:
+        pass
+    try:
         # Self-loopback: this panel already serves /api/trends on the port it's
         # bound to. An HTTP round-trip (vs. importing panel.py here) sidesteps
         # a circular import — panel.py already imports this module to register it.
-        trd = requests.get("http://127.0.0.1:8890/api/trends", timeout=2).json()
+        trd = requests.get("http://127.0.0.1:8890/api/trends", timeout=4).json()
         open_findings = [f for f in trd.get("findings", []) if f.get("status") == "new"]
         out["mkt_radar"] = ({"state": "warn", "last": f"{len(open_findings)} açıq tapıntı"}
                              if open_findings else {"state": "active", "last": "açıq tapıntı yoxdur"})
