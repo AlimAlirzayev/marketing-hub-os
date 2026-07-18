@@ -89,14 +89,14 @@ def run_once() -> bool:
         queue.complete(job.id, out["result"], out.get("artifacts"))
         print(f"[worker] job {job.id} done -> {out.get('artifacts')}")
         sense.emit("job", f"#{job.id} done ({job.source})", {"task": job.task[:80]})
-        # The stored result keeps its `_[label]_` tag (panel renders it as a
-        # source chip); the HUMAN delivery must read like a teammate. A chat
-        # turn arrives as plain conversation; real work gets a compact header.
+        # The stored result keeps its `_[label]_` tag (the panel renders it as a
+        # source chip); the HUMAN delivery must read like ONE continuous
+        # conversation, not a ticket system. Chat turns AND work results both
+        # arrive as plain teammate text — no "İş #N hazırdır" header, no job
+        # number (the owner wants Telegram to feel like the Claude chat, where a
+        # result is just presented). The label still drives voice + memory below.
         label, clean = _split_source_tag(out["result"])
-        if label and label.startswith("chat:"):
-            _notify(job, clean)
-        else:
-            _notify(job, f"✅ İş #{job.id} hazırdır:\n\n{clean}")
+        _notify(job, clean)
         # Voice in -> voice out: a job that arrived as a voice note is answered
         # with an Azerbaijani voice note too (the text is already delivered above,
         # so a TTS failure never costs the reply). Only conversational turns are

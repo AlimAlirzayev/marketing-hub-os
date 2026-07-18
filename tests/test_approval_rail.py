@@ -175,6 +175,57 @@ class BotApproveCommand(_IsolatedJobsDB):
         self.assertTrue(any("Unauthorized" in t for t in sent))
 
 
+class BotPlainLanguageApproval(_IsolatedJobsDB):
+    """The owner approves the way a person answers — "hə", "hə göndər", "yox" —
+    not only "/approve N". Strict: owner-only, exactly one job parked, and a
+    short reply that is or starts with a yes/no word. Everything else falls
+    through to conversation so a casual word never fires an outward action."""
+
+    def _send(self, bot, text, chat_id=42):
+        sent = []
+        with mock.patch.object(bot.telegram, "send_message",
+                               side_effect=lambda c, t: sent.append(t)), \
+             mock.patch.object(bot.engine_sync, "pull_if_stale"), \
+             mock.patch.object(bot.mic, "speak", return_value=999), \
+             mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "42"}):
+            bot._handle_message({"chat": {"id": chat_id}, "text": text})
+        return sent
+
+    def _parked(self):
+        from gateway import bot
+        jid = self.queue.submit("İnstagramda şəkli paylaş", source="telegram", chat_id="42")
+        self.queue.park_for_approval(jid)
+        return bot, jid
+
+    def test_bare_he_approves(self):
+        bot, jid = self._parked()
+        self._send(bot, "hə")
+        self.assertTrue(self.queue.get(jid).approved)
+
+    def test_natural_he_gonder_approves(self):
+        bot, jid = self._parked()
+        self._send(bot, "hə göndər")
+        self.assertTrue(self.queue.get(jid).approved)
+
+    def test_natural_yox_rejects(self):
+        bot, jid = self._parked()
+        self._send(bot, "yox, lazım deyil")
+        self.assertEqual(self.queue.get(jid).status, "rejected")
+
+    def test_long_sentence_with_yes_word_falls_through(self):
+        # "ok bəs sonra nə edək?" merely CONTAINS a yes word — it must NOT approve
+        # a live outward action; it goes to conversation (mic.speak) instead.
+        bot, jid = self._parked()
+        self._send(bot, "ok bəs sonra nə edək onunla?")
+        self.assertEqual(self.queue.get(jid).status, "awaiting_approval")
+
+    def test_no_parked_job_is_just_conversation(self):
+        from gateway import bot
+        # "hə" with nothing parked must not error — it is a normal chat turn.
+        sent = self._send(bot, "hə")
+        self.assertFalse(any("icra edirəm" in t for t in sent))
+
+
 class PanelApi(_IsolatedJobsDB):
     """Direct-call smoke of the control panel endpoints (no HTTP client needed)."""
 

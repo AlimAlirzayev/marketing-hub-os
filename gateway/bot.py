@@ -514,23 +514,35 @@ def _handle_message(msg: dict) -> None:
 
     # Plain-language approval. The owner should not have to type "/approve 3" — he
     # answers the way a person answers. This IS the checkpoint, so it stays strict:
-    # owner only, an unambiguous yes/no word as the WHOLE message, and exactly one
-    # job parked. Zero parked -> it is just conversation and falls through; more than
-    # one -> we ask which, rather than guess at a live ad account.
+    # owner only, and exactly one job parked. Zero parked -> it is just conversation
+    # and falls through; more than one -> we ask which, rather than guess at a live
+    # ad account. A match is either the WHOLE message being a yes/no word, or a SHORT
+    # (<=3-word) reply that STARTS with one — so natural "hə göndər" / "yox, lazım
+    # deyil" work, while a longer sentence that merely contains "ok"/"hə" mid-thought
+    # falls through to conversation instead of firing an outward action. Any misread
+    # is immediately visible: the bot echoes exactly what it approved/cancelled.
     _YES = {"hə", "he", "bəli", "beli", "təsdiq", "tesdiq", "təsdiqlə", "təsdiqləyirəm",
-            "təsdiq edirəm", "razıyam", "raziyam", "ok", "okey", "oldu", "yes", "davam"}
-    _NO = {"yox", "xeyr", "ləğv", "legv", "imtina", "etmə", "etme", "no", "dayan"}
+            "təsdiq edirəm", "razıyam", "raziyam", "ok", "okey", "oldu", "yes", "davam",
+            "göndər", "gonder"}
+    _NO = {"yox", "xeyr", "ləğv", "legv", "imtina", "etmə", "etme", "no", "dayan",
+           "saxla", "lazım deyil", "lazim deyil"}
     _plain = text.strip().lower().rstrip(".!?")
-    if _is_owner(chat_id) and (_plain in _YES or _plain in _NO):
+    _tokens = _plain.split()
+    # Strip punctuation glued to the first word so "yox," / "hə," still match.
+    _first = _tokens[0].strip(",.!?;:—-") if _tokens else ""
+    _short = len(_tokens) <= 3
+    _said_yes = _plain in _YES or (_short and _first in _YES)
+    _said_no = _plain in _NO or (_short and _first in _NO)
+    if _is_owner(chat_id) and (_said_yes or _said_no):
         parked = queue.list_jobs(status="awaiting_approval", limit=5)
         if len(parked) == 1:
             j = parked[0]
-            if _plain in _YES:
+            if _said_yes:
                 queue.approve(j.id)
-                telegram.send_message(chat_id, f"✅ Təsdiqləndi — icra edirəm.")
+                telegram.send_message(chat_id, f"✅ Oldu — “{j.task[:60]}” icra edirəm.")
             else:
                 queue.reject(j.id)
-                telegram.send_message(chat_id, "🚫 Ləğv edildi — heç nəyə toxunmadım.")
+                telegram.send_message(chat_id, f"🚫 Ləğv etdim — “{j.task[:60]}” toxunmadım.")
             return
         if len(parked) > 1:
             lines = ["Hansını nəzərdə tutursan?"]
@@ -577,7 +589,8 @@ def _handle_message(msg: dict) -> None:
     # Conversational turns get a silent "typing…" indicator — the reply IS the
     # acknowledgment (the owner hated the "Queued as job #N" service message).
     # Real work (tools/browser/research/fan-out) can run for minutes, so it
-    # keeps an explicit receipt; detection reuses the executor's own heuristics.
+    # keeps a short receipt — but phrased like a teammate saying "on it", NOT a
+    # ticket number (the owner wants Telegram to read like the Claude chat).
     from .executor import _choose_mode, _wants_fanout
     if _choose_mode(text) == "plain" and not _wants_fanout(text):
         try:
@@ -586,7 +599,7 @@ def _handle_message(msg: dict) -> None:
             pass
     else:
         telegram.send_message(
-            chat_id, f"⚙️ Qəbul etdim (iş #{job_id}) — üzərində işləyirəm, nəticəni göndərəcəm."
+            chat_id, "Aldım — üzərində işləyirəm, bir az çəkə bilər, hazır olanda yazacam."
         )
 
 

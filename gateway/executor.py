@@ -1117,12 +1117,16 @@ def execute(job: Job) -> dict:
                     "job_checkpoint", cp, {"job_id": job.id, "task": job.task}
                 )
                 sense.emit("job", f"#{job.id} awaiting approval", {"task": job.task[:80]})
+                # Speak like a teammate, not a form: the owner just answers "hə"
+                # or "yox" and the bot's plain-language checkpoint (gateway/bot.py)
+                # maps it to this parked job. The /approve N line is a quiet
+                # fallback for when more than one job is waiting, not the ask.
                 text = (
-                    "⏸ **Bu tapşırıq bayıra yönəlik əməl edir** (paylaşım/göndəriş/"
-                    "zəng/deploy) və təsdiqini gözləyir.\n\n"
-                    f"Tapşırıq: {job.task}\n\n"
-                    f"Təsdiq üçün:  /approve {job.id}\n"
-                    f"İmtina üçün:  /reject {job.id}"
+                    "Bu, bayıra yönəlik bir əməldir (paylaşım/göndəriş/zəng/deploy), "
+                    "ona görə səndən soruşmadan etmirəm.\n\n"
+                    f"İstədiyin: {job.task}\n\n"
+                    "Göndərim? — **hə** desən edirəm, **yox** desən saxlayıram.\n"
+                    f"_(bir neçə iş gözləyirsə: /approve {job.id})_"
                 )
                 return {"result": text, "artifacts": [], "needs_approval": True}
 
