@@ -643,6 +643,16 @@ _SPECIALIST_PROMPT = (
 
 
 def _wants_fanout(task: str) -> bool:
+    # The 3-persona fan-out runs on generic free-model marketing personas with
+    # NO system awareness. When the premium brain (MIC_BRAIN=claude) is on it
+    # answers strategy/plan questions itself, grounded in the real system (what
+    # we own, the queue, the decisions log) — far better than three generic
+    # essays. So fan-out is a FREE-FLOOR enrichment only, never a premium-path
+    # detour. (2026-07-18: job #118 "analyze our unfinished work & plan" hit
+    # fan-out and returned a 5.5k-char generic marketing essay disconnected
+    # from any real work.)
+    if _mic_brain() == "claude":
+        return False
     low = (task or "").lower()
     if len(low.split()) < _FANOUT_MIN_WORDS:
         return False
