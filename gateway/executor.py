@@ -149,6 +149,19 @@ def _is_ads_watch(task: str) -> bool:
     return any(cue in low for cue in _ADS_WATCH_CUES)
 
 
+# Brain curation rail (brain/curator.py): the scheduled autonomous review of
+# the pending lesson queue — the LLM promotes/rejects reflect suggestions and
+# the operator gets a digest instead of a queue chore. Cues stay narrow so
+# ordinary "dərs" chatter keeps going to the normal paths.
+_BRAIN_CURATE_CUES = ("dərs təftişi", "ders teftisi", "beyin təftişi",
+                      "beyin teftisi", "brain curate", "/braincurate")
+
+
+def _is_brain_curate(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return any(cue in low for cue in _BRAIN_CURATE_CUES)
+
+
 def _choose_mode(task: str) -> str:
     low = task.lower()
     if any(k in low for k in _TOOL_HINTS):
@@ -1078,6 +1091,16 @@ def execute(job: Job) -> dict:
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} ads-watch", {"task": job.task[:80]})
             return {"result": f"_[ads-watch]_\n\n{text}", "artifacts": [artifact]}
+
+        # Brain curation rail: the system reviews its own pending lessons and
+        # reports the outcome. Schedule row carries source='telegram' + the
+        # owner chat id, so the digest lands in Telegram like any operator job.
+        if _is_brain_curate(job.task):
+            from brain import curator
+            text = curator.report()
+            artifact = _save_artifact(job.id, text)
+            sense.emit("job", f"#{job.id} brain-curate", {"task": job.task[:80]})
+            return {"result": f"_[brain-curate]_\n\n{text}", "artifacts": [artifact]}
 
         # The human checkpoint (charter: outward actions never run silently).
         # A publish/send/call/deploy task parks for operator approval; once the

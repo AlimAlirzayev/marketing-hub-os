@@ -8,6 +8,7 @@
     python -m brain review                 # show the pending queue
     python -m brain review approve <n|file>
     python -m brain review reject  <n|file>
+    python -m brain curate [--dry-run] [--limit N]   # LLM reviews the queue
     python -m brain stats
     python -m brain reindex
 """
@@ -176,6 +177,31 @@ def _resolve_pending(pending, ref: str):
     return None
 
 
+def _cmd_curate(args) -> int:
+    from . import curator
+
+    if args.dedupe_store:
+        s = curator.dedupe_store(dry_run=args.dry_run)
+        mode = " (dry-run — nothing changed)" if args.dry_run else ""
+        print(f"dedupe-store{mode}: kept {s['kept']}  removed {s['removed']}")
+        for t in s["removed_titles"]:
+            print(f"  - {t}")
+        return 0
+
+    s = curator.curate(limit=args.limit, dry_run=args.dry_run)
+    mode = " (dry-run — nothing changed)" if s["dry_run"] else ""
+    if not s["llm_ok"]:
+        print("curate: LLM unavailable — queue left untouched.")
+        return 1
+    print(
+        f"curate{mode}: reviewed {s['reviewed']}  kept {s['kept']}  "
+        f"dropped {s['dropped']}  left {s['left']}"
+    )
+    for t in s["kept_titles"]:
+        print(f"  + {t}")
+    return 0
+
+
 def _cmd_stats(args) -> int:
     s = store.stats()
     print(f"entries: {s['total']}   pending: {s['pending']}")
@@ -241,6 +267,13 @@ def build_parser() -> argparse.ArgumentParser:
     rv.add_argument("action", nargs="?", choices=["list", "approve", "reject"], default="list")
     rv.add_argument("ref", nargs="?", default=None, help="index number or filename/id")
     rv.set_defaults(func=_cmd_review)
+
+    cu = sub.add_parser("curate", help="LLM reviews the pending queue autonomously")
+    cu.add_argument("--dry-run", action="store_true", help="judge but change nothing")
+    cu.add_argument("--limit", type=int, default=None, help="max items this run")
+    cu.add_argument("--dedupe-store", action="store_true",
+                    help="one-time: collapse near-duplicate entries already in the store")
+    cu.set_defaults(func=_cmd_curate)
 
     sub.add_parser("stats", help="store statistics").set_defaults(func=_cmd_stats)
     sub.add_parser("reindex", help="rebuild INDEX.md").set_defaults(func=_cmd_reindex)

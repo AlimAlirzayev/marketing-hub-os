@@ -31,6 +31,10 @@ from . import sense
 ROOT = Path(__file__).resolve().parent.parent
 
 _COST_WARN = float(os.getenv("ADVISOR_COST_WARN_USD", "1.0"))
+# Above this many unreviewed lessons the autonomous curator is presumed stuck.
+# One daily run clears up to 400, and normal churn is a few dozen/day, so a
+# backlog this large means the curator has not run for days.
+_PENDING_STUCK = int(os.getenv("ADVISOR_PENDING_STUCK", "80"))
 
 # Credentials whose absence blocks a concrete, known capability. provider is the
 # doit allowlist key used to acquire it.
@@ -171,14 +175,21 @@ def observe_state(snap: dict | None = None) -> list[Finding]:
                 "watch", "missing_cred", f"{key} yoxdur",
                 f"Bu açar olmadan bağlıdır: {cap}.", action))
 
-    # 5. learning that never compounds — distilled lessons stuck unreviewed.
+    # 5. learning that never compounds. Curation is autonomous now (brain
+    # curator, daily rail), so a small pending count is normal same-day churn
+    # that the next run clears — nagging on pend>0 was the old manual-review
+    # world and it fired every day for a queue the operator could not clear
+    # from Telegram. Only surface it when the backlog is genuinely STUCK
+    # (curator not running / LLM down for days), i.e. it grew past what one
+    # daily run handles.
     pend = _pending_lessons()
-    if pend > 0:
+    if pend > _PENDING_STUCK:
         findings.append(Finding(
-            "watch", "pending_lessons", f"{pend} dərs nəzərdən keçirilməyib",
-            "Reflect dərsləri _pending növbəsində qalıb — təsdiqlənməsə öyrənmə "
-            "kompound olmur.",
-            "python -m brain review ilə yaxşılarını təsdiqlə, qalanını at."))
+            "watch", "pending_lessons", f"{pend} dərs yığılıb təmizlənmir",
+            "Beyin kuratoru dərs növbəsini avtomatik təmizləməli idi, amma növbə "
+            "böyüyür — kurator işləmir, ya da LLM günlərdir əlçatmazdır.",
+            "Logları yoxla; əl ilə `python -m brain curate` işlət və nədən "
+            "dayandığına bax."))
 
     # 6. token economics — soft spend ceiling and model concentration.
     llm = snap.get("llm", {}) or {}
