@@ -1,9 +1,10 @@
 """Ads morning pulse — the proactive Meta Ads rail.
 
-Every morning the scheduler enqueues "reklam nəbzi"; this rail pulls the live
-sales block from Ads Studio (127.0.0.1:8800 /api/briefing — the same in-house
-seam the panel uses), compares YESTERDAY against the trailing week, and delivers
-a compact Azerbaijani digest with explicit anomaly flags:
+Every morning the scheduler enqueues "reklam nəbzi"; this rail pulls the daily
+series from Ads Studio's monthly report API (127.0.0.1:8800 /api/report — the
+briefing endpoint only holds the last ~3 days, too thin for a baseline),
+compares YESTERDAY against the trailing week, and delivers a compact
+Azerbaijani digest with explicit anomaly flags:
 
   * delivery stop  — yesterday spent ~nothing while the week was live
   * spend spike    — yesterday >= 2x the trailing average
@@ -104,16 +105,40 @@ def analyze(daily: list[dict], today: str | None = None) -> dict:
     }
 
 
-def _fetch_sales(refresh: bool = True) -> dict | None:
+def _month_str(d: _dt.date) -> str:
+    return d.strftime("%Y-%m")
+
+
+def _get_json(path: str, params: dict | None = None):
     try:
-        r = requests.get(f"{_ADS_STUDIO}/api/briefing",
-                         params={"refresh": 1} if refresh else {}, timeout=180)
-        if r.status_code != 200:
-            return None
-        sales = (r.json() or {}).get("sales") or {}
-        return sales if sales.get("status") == "live" else None
+        r = requests.get(f"{_ADS_STUDIO}{path}", params=params or {}, timeout=180)
+        return r.json() if r.status_code == 200 else None
     except Exception:
         return None
+
+
+def _fetch_sales() -> dict | None:
+    """Daily series + month totals + top campaigns from the monthly report API.
+    Early in a month the current series is too young for a trailing-week
+    baseline, so the previous month's days are prepended — analyze() only sees
+    one continuous date-sorted list."""
+    today = _dt.date.today()
+    rep = (_get_json("/api/report", {"month": _month_str(today)}) or {}).get("report") or {}
+    daily = list(rep.get("daily") or [])
+    if not daily:
+        return None
+    if len([r for r in daily if (r.get("date") or "") < today.isoformat()]) < 9:
+        prev_last = today.replace(day=1) - _dt.timedelta(days=1)
+        prev = (_get_json("/api/report", {"month": _month_str(prev_last)}) or {}).get("report") or {}
+        daily = list(prev.get("daily") or []) + daily
+    camps = _get_json("/api/campaigns", {"month": _month_str(today), "limit": 5}) or []
+    return {
+        "daily": daily,
+        "totals": rep.get("totals") or {},
+        "campaigns": [{"name": c.get("campaign_name"), "spend": c.get("spend")}
+                      for c in camps if isinstance(c, dict)],
+        "currency": rep.get("currency") or os.getenv("ADS_WATCH_CURRENCY", "USD"),
+    }
 
 
 def _az_date(iso: str | None) -> str:
@@ -123,9 +148,9 @@ def _az_date(iso: str | None) -> str:
         return iso or "?"
 
 
-def report(refresh: bool = True) -> str:
+def report() -> str:
     """Build the morning digest (Azerbaijani, operator-facing)."""
-    sales = _fetch_sales(refresh=refresh)
+    sales = _fetch_sales()
     if not sales:
         return ("📊 Reklam səhər nəbzi\n\n⚠️ Meta Ads mənbəyi hazırda əlçatan "
                 "deyil (Ads Studio 8800 cavab vermir və ya canlı data yoxdur). "
