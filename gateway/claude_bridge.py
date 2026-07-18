@@ -184,6 +184,15 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
     to resume a stale session — both are retried once (the retry drops --resume),
     so a blip doesn't needlessly bounce the turn to the free brain."""
     perm = os.getenv("CLAUDE_BRIDGE_PERMISSION_MODE", "default")
+    # SERVICE HANDS: the chat turn may USE the live studios through exactly one
+    # governed door — `python -m gateway.studio_api` (registered studios only,
+    # 127.0.0.1 only, risky POSTs blocked, responses token-scrubbed). Under
+    # permission-mode "default" every other tool still auto-declines; compound
+    # shell commands are permission-checked per segment, so the prefix cannot be
+    # chained past. Kill switch: CLAUDE_BRIDGE_HANDS=0.
+    hands = os.getenv("CLAUDE_BRIDGE_HANDS", "1").strip().lower() not in ("0", "off", "false")
+    _HANDS_TOOLS = ("Bash(python3 -m gateway.studio_api:*)",
+                    "Bash(python -m gateway.studio_api:*)")
     env = os.environ.copy()
     # The child claude -p session inherits this repo's SessionStart/SessionEnd
     # hooks (sync, capture, pulse). A headless brain turn must not fire them:
@@ -206,6 +215,8 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
         for attempt in range(2):
             cmd = ["claude", "-p", "--output-format", "json",
                    "--permission-mode", perm, "--model", model]
+            if hands:
+                cmd += ["--allowedTools", ",".join(_HANDS_TOOLS)]
             # Only the very first attempt of the top rung resumes the thread; a
             # retry or a stepped-down model starts fresh (a session is tied to
             # the model that created it).

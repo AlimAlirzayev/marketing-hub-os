@@ -31,6 +31,32 @@ _RISKY = (
 )
 
 
+import re as _re
+
+# Meta Graph responses embed the FULL access token inside paging.next/previous
+# URLs — key-name redaction misses it because the secret hides in a value
+# (2026-07-15 leak). Any studio may proxy a raw Graph page, so every response
+# that leaves this module is scrubbed: paging blocks dropped, token params
+# stripped. Applies to the agent tool path and the CLI alike.
+_TOKEN_PARAM_RE = _re.compile(r"(access_token|appsecret_proof)=[^&\s\"']+")
+
+
+def _drop_paging(node):
+    if isinstance(node, dict):
+        return {k: _drop_paging(v) for k, v in node.items() if k != "paging"}
+    if isinstance(node, list):
+        return [_drop_paging(v) for v in node]
+    return node
+
+
+def scrub_response(text):
+    try:
+        cleaned = json.dumps(_drop_paging(json.loads(text)), ensure_ascii=False)
+    except Exception:
+        cleaned = text
+    return _TOKEN_PARAM_RE.sub(r"\1=<redacted>", cleaned)
+
+
 def _services():
     global _SERVICES_CACHE
     if _SERVICES_CACHE is None:
@@ -82,7 +108,7 @@ def call_studio_api(studio, path, method="GET", json_body=""):
             r = requests.post(url, json=body, timeout=90)
         else:
             r = requests.get(url, timeout=90)
-        return f"HTTP {r.status_code} {url}\n{r.text[:4000]}"
+        return f"HTTP {r.status_code} {url}\n{scrub_response(r.text)[:4000]}"
     except Exception as exc:  # never crash the agent loop
         return f"call_studio_api error for {url}: {exc}"
 
@@ -134,3 +160,43 @@ def generate_media(kind, prompt, provider="", model=""):
 generate_media.__annotations__ = {
     "kind": str, "prompt": str, "provider": str, "model": str, "return": str,
 }
+
+
+# --- CLI gate: the chat brain's ONE door to the live services -------------
+# The headless chat brain (claude_bridge) runs `claude -p` with permission-mode
+# "default", which auto-declines tools — so it could DESCRIBE the studios but
+# never USE them. Instead of widening its Bash access, the bridge allowlists
+# exactly one command prefix: `python3 -m gateway.studio_api ...`. This entry
+# point re-uses the same hard shell as the agent tool (registered studios only,
+# 127.0.0.1 only, GET + safe POST, risky paths blocked, responses scrubbed), so
+# giving the brain hands does not widen what the hands can touch.
+
+def _cli(argv):
+    if not argv or argv[0] in ("-h", "--help"):
+        return (
+            "usage:\n"
+            "  python3 -m gateway.studio_api list\n"
+            "  python3 -m gateway.studio_api call <studio> <path> "
+            "[--method GET|POST] [--body '<json>']\n"
+            "Discover a studio's endpoints first: call <studio> /openapi.json"
+        )
+    if argv[0] == "list":
+        return list_studios()
+    if argv[0] == "call" and len(argv) >= 3:
+        studio, path, method, body = argv[1], argv[2], "GET", ""
+        rest = argv[3:]
+        while rest:
+            flag = rest.pop(0)
+            if flag == "--method" and rest:
+                method = rest.pop(0)
+            elif flag == "--body" and rest:
+                body = rest.pop(0)
+            else:
+                return f"unknown argument: {flag}"
+        return call_studio_api(studio, path, method=method, json_body=body)
+    return f"unknown command: {' '.join(argv)} (try --help)"
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    print(_cli(_sys.argv[1:]))

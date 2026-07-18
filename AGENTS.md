@@ -57,7 +57,12 @@ python scripts/system_context.py
    Agent Radar, Context7 docs grounding, permission manifests, module READMEs,
    and tests.
 4. Make scoped edits and run meaningful checks.
-5. Update docs/context when the system gains a new capability.
+5. Update docs/context when the system gains a new capability. **Ship rule:** a
+   new lane/rail/tool ships WITH its self-description in the same commit —
+   update `_SELF_FACTS` (gateway/executor.py) and `services.json` capabilities.
+   The chat brain answers from that card, not from the repo; skip this and it
+   keeps describing the old system (observed 2026-07-17: the bot proposed
+   building a multi-step planner hours after one had shipped).
 6. Capture reusable lessons through the Brain workflow when the lesson should
    survive the current session.
 

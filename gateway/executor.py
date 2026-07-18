@@ -135,6 +135,20 @@ def _is_swipe(task: str) -> bool:
     return any(cue in low for cue in _SWIPE_CUES)
 
 
+# Ads morning pulse rail (gateway/ads_watch.py): the scheduled Meta Ads digest —
+# yesterday vs the trailing week, explicit anomaly flags (delivery stop, spend
+# spike, CPR spike, CTR collapse). Deterministic arithmetic over Ads Studio's
+# own aggregates; zero LLM tokens. Cues stay narrow so ordinary ads questions
+# ("reklamlar necə gedir?") keep going to the chat/ads-agent paths.
+_ADS_WATCH_CUES = ("reklam nəbzi", "reklam nebzi", "ads səhər", "ads seher",
+                   "ads morning pulse", "ads watch", "/adswatch")
+
+
+def _is_ads_watch(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return any(cue in low for cue in _ADS_WATCH_CUES)
+
+
 def _choose_mode(task: str) -> str:
     low = task.lower()
     if any(k in low for k in _TOOL_HINTS):
@@ -200,7 +214,14 @@ _SELF_FACTS = (
     "including Azerbaijani vocals (audio-studio).\n"
     "- Work lanes (gateway/executor.py): chat, agentic TOOLS/build (Claude Code + "
     "Codex), live RESEARCH (Gemini google_search grounding), CONTENT (brand-voiced "
-    "posts), and a 3-persona FAN-OUT for strategy work.\n"
+    "posts), a 3-persona FAN-OUT for strategy work, and a MULTI-STEP PLANNER that "
+    "chains research→content→reason for 'do X then Y' asks.\n"
+    "- Hands in chat: bridge turns can CALL the live studio APIs through "
+    "`python3 -m gateway.studio_api` (read-safe door; spend/post actions still "
+    "park at the /approve checkpoint).\n"
+    "- Proactive: the supervisor scheduler runs recurring jobs (morning briefing, "
+    "ads morning pulse, radar) — gateway/scheduler.py; the research lab feeds the "
+    "Radar section of shared memory on its own cron.\n"
     "- Interfaces: the Telegram bot, the control panel (port 8890) with a live map, and "
     "Codex — all one shared conversation and memory.\n"
     "- Safety: risky/outward actions (post/send/pay/delete) PARK at a human checkpoint "
@@ -231,6 +252,26 @@ def _self_facts() -> str:
     if os.environ.get("META_ACCESS_TOKEN"):
         return _SELF_FACTS.replace(_ADS_FACT_OFF, _ADS_FACT_ON)
     return _SELF_FACTS
+
+
+# Injected ONLY into the bridge (headless Claude) chat path. The free-floor
+# brains must never see this: they have no shell, and telling a handless brain
+# it has hands produces hallucinated "I ran it" answers. The bridge's
+# --allowedTools covers exactly this command prefix (gateway/claude_bridge.py).
+_BRIDGE_HANDS = (
+    "\n\nSERVICE HANDS. You can OPERATE the live studios, not just describe "
+    "them, through one governed shell command:\n"
+    "  python3 -m gateway.studio_api list\n"
+    "  python3 -m gateway.studio_api call <studio> <path> [--method GET|POST] "
+    "[--body '<json>']\n"
+    "Discover a studio's endpoints first: call <studio> /openapi.json. When the "
+    "operator asks for something a studio can answer (reports, SEO audit, "
+    "influencer search, price check, complaints, GA4, the morning briefing), "
+    "CALL it and answer with the real numbers — never invent data and never "
+    "just point at a panel URL. The door is read-safe: registered studios only, "
+    "127.0.0.1 only; spend/post/delete paths are blocked and need the /approve "
+    "checkpoint. If a call fails, say so honestly instead of guessing."
+)
 
 # Appended to _SYSTEM only in tools mode, where the agent has real hands
 # (workspace_agent: run_command / write_file / read_file / request_owner_approval).
@@ -362,6 +403,64 @@ def _save_artifact(job_id: int, text: str, *, reply: bool = False) -> str:
     return str(path)
 
 
+# --- build self-check ------------------------------------------------------
+# "Done" used to mean "the builder said done" — nothing ever looked at what was
+# on disk. This bounded loop closes that gap: deterministic checks over the job
+# workspace (compile/parse/broken local refs — zero LLM tokens), failures fed
+# back to the SAME builder for at most _VERIFY_ROUNDS fix rounds, and anything
+# still broken is reported HONESTLY in the deliverable instead of being shipped
+# silently. Conversational/tool-only jobs leave the workspace empty and are
+# skipped — there is nothing on disk to verify.
+
+_VERIFY_ROUNDS = int(os.getenv("VERIFY_MAX_FIX_ROUNDS", "2"))
+_VERIFY_FEEDBACK = (
+    "VERIFICATION FAILED. An automated check of the workspace found these "
+    "problems:\n{problems}\n\nFix them now — edit the files and finish the job. "
+    "Do not claim success while any problem remains."
+)
+_REF_RE = re.compile(r"""(?:href|src)=["']([^"'#?]+)["']""", re.IGNORECASE)
+_REF_SKIP = ("http://", "https://", "//", "data:", "mailto:", "tel:", "javascript:")
+
+
+def _verify_workspace(ws: Path) -> list[str]:
+    """Deterministic checks over the built files; [] means verified-or-nothing."""
+    import json as _json
+    import py_compile
+
+    problems: list[str] = []
+    try:
+        files = [p for p in sorted(ws.rglob("*"))
+                 if p.is_file() and not p.name.startswith(".")]
+    except Exception:
+        return []
+    for p in files:
+        rel = str(p.relative_to(ws))
+        try:
+            if p.stat().st_size == 0:
+                problems.append(f"{rel}: file is empty")
+                continue
+            if p.suffix == ".py":
+                py_compile.compile(str(p), doraise=True)
+            elif p.suffix == ".json":
+                _json.loads(p.read_text(encoding="utf-8", errors="replace"))
+            elif p.suffix in (".html", ".htm"):
+                html = p.read_text(encoding="utf-8", errors="replace")
+                for ref in _REF_RE.findall(html):
+                    if ref.startswith(_REF_SKIP):
+                        continue
+                    target = (ws / ref.lstrip("/")) if ref.startswith("/") else (p.parent / ref)
+                    if not target.exists():
+                        problems.append(f"{rel}: broken local reference '{ref}'")
+        except Exception as exc:
+            problems.append(f"{rel}: {exc.__class__.__name__}: {str(exc)[:160]}")
+    return problems[:12]
+
+
+def _verify_note(problems: list[str]) -> str:
+    return ("\n\n⚠️ Özünü-yoxlama: bu problemlər düzəlmədən qaldı — nəticəni "
+            "yoxlamadan istifadə etmə:\n" + "\n".join(f"- {p}" for p in problems))
+
+
 def _workspace_for(job: Job) -> Path:
     """The sandbox dir for this job. An [approved-action] job reuses the workspace
     named in its task (so the approved step acts on what was already built);
@@ -460,7 +559,7 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
                 # identity + long-term memory (thread_id=None -> no turn duplication),
                 # not the raw blackboard turns. Before this the bridge answered from
                 # a 2-line framing alone and drifted off what the system actually is.
-                grounding = knowledge.augment_system(_self_facts(), task)
+                grounding = knowledge.augment_system(_self_facts() + _BRIDGE_HANDS, task)
                 primed = f"{grounding}\n\n---\nOPERATORUN MESAJI:\n{task}"
                 text, meta = claude_bridge.ask(primed, thread=thread)
                 return text, f"chat:claude-code (sid={str(meta.get('session_id'))[:8]})"
@@ -970,6 +1069,16 @@ def execute(job: Job) -> dict:
             sense.emit("job", f"#{job.id} swipe", {"task": job.task[:80]})
             return {"result": f"_[swipe]_\n\n{text}", "artifacts": [artifact]}
 
+        # Ads morning pulse rail: deterministic digest + anomaly flags. The
+        # schedule row carries source='telegram' + the owner chat id, so the
+        # worker delivers it to Telegram like any operator job.
+        if _is_ads_watch(job.task):
+            from . import ads_watch
+            text = ads_watch.report()
+            artifact = _save_artifact(job.id, text)
+            sense.emit("job", f"#{job.id} ads-watch", {"task": job.task[:80]})
+            return {"result": f"_[ads-watch]_\n\n{text}", "artifacts": [artifact]}
+
         # The human checkpoint (charter: outward actions never run silently).
         # A publish/send/call/deploy task parks for operator approval; once the
         # operator /approve-s it, the job returns approved=1 and passes through.
@@ -1037,9 +1146,11 @@ def execute(job: Job) -> dict:
                 )
             )
             label = f"agentic-tools:{agent_model}"
+            producer = None  # which builder made the result -> who gets fix rounds
             try:
                 resp = chat.send_message(job.task)
                 text = resp.text or "Alətlər icra edildi, lakin mətn qaytarılmadı."
+                producer = "gemini"
             except Exception as loop_exc:
                 # The Gemini function-calling agent is unavailable (its API keys
                 # are dead). Hand the SAME workspace to a working builder:
@@ -1052,6 +1163,7 @@ def execute(job: Job) -> dict:
                     try:
                         text = fn()
                         label = f"agentic-tools:{name}"
+                        producer = name
                         break
                     except Exception as be:
                         sense.emit("llm", f"tools builder {name} unavailable: {be}")
@@ -1065,6 +1177,32 @@ def execute(job: Job) -> dict:
                         "), amma bu fayllar iş sahəsində hazırlandı:\n- " +
                         "\n- ".join(built)
                     )
+            # Bounded self-check: verify the workspace, feed failures back to
+            # the builder that produced it, deliver honestly if still broken.
+            problems = _verify_workspace(ws)
+            for round_no in range(1, _VERIFY_ROUNDS + 1):
+                if not problems or producer is None:
+                    break
+                feedback = _VERIFY_FEEDBACK.format(
+                    problems="\n".join(f"- {p}" for p in problems))
+                try:
+                    if producer == "gemini":
+                        resp = chat.send_message(feedback)
+                        text = resp.text or text
+                    elif producer == "codex":
+                        text = _codex_agent(f"{job.task}\n\n{feedback}", ws)
+                    else:
+                        from . import claude_bridge
+                        text = claude_bridge.build(f"{job.task}\n\n{feedback}", ws)
+                    label += f"+fix{round_no}"
+                except Exception as fix_exc:
+                    sense.emit("llm", f"verify fix round {round_no} failed: {fix_exc}")
+                    break
+                problems = _verify_workspace(ws)
+            if problems:
+                sense.emit("job", f"#{job.id} verify failed",
+                           {"problems": "; ".join(problems)[:200]})
+                text += _verify_note(problems)
             bundle = _bundle_workspace(job.id, ws)
             if bundle:
                 text += f"\n\n📦 İş sahəsi paketi (yüklə): {bundle}"
