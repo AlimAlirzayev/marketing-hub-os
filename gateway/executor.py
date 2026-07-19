@@ -1059,6 +1059,21 @@ _CREW_HEAVY_CUES = (
 )
 
 
+# NEGATIVE guards (2026-07-19, jobs #124/#125): the crew is a marketing
+# workforce with NO conversation memory and NO system awareness, so a
+# conversational or system-directed turn must never be hijacked by it. A
+# greeting-wrapped report ask got "no data, empty report" (the chat brain had
+# answered the same ask with real numbers a day earlier), and "analyze our
+# unfinished work" (system tasks) came back as a GA4 funnel-abandonment essay.
+# These guards fail SAFE: a blocked turn goes to the grounded chat brain,
+# which handles deliverable asks well — bias away from the crew.
+_CREW_BLOCK_OPENERS = ("salam", "necəsən", "necesen", "hə", "bəli", "beli",
+                       "ok", "okey", "oldu", "aha")
+_CREW_SYSTEM_WORDS = ("yarımçıq", "yarimciq", "sistem", "növbə", "novbe",
+                      "repo", "commit", "server", "bot", "dərs", "ders",
+                      "schedule", "cron", "job", "queue", "iş #")
+
+
 def _is_heavy_operational(task: str) -> bool:
     """Auto-route genuinely heavy, operational multi-studio work to the crew."""
     if not _CREW_ENABLED:
@@ -1066,10 +1081,15 @@ def _is_heavy_operational(task: str) -> bool:
     t = (task or "").strip().lower()
     if len(t) < 40:                      # too short to be heavy operational work
         return False
+    first = t.split()[0].strip(",.!?;:") if t.split() else ""
+    if first in _CREW_BLOCK_OPENERS:     # small talk opener -> conversation
+        return False
+    if any(w in t for w in _CREW_SYSTEM_WORDS):  # about the SYSTEM, not marketing
+        return False
     return any(cue in t for cue in _CREW_HEAVY_CUES)
 
 
-def _run_crew(task: str) -> str | None:
+def _run_crew(task: str, thread: str | None = None) -> str | None:
     """Run the CrewAI crew subprocess (isolated venv) with a hard-timeout backstop.
     Returns the deliverable, or None to fall through to normal handling on any
     failure (missing venv, timeout, or no clean result marker)."""
@@ -1119,12 +1139,26 @@ def _run_crew(task: str) -> str | None:
     # work already ran, so a synthesis hiccup must never lose it.
     try:
         from . import brain
+        # Ground the synthesis exactly like the chat brain (self-facts + system
+        # card + thread memory): the crew workers see only studio data, so the
+        # synthesizer must be the layer that knows the system and the ongoing
+        # conversation — it can then correct a crew misreading instead of
+        # shipping a polished answer to the wrong question (jobs #124/#125).
+        synth_system = ("Sən təcrübəli marketinq strateqisən və operatorun danışan "
+                        "beynisən; verilən materiala və sistem yaddaşına söykən.")
+        try:
+            synth_system = knowledge.augment_system(
+                synth_system + _self_facts(), goal, thread)
+        except Exception:
+            pass  # grounding is an upgrade, never a blocker
         polished, model = brain.answer(
             f"Operatorun tapşırığı: {goal}\n\nKomandanın topladığı material:\n"
             f"{raw[:6000]}\n\nBunu operator üçün YEKUN, aydın, yalnız bu materiala "
-            "əsaslanan Azərbaycanca deliverable-a çevir. Materialda olmayan rəqəm uydurma.",
-            system="Sən təcrübəli marketinq strateqisən; yalnız verilən materiala söykən.",
-            prefer="claude", timeout=90,
+            "əsaslanan Azərbaycanca deliverable-a çevir. Materialda olmayan rəqəm "
+            "uydurma. Əgər material operatorun əsl sualına cavab vermirsə (sual "
+            "sistem və ya söhbət haqqındadırsa), bunu açıq de və suala sistem "
+            "yaddaşınla düzgün cavab ver.",
+            system=synth_system, prefer="claude", timeout=90,
         )
         if polished and not polished.startswith("[brain error]"):
             tag = f" {worker_stats}" if worker_stats else ""
@@ -1258,7 +1292,7 @@ def execute(job: Job) -> dict:
         if _wants_crew(job.task) or (
             _is_heavy_operational(job.task) and job.source in ("telegram", "cli")
         ):
-            crew_text = _run_crew(job.task)
+            crew_text = _run_crew(job.task, thread)
             if crew_text:
                 artifact = _save_artifact(job.id, crew_text)
                 sense.emit("llm", "crew", {"job": job.id, "mode": "crew"})
