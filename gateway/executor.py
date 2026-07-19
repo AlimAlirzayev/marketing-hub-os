@@ -1080,7 +1080,7 @@ def _run_crew(task: str) -> str | None:
             break
     if not goal or not Path(_CREW_PY).exists():
         return None
-    deadline = int(os.getenv("CREW_DEADLINE_SECONDS", "150"))
+    deadline = int(os.getenv("CREW_DEADLINE_SECONDS", "300"))
     try:
         proc = subprocess.run(
             [_CREW_PY, "-m", "gateway.studio_crew", goal],
@@ -1089,7 +1089,14 @@ def _run_crew(task: str) -> str | None:
             cwd=str(Path(__file__).resolve().parent.parent),
             env={**os.environ, "PYTHONIOENCODING": "utf-8",
                  "STUDIO_API_TIMEOUT": os.getenv("STUDIO_API_TIMEOUT", "20"),
-                 "CREW_DEADLINE_SECONDS": str(deadline)},
+                 "CREW_DEADLINE_SECONDS": str(deadline),
+                 # Workers on a FAST Claude model (subscription, not billed
+                 # Gemini); synthesis keeps the default fable-first ladder in
+                 # the main process. Override with CREW_CLAUDE_LADDER.
+                 "CLAUDE_CHAT_LADDER": os.getenv(
+                     "CREW_CLAUDE_LADDER",
+                     "claude-haiku-4-5-20251001,claude-sonnet-5,claude-fable-5"),
+                 "CREW_CLAUDE_TIMEOUT": os.getenv("CREW_CLAUDE_TIMEOUT", "150")},
         )
     except (subprocess.TimeoutExpired, OSError):
         return None
@@ -1100,6 +1107,12 @@ def _run_crew(task: str) -> str | None:
     raw = out.split(begin, 1)[1].split(end, 1)[0].strip()
     if not raw:
         return None
+    # Worker-brain transparency: the crew appends a [workers: ...] stats line —
+    # lift it out of the material and surface it in the final label instead.
+    worker_stats = ""
+    if raw.rsplit("\n", 1)[-1].startswith("[workers:"):
+        raw, _, worker_stats = raw.rpartition("\n")
+        raw = raw.strip()
     # Claude is the TOP quality layer over the crew gather: turn the crew raw
     # studio research into a polished, grounded deliverable. On any brain failure
     # (all Claude rungs capped AND free down) keep the raw crew text — the heavy
@@ -1114,7 +1127,8 @@ def _run_crew(task: str) -> str | None:
             prefer="claude", timeout=90,
         )
         if polished and not polished.startswith("[brain error]"):
-            return f"{polished}\n\n—\n_krew (studiolar) + {model} sintez_"
+            tag = f" {worker_stats}" if worker_stats else ""
+            return f"{polished}\n\n—\n_krew (studiolar){tag} + {model} sintez_"
     except Exception:
         pass
     return raw
