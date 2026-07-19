@@ -18,6 +18,11 @@ import json
 from pathlib import Path
 
 import requests
+import os
+
+# Per-call timeout for studio HTTP calls; short by default so a slow or dead
+# studio cannot stall an orchestration loop for minutes (2026-07-19). Overridable.
+_STUDIO_TIMEOUT = int(os.getenv("STUDIO_API_TIMEOUT", "20"))
 
 _ROOT = Path(__file__).resolve().parent.parent
 _SERVICES_CACHE = None
@@ -105,9 +110,9 @@ def call_studio_api(studio, path, method="GET", json_body=""):
     try:
         if method == "POST":
             body = json.loads(json_body) if (json_body or "").strip() else {}
-            r = requests.post(url, json=body, timeout=90)
+            r = requests.post(url, json=body, timeout=_STUDIO_TIMEOUT)
         else:
-            r = requests.get(url, timeout=90)
+            r = requests.get(url, timeout=_STUDIO_TIMEOUT)
         return f"HTTP {r.status_code} {url}\n{scrub_response(r.text)[:4000]}"
     except Exception as exc:  # never crash the agent loop
         return f"call_studio_api error for {url}: {exc}"

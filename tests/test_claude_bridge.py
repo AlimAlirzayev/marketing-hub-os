@@ -60,11 +60,14 @@ class BridgeAsk(unittest.TestCase):
 
 
 class BrainSelector(unittest.TestCase):
-    def test_default_is_free(self):
+    def test_default_is_claude(self):
+        # Operator policy (2026-07-19): Claude is the DEFAULT brain everywhere —
+        # strongest model first, free cascade only on total cap. MIC_BRAIN=free
+        # opts back down to the cheaper Gemini->Groq brain.
         from gateway import executor
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("MIC_BRAIN", None)
-            self.assertEqual(executor._mic_brain(), "free")
+            self.assertEqual(executor._mic_brain(), "claude")
 
     def test_converse_uses_claude_when_selected(self):
         from gateway import executor

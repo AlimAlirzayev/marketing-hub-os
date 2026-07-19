@@ -34,10 +34,12 @@ def test_pulse_shows_premium_when_dotenv_says_claude(tmp_path):
     assert beyin and "premium" in beyin[0] and "🟢" in beyin[0]
 
 
-def test_pulse_shows_free_when_unset():
+def test_pulse_shows_claude_when_unset():
+    # New default (2026-07-19): with nothing set, the brain is Claude, so the
+    # pulse shows the premium line — not the old free/downgrade warning.
     with mock.patch.object(sense, "_dotenv_values", return_value={}), \
          mock.patch.dict(os.environ, {}, clear=False):
         os.environ.pop("MIC_BRAIN", None)
         board = sense.pulse()
     beyin = [l for l in board.splitlines() if l.startswith("BEYİN")]
-    assert beyin and "free" in beyin[0]
+    assert beyin and "premium" in beyin[0] and "🟢" in beyin[0]

@@ -144,3 +144,6 @@ data/canvas-lab-profile/
 data/ads_plans/
 # Chat replies are conversations, not deliverables (see tests/test_deliverables_are_work.py)
 output/replies/
+
+# CrewAI orchestration venv (per-machine, ~900MB, never committed)
+.venv-crew/

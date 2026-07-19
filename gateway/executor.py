@@ -555,10 +555,10 @@ def _execute_direct(task: str) -> tuple[str, str]:
 
 
 def _mic_brain() -> str:
-    """Which brain answers the conversational path. 'free' (default) = Gemini via
+    """Which brain answers the conversational path. Claude by default (2026-07-19); MIC_BRAIN=free = Gemini via
     the router; 'claude' = real headless Claude Code (this chat on any mic, opt-in
     because it spends subscription quota). See gateway/claude_bridge.py."""
-    return os.getenv("MIC_BRAIN", "free").strip().lower()
+    return os.getenv("MIC_BRAIN", "claude").strip().lower()
 
 
 def _converse(task: str, thread: str) -> tuple[str, str]:
@@ -1021,6 +1021,80 @@ def _plan_and_run(job, thread: str):
     return final, f"plan:{len(steps)}-addım"
 
 
+# --- CrewAI orchestration lane (opt-in, gated) ---------------------------
+# A hierarchical CrewAI crew over the studios, for HEAVY multi-studio tasks only.
+# Deliberately NOT the default path: OFF unless CREW_ENABLED is set, fires only on
+# an explicit summon (so a greeting or a simple question never pays the ~60-120s
+# crew tax), sits AFTER the checkpoint (research/draft only, never posts), and runs
+# in an ISOLATED venv as a subprocess so crewai's heavy deps never touch this
+# runtime. Auto-routing heavy tasks is a later step, once proven live. See
+# gateway/studio_crew.py.
+_CREW_ENABLED = os.getenv("CREW_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+_CREW_PY = os.getenv(
+    "CREW_PY",
+    str(Path(__file__).resolve().parent.parent / ".venv-crew" / "bin" / "python"),
+)
+_CREW_TRIGGERS = ("/crew", "krew:", "crew:", "komanda:")
+
+
+def _wants_crew(task: str) -> bool:
+    """Fires only when explicitly summoned and the flag is on."""
+    if not _CREW_ENABLED:
+        return False
+    return (task or "").strip().lower().startswith(_CREW_TRIGGERS)
+
+
+def _run_crew(task: str) -> str | None:
+    """Run the CrewAI crew subprocess (isolated venv) with a hard-timeout backstop.
+    Returns the deliverable, or None to fall through to normal handling on any
+    failure (missing venv, timeout, or no clean result marker)."""
+    goal = task.strip()
+    for trig in _CREW_TRIGGERS:
+        if goal.lower().startswith(trig):
+            goal = goal[len(trig):].strip()
+            break
+    if not goal or not Path(_CREW_PY).exists():
+        return None
+    deadline = int(os.getenv("CREW_DEADLINE_SECONDS", "150"))
+    try:
+        proc = subprocess.run(
+            [_CREW_PY, "-m", "gateway.studio_crew", goal],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=deadline + 40,
+            cwd=str(Path(__file__).resolve().parent.parent),
+            env={**os.environ, "PYTHONIOENCODING": "utf-8",
+                 "STUDIO_API_TIMEOUT": os.getenv("STUDIO_API_TIMEOUT", "20"),
+                 "CREW_DEADLINE_SECONDS": str(deadline)},
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    out = proc.stdout or ""
+    begin, end = "<<<CREW_RESULT_BEGIN>>>", "<<<CREW_RESULT_END>>>"
+    if begin not in out or end not in out:
+        return None
+    raw = out.split(begin, 1)[1].split(end, 1)[0].strip()
+    if not raw:
+        return None
+    # Claude is the TOP quality layer over the crew gather: turn the crew raw
+    # studio research into a polished, grounded deliverable. On any brain failure
+    # (all Claude rungs capped AND free down) keep the raw crew text — the heavy
+    # work already ran, so a synthesis hiccup must never lose it.
+    try:
+        from . import brain
+        polished, model = brain.answer(
+            f"Operatorun tapşırığı: {goal}\n\nKomandanın topladığı material:\n"
+            f"{raw[:6000]}\n\nBunu operator üçün YEKUN, aydın, yalnız bu materiala "
+            "əsaslanan Azərbaycanca deliverable-a çevir. Materialda olmayan rəqəm uydurma.",
+            system="Sən təcrübəli marketinq strateqisən; yalnız verilən materiala söykən.",
+            prefer="claude", timeout=90,
+        )
+        if polished and not polished.startswith("[brain error]"):
+            return f"{polished}\n\n—\n_krew (studiolar) + {model} sintez_"
+    except Exception:
+        pass
+    return raw
+
+
 def execute(job: Job) -> dict:
     """Run a job to completion. Returns {'result': str, 'artifacts': [paths]}.
 
@@ -1139,6 +1213,16 @@ def execute(job: Job) -> dict:
                     f"_(bir neçə iş gözləyirsə: /approve {job.id})_"
                 )
                 return {"result": text, "artifacts": [], "needs_approval": True}
+
+        # CrewAI orchestration lane (opt-in): heavy multi-studio work, summoned.
+        # OFF by default; fires only on an explicit /crew summon with CREW_ENABLED.
+        if _wants_crew(job.task):
+            crew_text = _run_crew(job.task)
+            if crew_text:
+                artifact = _save_artifact(job.id, crew_text)
+                sense.emit("llm", "crew", {"job": job.id, "mode": "crew"})
+                return {"result": f"_[crew]_\n\n{crew_text}", "artifacts": [artifact]}
+            # crew unavailable/failed -> fall through to normal handling
 
         # Multi-step chain ("research X, then draft Y") -> orchestrate the existing
         # lanes in sequence. Runs AFTER the checkpoint above, so it only researches
