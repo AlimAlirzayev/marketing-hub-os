@@ -129,3 +129,46 @@ class BrowserSession:
             return f"Clicked '{text}'. Now at {self.page.url}\nTitle: {self.page.title()}"
         except Exception as exc:
             return f"ERROR clicking '{text}': {exc}"
+
+    def type_text(self, text: str, into: str = "") -> str:
+        """Type text into an input field (browser v2). `into` = a placeholder/label
+        hint to pick the field; empty = the first visible search/text input. NEVER
+        types into a password field — credential entry stays a human-only action."""
+        try:
+            if into:
+                loc = self.page.get_by_placeholder(into, exact=False).first
+                if loc.count() == 0:
+                    loc = self.page.get_by_label(into, exact=False).first
+            else:
+                loc = self.page.locator(
+                    "input[type=search], input[type=text], input:not([type]), textarea"
+                ).first
+            itype = (loc.get_attribute("type") or "").lower()
+            if itype == "password":
+                return ("BLOCKED: refusing to type into a password field. Credential "
+                        "entry is a human-only action — report it as a checkpoint.")
+            loc.click(timeout=_NAV_TIMEOUT)
+            loc.fill(text, timeout=_NAV_TIMEOUT)
+            return f"Typed into input{(' [' + into + ']') if into else ''}: {text[:80]}"
+        except Exception as exc:
+            return f"ERROR typing: {exc}"
+
+    def submit_search(self) -> str:
+        """Press Enter to run a SEARCH from the current input. For search/filter
+        navigation only — destructive form buttons are still blocked at .click."""
+        try:
+            self.page.keyboard.press("Enter")
+            self.page.wait_for_timeout(1200)
+            return f"Submitted (Enter). Now at {self.page.url}\nTitle: {self.page.title()}"
+        except Exception as exc:
+            return f"ERROR submitting: {exc}"
+
+    def scroll(self, direction: str = "down") -> str:
+        """Scroll the page to reveal lazily-loaded content. direction: down | up."""
+        try:
+            dy = -900 if str(direction).lower().startswith("up") else 900
+            self.page.mouse.wheel(0, dy)
+            self.page.wait_for_timeout(500)
+            return f"Scrolled {direction}. Read the page again to see new content."
+        except Exception as exc:
+            return f"ERROR scrolling: {exc}"
