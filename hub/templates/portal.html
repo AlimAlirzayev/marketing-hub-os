@@ -238,6 +238,13 @@ svg.awires{position:absolute;inset:0;pointer-events:none}
 .ghostbtn:hover{border-color:var(--line2)}
 .muted{color:var(--mut)}
 @media (max-width:820px){aside{width:72px}.brand .tx,.nav-item .tx,.wrow .wn,.drawer span:not(.chev){display:none}}
+@media (max-width: 760px){
+  body{height:auto;overflow:auto}
+  .app{flex-direction:column;height:auto;min-height:100vh}
+  aside{width:100%;height:auto;max-height:44vh;overflow-y:auto;
+    border-right:0;border-bottom:1px solid var(--line)}
+  .stage,.stage iframe{min-height:70vh}
+}
 </style>
 </head>
 <body>
@@ -458,14 +465,23 @@ function stage(which, key){
    VPS". If the SSH tunnel for that port is down, the browser still can't reach
    it and an iframe would render as a broken page with no explanation. So probe
    from HERE too, and say plainly what to do. */
+/* Dual-mode access: served from localhost (a twin, tunnels) the browser talks
+   to 127.0.0.1 ports directly, exactly as before. Served from anywhere else
+   (os.<ip>.sslip.io behind auth) every tool goes through the hub's same-origin
+   /t/<key>/ server-side proxy — no tunnels needed. */
+const REMOTE = !['127.0.0.1','localhost'].includes(location.hostname);
+const toolUrl = s => REMOTE ? `/t/${s.key}${s.path || '/'}` : `http://127.0.0.1:${s.port}${s.path || ''}`;
+
 const _reach = {};
-async function reachable(port){
-  if(_reach[port] !== undefined) return _reach[port];
+async function reachable(s){
+  const k = s.key || s.port;
+  if(_reach[k] !== undefined) return _reach[k];
   try{
-    await fetch(`http://127.0.0.1:${port}/`, {mode:'no-cors', signal: AbortSignal.timeout(2500)});
-    _reach[port] = true;
-  }catch(e){ _reach[port] = false; }
-  return _reach[port];
+    const u = REMOTE ? `/t/${s.key}/` : `http://127.0.0.1:${s.port}/`;
+    await fetch(u, {mode:'no-cors', signal: AbortSignal.timeout(2500)});
+    _reach[k] = true;
+  }catch(e){ _reach[k] = false; }
+  return _reach[k];
 }
 
 /* ── EV — the briefing ── */
@@ -515,7 +531,8 @@ async function showEv(){
       ${f.suggestion ? `<div class="sug">→ ${esc(f.suggestion)}</div>` : ''}</div></div>`).join('');
 
   const dels = (o.deliverables || []).map(d => {
-    const thumb = d.kind === 'image' ? `<img src="http://127.0.0.1:${panel ? panel.port : 8890}${d.url}" loading="lazy">`
+    const pbase = REMOTE ? '/t/panel' : `http://127.0.0.1:${panel ? panel.port : 8890}`;
+    const thumb = d.kind === 'image' ? `<img src="${pbase}${d.url}" loading="lazy">`
       : d.title ? `<b>${esc(d.title)}</b>` : `<span class="ic">${KIND_IC[d.kind] || '📎'}</span>`;
     return `<button class="dtile" onclick="goPanel('neticeler')">
       <div class="dthumb">${thumb}</div>
@@ -562,7 +579,7 @@ function select(s, tab, force){
   current = s;
   $('crumb').textContent = s.legacy ? 'Arxiv' : (s.cat || '');
   $('crumb2').innerHTML = ` <span class="sep">/</span> <b style="color:var(--ink)">${esc(s.name)}</b>`;
-  let url = `http://127.0.0.1:${s.port}${s.path || ''}`;
+  let url = toolUrl(s);
   if(s.key === 'panel'){
     const qp = ['theme=' + (document.documentElement.dataset.theme || 'light')];
     if(tab) qp.push('tab=' + tab);
@@ -575,7 +592,7 @@ function select(s, tab, force){
   if(statusMap[s.key] === false){ stage('offline', s.key); return; }
   stage('tool', s.key);
   $('frame').src = url;
-  reachable(s.port).then(ok => {
+  reachable(s).then(ok => {
     if(current === s && !ok) stage('notunnel', s.key);
   });
 }

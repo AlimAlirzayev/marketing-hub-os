@@ -20,10 +20,13 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
+import re
+
 import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from starlette.concurrency import run_in_threadpool
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(BASE)
@@ -184,6 +187,70 @@ def audit() -> JSONResponse:
     data = audit_services.audit_data()
     data["monitor"] = MONITOR
     return JSONResponse(data)
+
+
+# ── server-side tool proxy ──────────────────────────────────────────────
+# The portal's iframes historically pointed the BROWSER at 127.0.0.1:<port>,
+# which only works on the machine that runs the services (or via SSH tunnels).
+# This proxy lets ONE exposed origin serve every tool: /t/<key>/<path> forwards
+# server-side to the service registered under <key> in services.json. Remote
+# access goes hub -> bridge relay -> Caddy (basic_auth) -> the world.
+
+_HOP_HEADERS = {"connection", "keep-alive", "transfer-encoding", "upgrade",
+                "content-encoding", "content-length", "te", "trailers"}
+_PROXY_TIMEOUT = 60
+
+
+def _service_ports() -> dict:
+    return {s["key"]: s["port"] for s in _load_services()
+            if s.get("key") and s.get("port")}
+
+
+def _forward(method: str, url: str, params, body: bytes, ctype: str | None):
+    headers = {"content-type": ctype} if ctype else {}
+    return requests.request(method, url, params=params, data=body or None,
+                            headers=headers, timeout=_PROXY_TIMEOUT,
+                            allow_redirects=False)
+
+
+async def _proxy(key: str, path: str, request: Request):
+    ports = _service_ports()
+    if key not in ports:
+        return JSONResponse({"error": f"unknown tool {key!r}"}, status_code=404)
+    url = f"http://127.0.0.1:{ports[key]}/{path}"
+    body = await request.body()
+    try:
+        r = await run_in_threadpool(
+            _forward, request.method, url, dict(request.query_params), body,
+            request.headers.get("content-type"))
+    except Exception as exc:  # service down -> readable answer, not a hang
+        return JSONResponse({"error": f"{key} əlçatan deyil: {exc}"}, status_code=502)
+    out_headers = {k: v for k, v in r.headers.items()
+                   if k.lower() not in _HOP_HEADERS and k.lower() != "content-type"}
+    return Response(content=r.content, status_code=r.status_code,
+                    media_type=r.headers.get("content-type"), headers=out_headers)
+
+
+@app.api_route("/t/{key}", methods=["GET"])
+def tool_root(key: str):
+    return RedirectResponse(url=f"/t/{key}/")
+
+
+@app.api_route("/t/{key}/{path:path}", methods=["GET", "POST"])
+async def tool_proxy(key: str, path: str, request: Request):
+    return await _proxy(key, path, request)
+
+
+# Proxied tool pages often fetch ABSOLUTE paths (fetch("/api/report")). Those
+# arrive here instead of at the tool. The Referer names the tool the page came
+# from, so forward such strays to it. Registered LAST: every explicit hub route
+# above wins first.
+@app.api_route("/{path:path}", methods=["GET", "POST"])
+async def stray_from_tool(path: str, request: Request):
+    m = re.search(r"/t/([a-zA-Z0-9_-]+)/", request.headers.get("referer", ""))
+    if m and m.group(1) in _service_ports() and not path.startswith("t/"):
+        return await _proxy(m.group(1), path, request)
+    return JSONResponse({"error": "not found"}, status_code=404)
 
 
 def _signature(a: dict) -> tuple:
