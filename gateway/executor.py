@@ -1029,7 +1029,7 @@ def _plan_and_run(job, thread: str):
 # in an ISOLATED venv as a subprocess so crewai's heavy deps never touch this
 # runtime. Auto-routing heavy tasks is a later step, once proven live. See
 # gateway/studio_crew.py.
-_CREW_ENABLED = os.getenv("CREW_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+_CREW_ENABLED = os.getenv("CREW_ENABLED", "1").lower() in {"1", "true", "yes", "on"}
 _CREW_PY = os.getenv(
     "CREW_PY",
     str(Path(__file__).resolve().parent.parent / ".venv-crew" / "bin" / "python"),
@@ -1038,10 +1038,35 @@ _CREW_TRIGGERS = ("/crew", "krew:", "crew:", "komanda:")
 
 
 def _wants_crew(task: str) -> bool:
-    """Fires only when explicitly summoned and the flag is on."""
+    """Explicit /crew summon (kept as a power-user override)."""
     if not _CREW_ENABLED:
         return False
     return (task or "").strip().lower().startswith(_CREW_TRIGGERS)
+
+
+# The crew is the STANDING operational workforce (operator directive 2026-07-19):
+# real marketing WORK is run by the CrewAI crew (the workers) with Claude as the
+# brain/synthesis on top — not a manual /crew summon. Kept CONSERVATIVE so trivial
+# chat and quick fetches never pay the crew tax; a miss still falls through to the
+# existing lanes, and a crew failure returns None so the job is answered by
+# Claude/plan/council anyway. Auto-route is scoped to operator jobs (telegram/cli)
+# so scheduled deliverables keep their proven rails untouched.
+_CREW_HEAVY_CUES = (
+    "kampaniya", "strategiya", "strateji", "hesabat", "analiz", "audit",
+    "təklif", "brief", "büdcə", "rəqib", "rəqabət", "bazar araşdır",
+    "kontent plan", "content plan", "reklam strateji", "tam analiz",
+    "report", "strategy", "campaign", "proposal", "budget", "competitor",
+)
+
+
+def _is_heavy_operational(task: str) -> bool:
+    """Auto-route genuinely heavy, operational multi-studio work to the crew."""
+    if not _CREW_ENABLED:
+        return False
+    t = (task or "").strip().lower()
+    if len(t) < 40:                      # too short to be heavy operational work
+        return False
+    return any(cue in t for cue in _CREW_HEAVY_CUES)
 
 
 def _run_crew(task: str) -> str | None:
@@ -1216,7 +1241,9 @@ def execute(job: Job) -> dict:
 
         # CrewAI orchestration lane (opt-in): heavy multi-studio work, summoned.
         # OFF by default; fires only on an explicit /crew summon with CREW_ENABLED.
-        if _wants_crew(job.task):
+        if _wants_crew(job.task) or (
+            _is_heavy_operational(job.task) and job.source in ("telegram", "cli")
+        ):
             crew_text = _run_crew(job.task)
             if crew_text:
                 artifact = _save_artifact(job.id, crew_text)
