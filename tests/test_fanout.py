@@ -6,6 +6,7 @@ outputs, then one bundler merges them. These tests stub the LLM seam
 (_fanout_specialist / llm.complete) — no live model calls.
 """
 
+import os
 import unittest
 from unittest.mock import patch
 
@@ -31,9 +32,20 @@ class WantsFanout(unittest.TestCase):
         self.assertFalse(executor._wants_fanout("planın nədir?"))
 
     def test_strategy_deliverable_triggers(self):
-        self.assertTrue(executor._wants_fanout(
-            "bizim sığorta məhsulu üçün marketinq strategiyası hazırla zəhmət olmasa"
-        ))
+        # Fan-out is a FREE-FLOOR enrichment only (2026-07-18): with the premium
+        # brain on, strategy questions go to the grounded claude path instead.
+        with patch.dict(os.environ, {"MIC_BRAIN": "free"}):
+            self.assertTrue(executor._wants_fanout(
+                "bizim sığorta məhsulu üçün marketinq strategiyası hazırla zəhmət olmasa"
+            ))
+
+    def test_premium_brain_skips_fanout(self):
+        # Job #118 regression guard: the generic 3-persona essay must never
+        # hijack a strategy/plan question from the system-aware premium brain.
+        with patch.dict(os.environ, {"MIC_BRAIN": "claude"}):
+            self.assertFalse(executor._wants_fanout(
+                "bizim sığorta məhsulu üçün marketinq strategiyası hazırla zəhmət olmasa"
+            ))
 
     def test_fanout_tasks_still_route_plain(self):
         # fan-out must only ever upgrade the PLAIN path — if this task starts
