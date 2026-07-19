@@ -116,12 +116,19 @@ class ClaudeSubscriptionLLM(BaseLLM):
 
 
 def _make_llm():
-    """CREW_MODEL env pins an explicit litellm model (testing/override); the
-    default is the Claude subscription."""
+    """The crew workers are mechanical tool-callers — they FETCH live studio data;
+    the DELIVERABLE quality comes from the Claude synthesis in the executor, not
+    from the workers. Measured 2026-07-19: `claude -p` runs a full agent turn per
+    step, so a many-call hierarchical crew on Claude workers spirals to 20+ minutes
+    (vs ~60s on a fast model with an identical grounded result). So workers default
+    to a FAST model (Gemini flash, free tier). CREW_MODEL pins any explicit litellm
+    model; CREW_WORKER_BRAIN=claude forces subscription workers (accepts the latency)."""
     pin = os.getenv("CREW_MODEL", "").strip()
     if pin:
         return pin
-    return ClaudeSubscriptionLLM(model="claude-code/subscription")
+    if os.getenv("CREW_WORKER_BRAIN", "").strip().lower() == "claude":
+        return ClaudeSubscriptionLLM(model="claude-code/subscription")
+    return _FALLBACK_MODEL
 
 
 _LLM = _make_llm()
@@ -231,8 +238,11 @@ def build_crew(goal: str) -> Crew:
 def run(goal: str) -> str:
     try:
         result = build_crew(goal).kickoff()
-        stats = "[workers: claude={} fallback={}]".format(
-            _BRAIN_STATE["claude"], _BRAIN_STATE["fallback"])
+        if isinstance(_LLM, str):
+            stats = "[workers: {}]".format(_LLM)
+        else:
+            stats = "[workers: claude={} fallback={}]".format(
+                _BRAIN_STATE["claude"], _BRAIN_STATE["fallback"])
         return f"{str(result).strip()}\n\n{stats}"
     except Exception as exc:  # never crash the caller; report honestly
         return f"[crew error] {type(exc).__name__}: {exc}"
