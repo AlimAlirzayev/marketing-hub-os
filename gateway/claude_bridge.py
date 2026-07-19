@@ -217,10 +217,14 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
                    "--permission-mode", perm, "--model", model]
             if hands:
                 cmd += ["--allowedTools", ",".join(_HANDS_TOOLS)]
-            # Only the very first attempt of the top rung resumes the thread; a
-            # retry or a stepped-down model starts fresh (a session is tied to
-            # the model that created it).
-            if sid and mi == 0 and attempt == 0:
+            # The FIRST attempt of EVERY rung resumes the thread; only a retry
+            # (attempt 1, after a failure on the same rung) starts fresh. It used
+            # to be rung 0 only — but with a credit-gated model on top (fable),
+            # rung 0 always failed and the rung that actually answered began with
+            # NO memory: every >30-min gap (fable re-probe) wiped the Telegram
+            # thread (observed 2026-07-19). claude -p supports cross-model resume,
+            # so continuity must survive a stepdown.
+            if sid and attempt == 0:
                 cmd += ["--resume", sid]
             proc = subprocess.run(
                 cmd, input=f"{_FRAMING}\n\n{prompt}", cwd=str(cwd or ROOT),
