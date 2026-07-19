@@ -54,7 +54,14 @@ _COOLDOWN_S = int(float(os.getenv("CLAUDE_LIMIT_COOLDOWN_HOURS", "5")) * 3600)
 # Signatures in a claude -p result that mean "this account is capped", not a
 # real failure — the cue to fail over to the next account.
 _LIMIT_CUES = ("usage limit", "limit reached", "rate limit", "rate_limit",
-               "quota", "exceeded your", "please try again later", "overloaded")
+               "quota", "exceeded your", "please try again later", "overloaded",
+               # Claude Code session/5h caps: the CLI reports these as an
+               # is_error result with api_error_status 429 and a "session
+               # limit" message. Without these cues a capped account raised
+               # HARD instead of rotating to the next account (and its
+               # cooldown was never set, so account_status lied). 2026-07-19.
+               "session limit", "hit your session", "api_error_status\":429",
+               "api_error_status\": 429", "error_status\":429")
 
 
 def _load_accounts() -> dict:

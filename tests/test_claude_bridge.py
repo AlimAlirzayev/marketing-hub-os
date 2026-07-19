@@ -59,6 +59,28 @@ class BridgeAsk(unittest.TestCase):
                 self.cb.ask("x")
 
 
+class LimitDetection(unittest.TestCase):
+    """Regression guard (2026-07-19): the Claude Code CLI reports a session/5h cap
+    as an is_error result with api_error_status 429 + a "session limit" message.
+    If _is_limit misses it, complete() raises HARD on the first account instead of
+    rotating to the next -- defeating multi-account failover and leaving
+    account_status falsely 'ready'."""
+
+    def test_session_limit_429_is_a_cap(self):
+        from gateway.claude_bridge import _is_limit
+        real = ('claude -p failed: {"type":"result","is_error":true,'
+                '"api_error_status":429,"result":"You have hit your session '
+                'limit resets 2pm (UTC)"}')
+        self.assertTrue(_is_limit(real))
+        self.assertTrue(_is_limit("You have hit your session limit"))
+        self.assertTrue(_is_limit("usage limit reached"))
+
+    def test_a_normal_error_is_not_a_cap(self):
+        from gateway.claude_bridge import _is_limit
+        self.assertFalse(_is_limit("connection refused"))
+        self.assertFalse(_is_limit("invalid json output"))
+
+
 class BrainSelector(unittest.TestCase):
     def test_default_is_claude(self):
         # Operator policy (2026-07-19): Claude is the DEFAULT brain everywhere —
