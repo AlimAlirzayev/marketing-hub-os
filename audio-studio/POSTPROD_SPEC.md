@@ -58,7 +58,7 @@ master that cannot be measured must fail, never silently pass.
 Three code paths already depend on it, all via `shutil.which("ffmpeg")`:
 
 - `audio-studio/audio_studio.py:647`
-- `mediaforge/animatic.py:26`
+- `media_studio/animatic.py:26`
 - `video-studio/paths.py:34`
 
 Because they probe with `which`, they **do not crash — they silently skip**. So today, on the
