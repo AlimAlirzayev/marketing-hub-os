@@ -48,9 +48,12 @@ _TIMEOUT = int(os.getenv("CLAUDE_BRIDGE_TIMEOUT", "240"))
 # model. The premium brain was never down; it was never reachable.
 # Pin UTF-8 on BOTH directions of the pipe. Never remove: the prompts are Azerbaijani.
 _TEXT_IO = {"encoding": "utf-8", "errors": "replace"}
-# When an account hits its usage cap, rest it this long before trying it again
-# (Claude's window is ~5h). The other account carries the load meanwhile.
-_COOLDOWN_S = int(float(os.getenv("CLAUDE_LIMIT_COOLDOWN_HOURS", "5")) * 3600)
+# Fallback bench when the cap message carries no parseable reset time. Kept
+# SHORT (1h) on purpose: a capped Claude session usually resets well under an
+# hour, and over-benching a recovered account is what dropped the mic to the
+# weak free floor for hours (2026-07-20). _cooldown_until() prefers the real
+# "resets 8:50pm (UTC)" time the CLI reports; this is only the no-parse floor.
+_COOLDOWN_S = int(float(os.getenv("CLAUDE_LIMIT_COOLDOWN_HOURS", "1")) * 3600)
 # Signatures in a claude -p result that mean "this account is capped", not a
 # real failure — the cue to fail over to the next account.
 _LIMIT_CUES = ("usage limit", "limit reached", "rate limit", "rate_limit",
@@ -82,6 +85,29 @@ def _save_accounts(data: dict) -> None:
 def _is_limit(text: str) -> bool:
     low = (text or "").lower()
     return any(cue in low for cue in _LIMIT_CUES)
+
+
+def _cooldown_until(msg: str) -> float:
+    """Bench a capped account until it ACTUALLY resets. Claude reports the
+    reset in the cap message ("... resets 8:50pm (UTC)"); honor that exact
+    time (+2min buffer) so a recovered account comes straight back instead of
+    sitting idle for a blind 5h while the mic falls to the free floor. Falls
+    back to the short _COOLDOWN_S floor when no reset time is present."""
+    import re
+    from datetime import datetime, timezone, timedelta
+    now = time.time()
+    m = re.search(r"resets?\s+(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m",
+                  (msg or "").lower())
+    if m:
+        hr = int(m.group(1)) % 12
+        if m.group(3) == "p":
+            hr += 12
+        target = datetime.now(timezone.utc).replace(
+            hour=hr, minute=int(m.group(2) or 0), second=0, microsecond=0)
+        if target.timestamp() <= now:      # time already passed today -> tomorrow
+            target += timedelta(days=1)
+        return min(target.timestamp() + 120, now + 6 * 3600)  # +buffer, 6h safety cap
+    return now + _COOLDOWN_S
 
 
 # A model is GONE (not just the account capped): needs pay-as-you-go credits, or
@@ -321,7 +347,7 @@ def ask(prompt: str, *, thread: str = "main", cwd: Path | None = None,
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             if _is_limit(str(exc)):
-                accts[idx]["cooldown_until"] = time.time() + _COOLDOWN_S
+                accts[idx]["cooldown_until"] = _cooldown_until(str(exc))
                 _save_accounts(data)
                 continue  # capped -> try the next account
             raise  # a non-limit failure shouldn't burn the other account
@@ -394,7 +420,7 @@ def complete(prompt: str, *, system: str | None = None,
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             if _is_limit(str(exc)) and idx is not None and accts:
-                accts[idx]["cooldown_until"] = time.time() + _COOLDOWN_S
+                accts[idx]["cooldown_until"] = _cooldown_until(str(exc))
                 _save_accounts(data)
                 continue  # capped -> next account
             raise  # non-limit failure: let the router fall back to free now
@@ -439,7 +465,7 @@ def build(task: str, workspace: Path, *, timeout: int = 900) -> str:
         if proc.returncode != 0:
             last = err or out or "empty output"
             if _is_limit(last) and accts:
-                accts[idx]["cooldown_until"] = time.time() + _COOLDOWN_S
+                accts[idx]["cooldown_until"] = _cooldown_until(last)
                 _save_accounts(data)
             continue
         try:
@@ -451,7 +477,7 @@ def build(task: str, workspace: Path, *, timeout: int = 900) -> str:
         if d.get("is_error") or not text:
             last = text or str(d)[:150]
             if _is_limit(last) and accts:
-                accts[idx]["cooldown_until"] = time.time() + _COOLDOWN_S
+                accts[idx]["cooldown_until"] = _cooldown_until(last)
                 _save_accounts(data)
             continue
         return text
