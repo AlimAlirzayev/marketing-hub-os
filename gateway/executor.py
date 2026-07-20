@@ -208,7 +208,10 @@ def _seo_plan(task: str) -> dict:
             "Bu tapşırıqdan SEO fokusunu çıxar. Yalnız STRICT JSON qaytar: "
             '{{"keywords": ["1-3 əsas axtarış açar sözü/mövzu, Azərbaycanca"]}}. '
             f"Tapşırıq: {task}",
-            tier="cheap", temperature=0.2)
+            # smart tier = Claude-first (the brain), free only as the resilience
+            # floor — the operator's rule: the brain is Claude, never Gemini by
+            # default (it burns metered API quota). Router policy: _claude_first.
+            tier="smart", temperature=0.2)
         keywords = [str(k).strip() for k in (data.get("keywords") or []) if str(k).strip()][:2]
     except Exception:
         keywords = []
