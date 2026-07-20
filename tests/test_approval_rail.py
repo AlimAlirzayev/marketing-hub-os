@@ -103,7 +103,10 @@ class ExecutorCheckpoint(_IsolatedJobsDB):
         from gateway import executor
         out = executor.execute(self._job("İnstagramda bu şəkli paylaş"))
         self.assertTrue(out.get("needs_approval"))
-        self.assertIn("/approve 1", out["result"])
+        # Plain-language checkpoint (2026-07-20): the bot asks hə/yox like a
+        # teammate and never exposes an internal "/approve N" in the ask.
+        self.assertIn("hə", out["result"].lower())
+        self.assertNotIn("/approve", out["result"])
 
     def test_approved_job_passes_the_checkpoint(self):
         from gateway import executor

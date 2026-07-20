@@ -68,3 +68,27 @@ make an API key → set `POSTIZ_API_KEY` in `.env`. `POSTIZ_JWT_SECRET` and
 > manual-handoff tier and tell you so. Nothing is half-broken; the live API call
 > is the only piece that waits on Docker.
 ```
+
+## Privacy guard (child / family / real-person safety)
+
+Publishing to a public channel is outward and hard to reverse, so before a live
+post the plan passes through `privacy_guard.enforce`. It flags — with no model
+call — when a **minor or an identifiable real person** may appear:
+
+- person-signal words (AZ + EN: uşaq, körpə, ailə, child, baby, family, kid, ugc,
+  testimonial, …) in the slug, any caption, or a media filename;
+- a `privacy.json` sidecar in the media folder — an authoritative human override:
+  `{"minors": true}` or a `"people": [...]` list without `"consent": true`.
+
+When flagged, the **live publish is held** and a checklist is written to
+`output/publish/<slug>/PRIVACY-CHECKLIST.md` (consent · audience scope · necessity
+· safer substitution). Release it deliberately:
+
+```
+python publisher/run.py <asset|slug> --to tiktok,instagram --privacy-ack
+```
+
+`--dry-run` is never blocked (it contacts no network) but still surfaces the flag.
+Any scan error fails safe — the guard holds rather than letting content through.
+Editing a minor's image with an external AI model stays blocked without an explicit
+ack (`minor_edit_allowed()` is the reusable predicate for media_studio/atelier).

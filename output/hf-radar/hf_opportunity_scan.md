@@ -1,6 +1,6 @@
 # Hugging Face Opportunity Radar
 
-Generated: 2026-07-17T10:25:03Z
+Generated: 2026-07-19T16:16:07Z
 Desktop research source: `C:\Users\a.alirzayev\Desktop\hugginface free oportunities.docx`
 
 ## Executive Verdict
@@ -16,8 +16,8 @@ Desktop research source: `C:\Users\a.alirzayev\Desktop\hugginface free oportunit
 ## Local Readiness
 
 - hf_cli: True
-- docker: False
-- ollama: False
+- docker: True
+- ollama: True
 - huggingface_hub_python: True
 - gradio_client_python: True
 - brain_embedding_adapter: True

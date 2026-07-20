@@ -72,9 +72,9 @@
     "next_action": "Keep the supervisor loop enabled and review output/signal-radar reports.",
     "id": "public-signal-triage-report",
     "source": "Signal Radar",
-    "window": "2026-07-16",
+    "window": "2026-07-19",
     "evidence": [],
-    "last_seen": "2026-07-16",
+    "last_seen": "2026-07-19",
     "first_seen": "2026-07-10"
   },
   {
@@ -105,9 +105,9 @@
     "next_action": "Use this gate before any new model/provider route.",
     "id": "official-source-gate",
     "source": "Signal Radar",
-    "window": "2026-07-16",
+    "window": "2026-07-19",
     "evidence": [],
-    "last_seen": "2026-07-16",
+    "last_seen": "2026-07-19",
     "first_seen": "2026-07-10"
   },
   {

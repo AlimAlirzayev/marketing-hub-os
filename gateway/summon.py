@@ -60,9 +60,11 @@ def main(argv: list[str]) -> int:
         print(f"quru sınaq OK: '{task}' → owner {owner} (növbəyə salınmadı)")
         return 0
     from . import mic
-    job_id = mic.speak(task, source="telegram", chat_id=owner)
-    print(f"✅ Krew işə salındı (iş #{job_id}). Nəticə hazır olanda ayrıca mesajla gələcək "
-          f"(adətən 3-6 dəqiqə).")
+    mic.speak(task, source="telegram", chat_id=owner)
+    # Human line the brain relays verbatim: no job id, no "ayrıca mesajla" —
+    # it just started something and will bring it back itself.
+    print("Başladım — bunu arxada hazırlayıram, hazır olanda özüm göndərəcəm "
+          "(bir neçə dəqiqə çəkə bilər).")
     return 0
 
 

@@ -1445,8 +1445,7 @@ def execute(job: Job) -> dict:
                     "Bu, bayıra yönəlik bir əməldir (paylaşım/göndəriş/zəng/deploy), "
                     "ona görə səndən soruşmadan etmirəm.\n\n"
                     f"İstədiyin: {job.task}\n\n"
-                    "Göndərim? — **hə** desən edirəm, **yox** desən saxlayıram.\n"
-                    f"_(bir neçə iş gözləyirsə: /approve {job.id})_"
+                    "Göndərim? — **hə** desən edirəm, **yox** desən saxlayıram."
                 )
                 return {"result": text, "artifacts": [], "needs_approval": True}
 

@@ -9,13 +9,14 @@ Assembles the per-platform publish package and routes it through the cascade
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 # Allow `python publisher/run.py` to import the package.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from publisher import manual, router          # noqa: E402
+from publisher import manual, privacy_guard, router  # noqa: E402
 from publisher.package import PackageError, build_plan  # noqa: E402
 
 
@@ -65,6 +66,16 @@ def main(argv: list[str]) -> int:
     except PackageError as e:
         print(f"publisher: {e}")
         return 1
+
+    # Privacy guard: a publish that may show a minor or an identifiable real
+    # person is HELD until the human passes --privacy-ack. Fail-safe by design.
+    ack = "--privacy-ack" in opts or os.getenv("PUBLISH_PRIVACY_ACK") == "1"
+    allowed, scan, checklist = privacy_guard.enforce(
+        plan, ack=ack, dry_run="--dry-run" in opts)
+    if scan["flagged"]:
+        privacy_guard.report(plan, scan, checklist, allowed)
+    if not allowed:
+        return 3
 
     result = router.publish(plan, dry_run="--dry-run" in opts)
     _report(plan, result)
