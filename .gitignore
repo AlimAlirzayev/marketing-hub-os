@@ -15,6 +15,7 @@ data/radar/
 data/certification_coach/
 output/agent-radar/*
 output/signal-radar/
+output/canvas-lab/
 output/*.log
 output/*.err.log
 tmp/
