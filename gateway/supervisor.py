@@ -44,6 +44,16 @@ _SIGNAL_RADAR_ENABLED = os.getenv("SIGNAL_RADAR_ENABLED", "1").lower() not in {
     "no",
     "off",
 }
+# Service watchdog: health-checks the standing services.json organs and (auto-
+# restart ON by default; WATCHDOG_AUTO_RESTART=0 to pause) relaunches a crashed
+# one. See gateway.watchdog.
+_WATCHDOG_TICK = float(os.getenv("WATCHDOG_TICK_SECONDS", "90"))
+_WATCHDOG_ENABLED = os.getenv("WATCHDOG_ENABLED", "1").lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
 
 
 def _supervise(name: str, step, idle: float) -> None:
@@ -113,6 +123,22 @@ def _signal_radar_forever() -> None:
         _stop.wait(max(_SIGNAL_RADAR_TICK, 60.0))
 
 
+def _watchdog_forever() -> None:
+    """Health-check + (opt-in) heal the standing services.json organs on this
+    machine. A crashed uvicorn service currently stays down until a human
+    notices; this closes that gap the same way _sync_forever closes the
+    engine-drift gap — best-effort, never stops the agent."""
+    while not _stop.is_set():
+        try:
+            from . import watchdog
+            r = watchdog.tick()
+            if any(r.values()):
+                print(f"[supervisor] watchdog: {r}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[supervisor] watchdog error: {exc}")
+        _stop.wait(max(_WATCHDOG_TICK, 20.0))
+
+
 def _start(name: str, target) -> threading.Thread:
     t = threading.Thread(target=target, name=name, daemon=True)
     t.start()
@@ -162,6 +188,8 @@ def main() -> None:
         _start("engine-sync", _sync_forever)
     if _SIGNAL_RADAR_ENABLED:
         _start("signal-radar", _signal_radar_forever)
+    if _WATCHDOG_ENABLED:
+        _start("watchdog", _watchdog_forever)
 
     print("[supervisor] running. Ctrl+C to stop.")
     try:

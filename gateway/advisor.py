@@ -112,7 +112,35 @@ def _front_door_findings() -> list[Finding]:
             "watch", "registry_ghost", "Reyestrdə var, diskdə yox",
             f"Qeyd(lər) evsiz qalıb: {', '.join(gone)}.",
             "Qovluğu bərpa et və ya reyestrdən sil — reyestr reallıqdır."))
+    out.extend(_service_down_findings(a))
     return out
+
+
+def _service_down_findings(a: dict) -> list[Finding]:
+    """Services the WATCHDOG has confirmed down (see gateway.watchdog) — not a
+    raw one-shot audit read, so a session where the stack was simply never
+    started this run never gets flagged as '15 services down'. Only fires once
+    the always-on supervisor's watchdog thread has actually observed and
+    notified an incident. Never raises."""
+    try:
+        from . import watchdog
+        incidents = watchdog.active_incidents()
+    except Exception:
+        return []
+    if not incidents:
+        return []
+    by_key = {s["key"]: s for s in a.get("services", [])}
+    parts, gave_up_any = [], False
+    for inc in incidents:
+        row = by_key.get(inc["key"], {})
+        gave_up_any = gave_up_any or inc["gave_up"]
+        tag = " [təslim — insan lazım]" if inc["gave_up"] else ""
+        parts.append(f"{inc['key']}({row.get('port', '?')}){tag}")
+    return [Finding(
+        "risk" if gave_up_any else "watch", "service_down", "Dayanmış xidmət",
+        f"Watchdog təsdiqlədi, hazırda cavab vermir: {', '.join(parts)}.",
+        "Watchdog avtomatik qaldırmağa çalışır (auto-restart default açıqdır); "
+        "'təslim' işarəsi varsa, servisi əl ilə yoxla və başlat.")]
 
 
 def observe_state(snap: dict | None = None) -> list[Finding]:
