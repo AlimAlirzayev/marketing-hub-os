@@ -155,3 +155,42 @@ metronome beat-cutting.
 If the hand doesn't render photoreal, the film reads as cheap CG and the
 craft-flex signal inverts — kill at render review, fall back to C2
 (print series) which is shippable today.
+
+---
+
+## Rollout state (2026-07-20)
+
+Decision-ready deck (AZ, for the marketing team) published as an
+Artifact: https://claude.ai/code/artifact/f6f3efc4-b807-4916-94f5-62d8baeeb6d9
+— hero thesis, two truths, the 4-scene filmstrip with the real pilot
+stills, honest pilot-QA callout, C2 companion, and the spend menu.
+
+Anthology production status by vignette:
+
+| # | Vignette | Product | Status | Brief |
+|---|---|---|---|---|
+| 1 | Flood / red **sponge** | Əmlak | render-ready | `output/media_studio/campaigns/xs-caring-hand-flood-sponge/brief.json` |
+| 2 | Fire / red **cloche** | Biznes/Yanğın | render-ready | `output/media_studio/campaigns/xs-caring-hand-fire-cloche/brief.json` |
+| 3 | Hail / red **umbrella** | KASKO | **DONE ✓** (shot, KILL found+fixed, clean) | `.../auto-meta-20260713-164004/brief.json` |
+| 4 | Warm beat (no hand) | Rahatlıq (close) | plate — light/static | (author on approval) |
+
+Render command is identical to the proven pilot — the pipeline reads
+`brief.json` from each campaign folder:
+
+```powershell
+python -m media_studio.generate xs-caring-hand-flood-sponge --frames --confirm
+python -m media_studio.generate xs-caring-hand-flood-sponge --pick 1=?,2=?,3=?,4=?
+python -m media_studio.generate xs-caring-hand-flood-sponge --beats --confirm
+# same for xs-caring-hand-fire-cloche
+```
+
+Spend: pilot ≈$0.73 (spent). Remaining full anthology ≈$1.8 (2 active
+vignettes ~$0.73 each + warm plate ~$0.30; hero stitch free/local).
+Cost gate stands — nothing renders without an explicit `--confirm`.
+
+**Pilot lesson folded forward (not silently patched into core):** both
+new briefs' `qa.reject_if` now carry an explicit
+"check the final static hold for hallucinated watermark/logo glyphs"
+rule — the disciplined fix location (per-brief QA), leaving the
+`finish.py` tail-safety-trim question as the studio owner's product
+decision. See `output/media_studio/campaigns/auto-meta-20260713-164004/render-review.md`.
