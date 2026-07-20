@@ -11,6 +11,16 @@ Two halves:
   * relevant(task) — retrieve the top cards whose triggers overlap the new task,
     as text to prepend to the work-lane system prompt.
 
+Self-improvement (Karpathy layer 4, added 2026-07-20): every card carries an
+outcome record. relevant() logs which cards it injected for a task; when that
+task later finishes, learn_from_job() credits those cards — a clean delivery is
+a WIN, a soft-failure result (❌ / icra xətası...) is a LOSS. Proven cards
+outrank unproven ones on equal trigger overlap, pruning drops the weakest cards
+first (not merely the oldest), and a card that only ever loses is retired
+automatically. So the library converges on what demonstrably works instead of
+what was merely written down. Stats live in a sidecar (data/skills/_stats.json)
+so the card format — and everything that parses it — stays untouched.
+
 Scope + safety: learns ONLY from successful work-lane jobs (not chat, not
 errors/checkpoints); cards are capped and deduped; stored LOCALLY per machine
 (data/skills/, git-ignored) so this can never jam the cross-twin sync. Every
@@ -19,6 +29,7 @@ step is guarded — learning must never delay or break a delivery.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import time
@@ -35,6 +46,14 @@ _WORK_MODES = ("agentic-tools", "browser", "google-search", "web-search",
                "fanout", "content", "council")
 _STOP = {"the", "and", "for", "with", "bir", "üçün", "və", "the", "that", "bu",
          "mən", "sən", "sistem", "zəhmət", "olmasa", "please", "make", "yaz"}
+# markers in a delivered result that mean the job soft-failed (see learn gate)
+_FAIL_MARKS = ("icra xətası", "❌", "⏸", "alınmadı", "failed")
+# outcome bookkeeping: sidecar next to the cards, injections awaiting a verdict
+# expire after a day, and a card that only ever loses is retired at this count.
+_STATS_NAME = "_stats.json"
+_PENDING_TTL = 24 * 3600
+_PENDING_CAP = 40
+_RETIRE_LOSSES = 3
 
 
 def _mode_of(result: str) -> str | None:
@@ -50,6 +69,76 @@ def _keywords(text: str) -> set[str]:
 def _slug(title: str) -> str:
     s = re.sub(r"[^\w]+", "-", (title or "").lower()).strip("-")
     return (s or "skill")[:60]
+
+
+# ---------------------------------------------------------------------------
+# Outcome records — who was injected, and did the job land?
+
+def _task_key(task: str) -> str:
+    return hashlib.sha1(" ".join((task or "").lower().split()).encode()).hexdigest()[:12]
+
+
+def _load_stats() -> dict:
+    try:
+        d = json.loads((_DIR / _STATS_NAME).read_text(encoding="utf-8"))
+        if isinstance(d, dict):
+            return {"cards": d.get("cards") or {}, "pending": d.get("pending") or {}}
+    except Exception:
+        pass
+    return {"cards": {}, "pending": {}}
+
+
+def _save_stats(stats: dict) -> None:
+    # drop expired pending entries + cap the backlog before every write
+    now = time.time()
+    pend = {k: v for k, v in stats.get("pending", {}).items()
+            if now - v.get("ts", 0) < _PENDING_TTL}
+    if len(pend) > _PENDING_CAP:
+        for k in sorted(pend, key=lambda k: pend[k].get("ts", 0))[:-_PENDING_CAP]:
+            del pend[k]
+    stats["pending"] = pend
+    _DIR.mkdir(parents=True, exist_ok=True)
+    (_DIR / _STATS_NAME).write_text(
+        json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def _quality(rec: dict) -> int:
+    return int(rec.get("wins", 0)) - int(rec.get("losses", 0))
+
+
+def _record_injection(task: str, slugs: list[str]) -> None:
+    """relevant() injected these cards for this task — remember, await verdict."""
+    stats = _load_stats()
+    for s in slugs:
+        rec = stats["cards"].setdefault(s, {"uses": 0, "wins": 0, "losses": 0})
+        rec["uses"] = int(rec.get("uses", 0)) + 1
+        rec["last_used"] = int(time.time())
+    stats["pending"][_task_key(task)] = {"slugs": slugs, "ts": time.time()}
+    _save_stats(stats)
+
+
+def _credit(task: str, success: bool) -> None:
+    """The job for `task` finished — pay out to the cards injected for it.
+    A card that only ever loses gets retired (file + record deleted)."""
+    stats = _load_stats()
+    entry = stats["pending"].pop(_task_key(task), None)
+    if not entry:
+        return
+    for s in entry.get("slugs", []):
+        rec = stats["cards"].setdefault(s, {"uses": 0, "wins": 0, "losses": 0})
+        rec["wins" if success else "losses"] = \
+            int(rec.get("wins" if success else "losses", 0)) + 1
+        if not success and rec.get("wins", 0) == 0 \
+                and rec.get("losses", 0) >= _RETIRE_LOSSES:
+            (_DIR / f"{s}.md").unlink(missing_ok=True)
+            del stats["cards"][s]
+            sense.emit("skill", f"retired (never won): {s}")
+    _save_stats(stats)
+
+
+def stats_snapshot() -> dict:
+    """Read-only view of the outcome ledger, for panels and tests."""
+    return _load_stats()["cards"]
 
 
 def _distill(task: str, result: str) -> dict | None:
@@ -78,6 +167,8 @@ def _distill(task: str, result: str) -> dict | None:
 
 def learn_from_job(task: str, result: str) -> str | None:
     """Save a skill card from a successful work job. Returns the slug or None.
+    Also settles the outcome ledger for cards injected into this job — even a
+    soft failure teaches (a loss), it just never becomes a new card.
     Fully guarded — any failure is swallowed (learning never breaks delivery)."""
     try:
         if len((task or "").split()) < _MIN_TASK_WORDS:
@@ -86,7 +177,9 @@ def learn_from_job(task: str, result: str) -> str | None:
         if mode not in _WORK_MODES:
             return None
         low = (result or "").lower()
-        if any(x in low for x in ("icra xətası", "❌", "⏸", "alınmadı", "failed")):
+        success = not any(x in low for x in _FAIL_MARKS)
+        _credit(task, success)
+        if not success:
             return None
         card = _distill(task, result)
         if not card or not card["steps"]:
@@ -108,8 +201,12 @@ def learn_from_job(task: str, result: str) -> str | None:
 
 
 def _prune() -> None:
-    cards = sorted(_DIR.glob("*.md"), key=lambda p: p.stat().st_mtime)
-    for p in cards[:-_MAX_SKILLS]:  # keep the newest _MAX_SKILLS
+    """Over the cap, drop the WEAKEST cards first (worst win/loss record),
+    age only breaking ties — a proven old card outlives an unproven new one."""
+    cards = _load_stats()["cards"]
+    ranked = sorted(_DIR.glob("*.md"),
+                    key=lambda p: (_quality(cards.get(p.stem, {})), p.stat().st_mtime))
+    for p in ranked[:-_MAX_SKILLS]:  # keep the strongest/newest _MAX_SKILLS
         try:
             p.unlink()
         except Exception:
@@ -118,6 +215,8 @@ def _prune() -> None:
 
 def relevant(task: str, k: int = 2) -> str:
     """Top-k learned skill cards whose triggers overlap the task, as prompt text.
+    On equal overlap the card with the better track record wins. Injections are
+    logged so the job's outcome can later credit the cards (see _credit).
     Empty string when nothing matches — the caller adds it verbatim."""
     try:
         if not _DIR.exists():
@@ -125,6 +224,7 @@ def relevant(task: str, k: int = 2) -> str:
         kw = _keywords(task)
         if not kw:
             return ""
+        records = _load_stats()["cards"]
         scored = []
         for p in _DIR.glob("*.md"):
             text = p.read_text(encoding="utf-8")
@@ -132,12 +232,13 @@ def relevant(task: str, k: int = 2) -> str:
             triggers = _keywords(mt.group(1)) if mt else set()
             score = len(kw & (triggers | _keywords(text)))
             if score:
-                scored.append((score, text))
-        scored.sort(key=lambda t: t[0], reverse=True)
-        top = [t for _, t in scored[:k]]
+                scored.append((score, _quality(records.get(p.stem, {})), p.stem, text))
+        scored.sort(key=lambda t: (t[0], t[1]), reverse=True)
+        top = scored[:k]
         if not top:
             return ""
+        _record_injection(task, [t[2] for t in top])
         return ("\n\nLEARNED SKILLS (reuse what worked before):\n\n"
-                + "\n\n".join(top))
+                + "\n\n".join(t[3] for t in top))
     except Exception:
         return ""

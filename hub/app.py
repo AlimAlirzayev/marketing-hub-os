@@ -241,6 +241,88 @@ async def tool_proxy(key: str, path: str, request: Request):
     return await _proxy(key, path, request)
 
 
+# ---------- Morning signals: champion verdicts -> approve/reject cards --------
+# The research lab's champion loop judges each radar finding (ADOPT/BUILD/SKIP)
+# into radar-verdicts.json. Here we surface the ADOPT/BUILD cards still 'new' so
+# the operator can approve (adopt) or reject them from the portal on any device --
+# the same decision the nightly Telegram brief asks for, now one tap. Twin-safe:
+# the Windows twin has no lab, so this degrades to available:false / empty.
+LAB_ROOT = "/opt/research-lab"
+
+
+def _lab_signals() -> dict:
+    vf = os.path.join(LAB_ROOT, "radar-verdicts.json")
+    sf = os.path.join(LAB_ROOT, "radar-status.json")
+    if not os.path.isdir(LAB_ROOT) or not os.path.exists(vf):
+        return {"available": False, "cards": []}
+    try:
+        with open(vf, encoding="utf-8") as fh:
+            verdicts = json.load(fh)
+    except Exception:
+        return {"available": False, "cards": []}
+    try:
+        with open(sf, encoding="utf-8") as fh:
+            status = json.load(fh)
+    except Exception:
+        status = {}
+    scores: dict = {}
+    try:  # best-effort score enrichment; brain_bridge is a light stdlib module
+        if LAB_ROOT not in sys.path:
+            sys.path.insert(0, LAB_ROOT)
+        import brain_bridge as _bb  # noqa: E402
+        for f in _bb.read_findings():
+            scores[f["title"]] = f.get("score")
+    except Exception:
+        pass
+    cards = []
+    for title, v in verdicts.items():
+        if not isinstance(v, dict) or v.get("verdict") not in ("ADOPT", "BUILD"):
+            continue
+        if status.get(title, {}).get("status", "new") != "new":
+            continue
+        cards.append({"title": title, "verdict": v.get("verdict", ""),
+                      "why": v.get("why", ""), "action": v.get("action", ""),
+                      "ts": v.get("ts", ""), "score": scores.get(title)})
+    order = {"ADOPT": 0, "BUILD": 1}
+    cards.sort(key=lambda c: (order.get(c["verdict"], 9), -(c.get("score") or 0)))
+    return {"available": True, "cards": cards}
+
+
+@app.get("/api/signals")
+async def signals() -> JSONResponse:
+    return JSONResponse(await run_in_threadpool(_lab_signals))
+
+
+@app.post("/api/signals/decide")
+async def signals_decide(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    title = (body.get("title") or "").strip()
+    decision = (body.get("decision") or "").strip()
+    if not title or decision not in ("approve", "reject"):
+        return JSONResponse({"ok": False, "error": "bad request"}, status_code=400)
+    if not os.path.isdir(LAB_ROOT):
+        return JSONResponse({"ok": False, "error": "lab not on this host"},
+                            status_code=409)
+    verb = "adopt" if decision == "approve" else "reject"
+
+    def _run():
+        import subprocess
+        return subprocess.run(
+            ["python3", os.path.join(LAB_ROOT, "brain_bridge.py"), verb, title],
+            cwd=LAB_ROOT, capture_output=True, text=True, timeout=120)
+
+    try:
+        proc = await run_in_threadpool(_run)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"ok": False, "error": str(exc)[:200]}, status_code=500)
+    out = proc.stdout or ""
+    ok = proc.returncode == 0 and "no finding matches" not in out
+    return JSONResponse({"ok": ok, "out": out[-500:], "err": (proc.stderr or "")[-300:]})
+
+
 # Proxied tool pages often fetch ABSOLUTE paths (fetch("/api/report")). Those
 # arrive here instead of at the tool. The Referer names the tool the page came
 # from, so forward such strays to it. Registered LAST: every explicit hub route
