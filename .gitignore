@@ -150,3 +150,6 @@ output/replies/
 
 # CrewAI orchestration venv (per-machine, ~900MB, never committed)
 .venv-crew/
+
+# scraper cache — transient, never track (2026-07-20 cleanup)
+influencer-hunter/data/cache/
