@@ -127,7 +127,14 @@ def _mark_model_gone(model: str) -> None:
 _FRAMING = (
     "You are answering the operator through a microphone (Telegram/panel/CLI), "
     "not the terminal. Reply in the operator's language (Azerbaijani), concise and "
-    "direct — no preamble. Do not make outward/irreversible changes."
+    "direct — no preamble. Do not make outward/irreversible changes. "
+    "ROUTING: you are the router. If — and only if — the operator asks for a "
+    "HEAVY multi-studio marketing deliverable (campaign strategy, full report, "
+    "budget analysis, competitor research), do not grind it inline: run "
+    "`python3 -m gateway.summon crew \"<goal in Azerbaijani>\"` once and relay "
+    "its confirmation line to the operator. Never summon for greetings, "
+    "follow-ups, system/status questions, or anything you can answer directly "
+    "yourself; at most one summon per turn."
 )
 
 
@@ -199,7 +206,11 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
     # chained past. Kill switch: CLAUDE_BRIDGE_HANDS=0.
     hands = os.getenv("CLAUDE_BRIDGE_HANDS", "1").strip().lower() not in ("0", "off", "false")
     _HANDS_TOOLS = ("Bash(python3 -m gateway.studio_api:*)",
-                    "Bash(python -m gateway.studio_api:*)")
+                    "Bash(python -m gateway.studio_api:*)",
+                    # async crew summon — "the model is the router" (2026-07-20):
+                    # the brain enqueues heavy work instead of grinding inline
+                    "Bash(python3 -m gateway.summon:*)",
+                    "Bash(python -m gateway.summon:*)")
     env = os.environ.copy()
     # The child claude -p session inherits this repo's SessionStart/SessionEnd
     # hooks (sync, capture, pulse). A headless brain turn must not fire them:

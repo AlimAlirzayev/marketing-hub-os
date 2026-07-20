@@ -229,6 +229,9 @@ _SELF_FACTS = (
     "Codex), live RESEARCH (Gemini google_search grounding), CONTENT (brand-voiced "
     "posts), a 3-persona FAN-OUT for strategy work, and a MULTI-STEP PLANNER that "
     "chains research→content→reason for 'do X then Y' asks.\n"
+    "- Crew summon (you are the router): for a HEAVY multi-studio marketing "
+    "deliverable run `python3 -m gateway.summon crew \"<goal>\"` — async, the "
+    "worker delivers the crew's result to the owner chat as a separate message.\n"
     "- Hands in chat: bridge turns can CALL the live studio APIs through "
     "`python3 -m gateway.studio_api` (read-safe door; spend/post actions still "
     "park at the /approve checkpoint).\n"
@@ -1077,6 +1080,12 @@ _CREW_SYSTEM_WORDS = ("yarımçıq", "yarimciq", "sistem", "növbə", "novbe",
 def _is_heavy_operational(task: str) -> bool:
     """Auto-route genuinely heavy, operational multi-studio work to the crew."""
     if not _CREW_ENABLED:
+        return False
+    if _mic_brain() == "claude":
+        # "The model is the router" (2026-07-20): with the premium brain on,
+        # the brain itself summons the crew (gateway/summon.py) when a turn
+        # deserves it — after 4 keyword misroutes in 3 days, keyword auto-route
+        # survives only as the free-floor fallback. Explicit /crew still works.
         return False
     t = (task or "").strip().lower()
     if len(t) < 40:                      # too short to be heavy operational work
