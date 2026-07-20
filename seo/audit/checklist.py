@@ -66,6 +66,37 @@ def _https(ctx) -> Finding:
                    "SSL sertifikatı quraşdır və bütün http→https 301 yönləndir.")
 
 
+def _ssl_chain(ctx) -> Finding:
+    """A cert that only verifies via the OS store (server omits the intermediate)
+    is a real defect, not cosmetic: strict clients, some crawlers and API callers
+    reject it outright. Detected when the strict fetch failed and only the
+    unverified retry succeeded (http.fetch sets ssl_verified=False)."""
+    if getattr(ctx.fetched, "ssl_verified", True):
+        return Finding("ssl_chain", _INDEX, "SSL sertifikat zənciri", "pass", 2,
+                       "Sertifikat zənciri tam və standart mağaza ilə doğrulanır.")
+    return Finding("ssl_chain", _INDEX, "SSL sertifikat zənciri", "fail", 2,
+                   "Sertifikat standart doğrulamadan keçmir — çox güman aralıq "
+                   "(intermediate) sertifikat serverdə çatışmır. Brauzer bağışlaya "
+                   "bilər, amma sərt müştərilər, bəzi botlar və API-lər saytı rədd edir.",
+                   "Serverdə TAM zənciri (fullchain: leaf + intermediate) quraşdır; "
+                   "SSL Labs / `openssl s_client -showcerts` ilə yoxla.")
+
+
+def _apex_reachable(ctx) -> Finding:
+    """A dead apex (naked domain) that times out while www works splits users and
+    ranking signals — anyone typing the bare domain gets a broken site. Detected
+    when http.fetch had to fall back from apex to www (apex_unreachable=True)."""
+    if not getattr(ctx.fetched, "apex_unreachable", False):
+        return Finding("apex", _INDEX, "Apex (www-suz) domen", "pass", 2,
+                       "Apex domen cavab verir.")
+    www = getattr(ctx.fetched, "www_fallback_url", "") or "www variantı"
+    return Finding("apex", _INDEX, "Apex (www-suz) domen", "fail", 2,
+                   f"Apex domen (www-suz) cavab vermir/timeout; yalnız {www} işləyir. "
+                   "İstifadəçi çılpaq domeni yazanda sayt açılmır və ranking siqnalları bölünür.",
+                   "Apex üçün düzgün A/ALIAS yaz və apex↔www 301 yönləndirmə qur; "
+                   "birini əsas (canonical) host seçib hamısını ona yönləndir.")
+
+
 def _status(ctx) -> Finding:
     s = ctx.fetched.status
     if s == 200:
@@ -290,7 +321,7 @@ def _hreflang(ctx) -> Finding:
 # ---- registry (order = report order) --------------------------------------- #
 
 CHECKS: list[Callable[[AuditContext], Finding]] = [
-    _https, _status, _indexable,
+    _https, _apex_reachable, _ssl_chain, _status, _indexable,
     _title, _description, _h1, _headings, _html_lang, _content_depth, _img_alt,
     _canonical, _robots_txt, _sitemap, _url_clean,
     _viewport, _core_web_vitals,

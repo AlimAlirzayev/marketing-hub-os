@@ -162,6 +162,135 @@ def _is_brain_curate(task: str) -> bool:
     return any(cue in low for cue in _BRAIN_CURATE_CUES)
 
 
+# SEO mission rail (seo/ engine): the operator asks "why aren't we ranking — find
+# it and FIX it, don't just advise". Instead of talking (or asking for a CSV), the
+# bot RUNS the real engine — live technical audit (real crawl) + SERP content-gap —
+# then the premium brain synthesises an EXECUTION-ready fix pack (root causes +
+# paste-ready snippets + first-week plan). Read-only on the target site: it produces
+# the pack, never touches the live site (publish/deploy stays a human-approved
+# action). Cues stay specific so ordinary chat ("seo nədir?") isn't hijacked.
+_SEO_MISSION_CUES = (
+    "seo audit", "seo analiz", "seo-sunu", "seo sunu", "seo-nu", "texniki seo",
+    "niyə sıralan", "niye siralan", "sıralanmır", "siralanmir", "sıralana bilmir",
+    "ön səhifədə çıx", "on sehifede cix", "ön səhifəyə çıx", "on sehifeye cix",
+    "axtarışda görün", "axtarisda gorun", "axtarış görünürlüy", "axtaris gorunurluy",
+    "search visibility", "ranking", "sıralanma", "siralanma", "/seo",
+)
+
+
+def _is_seo_mission(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return any(cue in low for cue in _SEO_MISSION_CUES)
+
+
+_DOMAIN_RE = re.compile(
+    r"\b((?:https?://)?(?:www\.)?[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*"
+    r"\.(?:az|com|net|org|edu|info|biz|io|co)(?:/[^\s)]*)?)", re.IGNORECASE)
+
+
+def _seo_plan(task: str) -> dict:
+    """Extract the SEO mission target: the site URL (an explicit domain in the task
+    wins — e.g. edudistance.az — else the brand's own site) and up to 2 focus
+    keywords. Never raises; falls back to the brand site with no keywords."""
+    m = _DOMAIN_RE.search(task or "")
+    url = m.group(1) if m else ""
+    if not url:
+        try:
+            from brand import BRAND
+            url = BRAND.website or ""
+        except Exception:
+            url = ""
+    keywords: list[str] = []
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from llm_router import complete_json
+        data, _ = complete_json(
+            "Bu tapşırıqdan SEO fokusunu çıxar. Yalnız STRICT JSON qaytar: "
+            '{{"keywords": ["1-3 əsas axtarış açar sözü/mövzu, Azərbaycanca"]}}. '
+            f"Tapşırıq: {task}",
+            tier="cheap", temperature=0.2)
+        keywords = [str(k).strip() for k in (data.get("keywords") or []) if str(k).strip()][:2]
+    except Exception:
+        keywords = []
+    return {"url": url, "keywords": keywords}
+
+
+def _seo_mission(job: Job, thread: str) -> tuple[str, list[str]]:
+    """Run the real SEO engine end-to-end and synthesise an execution-ready
+    deliverable. Returns (deliverable_text, extra_artifact_paths). Never raises —
+    a synthesis failure still ships the raw live audit (the crawl already ran)."""
+    from seo.audit.auditor import audit_url
+    from seo.report import audit_report
+
+    plan = _seo_plan(job.task)
+    url = plan["url"]
+    artifacts: list[str] = []
+    if not url:
+        return ("SEO missiyası üçün hədəf sayt tapılmadı — tapşırıqda domen göstər "
+                "(məs. example.az) və ya BRAND.website təyin et.", artifacts)
+
+    # 1) live technical audit (real crawl; hardened fetch survives apex/SSL quirks)
+    result = audit_url(url, with_vitals=True)
+    audit_txt = audit_report(result)
+    try:
+        from seo.render import save_audit_html
+        artifacts.append(str(save_audit_html(result)))
+    except Exception as exc:  # noqa: BLE001 — the HTML report is a bonus, not the job
+        sense.emit("seo", f"audit html render skipped: {exc}")
+
+    # 2) SERP content-gap on the top focus keyword (best-effort, bounded to one kw)
+    gap_txt = ""
+    kw = plan["keywords"][0] if plan["keywords"] else ""
+    if kw:
+        try:
+            from seo.report import gap_report
+            from seo.research.gap import analyze_gap
+            gap_txt = gap_report(analyze_gap(kw, top_n=5))
+        except Exception as exc:  # noqa: BLE001
+            gap_txt = f"(SERP content-gap alınmadı: {exc})"
+
+    # 3) premium synthesis into an EXECUTION-ready deliverable (never mere advice)
+    material = (
+        f"HƏDƏF SAYT: {result.final_url or url}  ·  SEO BALI: {result.score}/100 "
+        f"({result.grade})\n\n=== TEXNİKİ AUDİT (CANLI TARAMA) ===\n{audit_txt}\n\n"
+        + (f"=== SERP CONTENT-GAP — “{kw}” ===\n{gap_txt}\n" if gap_txt else "")
+    )[:9000]
+    synth_system = (
+        "Sən icra-yönümlü SEO mühəndisisən. Sənə CANLI audit + SERP gap materialı "
+        "verilir. Vəzifən MƏSLƏHƏT vermək DEYİL — yapışdırmağa hazır düzəlişlər "
+        "çıxarmaqdır. Materialda olmayan rəqəm/fakt uydurma." + _self_facts()
+    )
+    prompt = (
+        f"Operatorun tapşırığı: {job.task}\n\nCANLI MATERİAL:\n{material}\n\n"
+        "Bunun əsasında Azərbaycanca, konkret, İCRA-hazır deliverable ver. Bölmələr:\n"
+        "1) NİYƏ SIRALANMIRIQ — audit+gap-dən çıxan 3-5 əsas kök səbəb (yalnız "
+        "materialdan, uydurma yox).\n"
+        "2) DƏRHAL TƏTBİQ OLUNAN TEXNİKİ DÜZƏLİŞLƏR — hər problem üçün YAPIŞDIRMAĞA "
+        "HAZIR kod ver: çatışmayan `<meta viewport>`, JSON-LD schema (Organization + "
+        "WebSite, real domen/ada görə), `<link rel=canonical>`, təklif olunan H1 "
+        "mətni, Open Graph tag-ləri. Real domeni işlət.\n"
+        "3) KONTENT BOŞLUQLARI — gap-dən: hansı mövzu/FAQ səhifələri yaradılmalı.\n"
+        "4) İLK 7 GÜN — prioritetli, ölçülə bilən addım siyahısı.\n"
+        "Canlı saytda dəyişikliyi ÖZÜN TƏTBİQ ETMƏ — paket insan təsdiqi ilə tətbiq olunur."
+    )
+    try:
+        from . import brain
+        text, model = brain.answer(prompt, system=synth_system, prefer="claude", timeout=120)
+        if not text or text.startswith("[brain error]"):
+            raise RuntimeError(text or "empty synthesis")
+        header = (f"🔎 **SEO missiyası — {result.final_url or url}** · "
+                  f"bal {result.score}/100 ({result.grade})\n\n")
+        note = ("\n\n—\n_İcra-hazır fix paketi ({model}). Canlı saytda tətbiq/deploy "
+                "ayrıca addımdır — « tətbiq et » desən, təsdiqlə növbəyə salıram._"
+                ).format(model=model)
+        return header + text + note, artifacts
+    except Exception as exc:  # noqa: BLE001 — never lose the crawl that already ran
+        sense.emit("seo", f"seo mission synth failed: {exc}")
+        raw = audit_txt + (f"\n\n{gap_txt}" if gap_txt else "")
+        return ("🔎 SEO missiyası — sintez alınmadı, canlı audit təhvil verilir:\n\n"
+                + raw), artifacts
+
+
 def _choose_mode(task: str) -> str:
     low = task.lower()
     if any(k in low for k in _TOOL_HINTS):
@@ -1280,6 +1409,20 @@ def execute(job: Job) -> dict:
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} brain-curate", {"task": job.task[:80]})
             return {"result": f"_[brain-curate]_\n\n{text}", "artifacts": [artifact]}
+
+        # SEO mission rail: "why aren't we ranking — find it and FIX it". Runs the
+        # real engine (live crawl audit + SERP content-gap) and returns an
+        # execution-ready fix pack, not advice. Read-only on the target site; it
+        # never publishes (that stays a human-approved action), so it sits with the
+        # other read-only analysis rails ahead of the checkpoint. Must precede the
+        # multi-step planner: the operator's ask often contains "sonra" and would
+        # otherwise be hijacked into a talk-only research essay.
+        if _is_seo_mission(job.task):
+            text, extra = _seo_mission(job, thread)
+            artifact = _save_artifact(job.id, text)
+            sense.emit("job", f"#{job.id} seo-mission", {"task": job.task[:80]})
+            return {"result": f"_[seo-mission]_\n\n{text}",
+                    "artifacts": [artifact] + extra}
 
         # The human checkpoint (charter: outward actions never run silently).
         # A publish/send/call/deploy task parks for operator approval; once the

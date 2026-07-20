@@ -32,13 +32,17 @@ GOOD_HTML = """
 
 
 def _ctx(html=GOOD_HTML, *, url="https://x.az/", robots=None, sitemap_ok=True,
-         vitals=None, status=200) -> AuditContext:
+         vitals=None, status=200, ssl_verified=True, apex_unreachable=False,
+         www_fallback_url="") -> AuditContext:
     class F:  # minimal Fetched stand-in
         pass
     f = F()
     f.url = url
     f.status = status
     f.elapsed_ms = 120
+    f.ssl_verified = ssl_verified
+    f.apex_unreachable = apex_unreachable
+    f.www_fallback_url = www_fallback_url
     return AuditContext(
         url=url, fetched=f, page=parse(html),
         robots=robots or RobotsInfo(exists=True, sitemaps=["s.xml"]),
@@ -121,3 +125,25 @@ def test_ai_governance_detected():
     r = RobotsInfo(exists=True, ai_bots_mentioned=["GPTBot", "ClaudeBot"])
     f = next(x for x in checklist.run_all(_ctx(robots=r)) if x.id == "ai_bots")
     assert f.status == "info" and "GPTBot" in f.detail
+
+
+def test_ssl_chain_pass_when_verified():
+    f = next(x for x in checklist.run_all(_ctx()) if x.id == "ssl_chain")
+    assert f.status == "pass"
+
+
+def test_ssl_chain_fails_when_unverified():
+    c = _ctx(ssl_verified=False)
+    f = next(x for x in checklist.run_all(c) if x.id == "ssl_chain")
+    assert f.status == "fail" and f.weight == 2
+
+
+def test_apex_pass_when_reachable():
+    f = next(x for x in checklist.run_all(_ctx()) if x.id == "apex")
+    assert f.status == "pass"
+
+
+def test_apex_fails_when_only_www_answers():
+    c = _ctx(apex_unreachable=True, www_fallback_url="https://www.x.az/")
+    f = next(x for x in checklist.run_all(c) if x.id == "apex")
+    assert f.status == "fail" and "www.x.az" in f.detail
