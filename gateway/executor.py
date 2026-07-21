@@ -400,9 +400,11 @@ _SELF_FACTS = (
     "the monthly 'what the OS did for Xalq' scorecard — business RESULTS (leads/CPA/"
     "conversions/complaint-SLA, live + source-labelled CANLI/DEMO/ƏLÇATMAZ) beside "
     "system WORK (real deliverable counts + hours-saved estimate from the job queue). "
-    "It also delivers ITSELF: a supervisor thread emits last month's ledger to the "
-    "owner once when a new month turns. The indispensability argument; numbers are "
-    "never invented. Do NOT propose building an impact/ROI report; it exists.\n"
+    "It also delivers ITSELF (a supervisor thread emits last month's ledger to the "
+    "owner once when a new month turns) and renders a report-grade HTML/PDF leadership "
+    "document (gateway/impact_render.py, Xalq brand, headless-Edge PDF) beside the "
+    "Telegram text. The indispensability argument; numbers are never invented. Do NOT "
+    "propose building an impact/ROI report; it exists.\n"
     "- Self-improving memory: after each job the brain distills lessons (reflect), "
     "and a daily autonomous CURATOR (brain/curator.py) reviews that queue itself — "
     "promoting the good ones into long-term memory, dropping the noise — so learning "
@@ -410,6 +412,10 @@ _SELF_FACTS = (
     "lesson-review feature; it exists.\n"
     "- Interfaces: the Telegram bot, the control panel (port 8890) with a live map, and "
     "Codex — all one shared conversation and memory.\n"
+    "- Trello work board: gateway/trello.py connects only the allowlisted Xalq Insurance "
+    "board RRlLCaSG. It can read snapshots after local authorization; create/move/update/"
+    "comment writes require an exact saved-plan approval code, while deletion, membership, "
+    "visibility, and cross-board actions are blocked.\n"
     "- Safety: risky/outward actions (post/send/pay/delete) PARK at a human checkpoint "
     "(/approve N, /reject N).\n"
     "- Marketing data: you have NO live Meta/Google Ads pull unless credentials are "
@@ -1439,7 +1445,10 @@ def execute(job: Job) -> dict:
         # work side is real counts from the durable job queue. Zero LLM tokens.
         if _is_impact_ledger(job.task):
             from . import impact_ledger
-            text = impact_ledger.report()
+            # Collect once → Telegram text + the report-grade HTML/PDF leadership doc.
+            text, html_path = impact_ledger.save_report(to_pdf=True)
+            if html_path:
+                text += f"\n\n📄 Rəhbərlik üçün hesabat: {html_path}"
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} impact-ledger", {"task": job.task[:80]})
             return {"result": f"_[impact-ledger]_\n\n{text}", "artifacts": [artifact]}

@@ -262,10 +262,27 @@ def _fmt_delta(d: float | None, *, lower_better: bool = False) -> str:
 
 def report(month: str | None = None) -> str:
     """The blended scorecard as operator-facing Azerbaijani text."""
-    month = month or _dt.date.today().strftime("%Y-%m")
-    sc = collect(month)
+    return _format_text(collect(month or _dt.date.today().strftime("%Y-%m")))
+
+
+def save_report(month: str | None = None, *, to_pdf: bool = False) -> tuple[str, "Path | None"]:
+    """Collect once, return (Telegram text, report-grade HTML path). The HTML is
+    the leadership document; PDF is best-effort (headless Edge). Never raises on
+    the render side — the text is the guaranteed deliverable."""
+    sc = collect(month or _dt.date.today().strftime("%Y-%m"))
+    text = _format_text(sc)
+    html_path = None
+    try:
+        from . import impact_render
+        html_path = impact_render.save(sc, to_pdf=to_pdf)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[impact_ledger] html render skipped: {exc}")
+    return text, html_path
+
+
+def _format_text(sc: dict) -> str:
     r, w = sc["results"], sc["work"]
-    lines = [f"📇 XALQ TƏSİR JURNALI — {month}", "=" * 34, "", "NƏTİCƏ (biznes):"]
+    lines = [f"📇 XALQ TƏSİR JURNALI — {sc['month']}", "=" * 34, "", "NƏTİCƏ (biznes):"]
 
     lead = r["leads"]
     if lead["value"] is not None:
@@ -367,5 +384,13 @@ if __name__ == "__main__":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-    arg_month = sys.argv[1] if len(sys.argv) > 1 else None
-    print(report(arg_month))
+    args = [a for a in sys.argv[1:]]
+    want_html = "--html" in args
+    want_pdf = "--pdf" in args
+    month = next((a for a in args if not a.startswith("-")), None)
+    if want_html or want_pdf:
+        text, path = save_report(month, to_pdf=want_pdf)
+        print(text)
+        print(f"\n[saved] {path}" + (f" (+ {path.with_suffix('.pdf')})" if want_pdf and path else ""))
+    else:
+        print(report(month))
