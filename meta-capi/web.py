@@ -23,6 +23,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 import capi
 import config
+import event_log
 from import_sales import (
     UnsupportedFile,
     _chunks,
@@ -121,13 +122,30 @@ def _run_send(job_id: str, events: list[dict], test_code: str | None) -> None:
         for batch in _chunks(events, 1000):
             resp = capi.send_events(batch, dataset_id=config.OFFLINE_DATASET_ID,
                                     test_event_code=test_code)
-            job["sent"] += int(resp.get("events_received", 0))
+            received = int(resp.get("events_received", 0))
+            job["sent"] += received
             job["batches"].append({"received": resp.get("events_received"),
                                    "fbtrace_id": resp.get("fbtrace_id")})
+            # Durable journal: one line per accepted batch, so CRM Purchases
+            # appear in the same /api/events history as gateway events.
+            value = sum(v for e in batch
+                        if isinstance((v := (e.get("custom_data") or {}).get("value")), (int, float)))
+            currency = next((c for e in batch
+                             if (c := (e.get("custom_data") or {}).get("currency"))), None)
+            event_log.log_event({
+                "kind": "crm_batch", "event": "Purchase", "status": "ok",
+                "count": received or len(batch), "test": bool(test_code),
+                "detail": str(resp.get("fbtrace_id") or "")[:200],
+                "value": round(value, 2), "currency": currency,
+                "dataset": config.OFFLINE_DATASET_ID})
         job["status"] = "done"
     except Exception as exc:
         job["status"] = "error"
         job["error"] = str(exc)
+        event_log.log_event({"kind": "crm_batch", "event": "Purchase",
+                             "status": "error", "test": bool(test_code),
+                             "detail": str(exc)[:200],
+                             "dataset": config.OFFLINE_DATASET_ID})
 
 
 @app.post("/api/send")

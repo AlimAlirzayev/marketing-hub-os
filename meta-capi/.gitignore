@@ -1,0 +1,3 @@
+# Runtime event journal — operational data, never committed (grows unbounded;
+# event ids are pseudo-identifiers). The code that writes it IS committed.
+data/

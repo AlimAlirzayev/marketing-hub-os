@@ -40,6 +40,7 @@ from pydantic import BaseModel
 
 import capi
 import config
+import event_log
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -109,6 +110,20 @@ def _remember(name: str, event_id: str, status: str, detail: Any, test: bool) ->
                        "status": status, "detail": str(detail)[:200], "test": test})
 
 
+def _journal(name: str, event_id: str, status: str, detail: Any, test: bool,
+             custom: dict | None) -> None:
+    """Durable twin of _remember — append to the JSONL journal so events can be
+    charted over time (the in-memory deque forgets after 50 / any restart)."""
+    rec = {"kind": "collect", "event": name, "event_id": event_id,
+           "status": status, "detail": str(detail)[:200], "test": test,
+           "dry_run": DRY_RUN, "dataset": config.active_dataset()}
+    c = custom or {}
+    if isinstance(c.get("value"), (int, float)):
+        rec["value"] = c["value"]
+        rec["currency"] = c.get("currency")
+    event_log.log_event(rec)   # never raises
+
+
 def _dispatch(name: str, ud: dict, custom: dict | None, event_id: str,
               action_source: str, url: str | None, event_time: int | None,
               test_code: str | None) -> None:
@@ -122,13 +137,16 @@ def _dispatch(name: str, ud: dict, custom: dict | None, event_id: str,
         if DRY_RUN:
             STATS["sent"] += 1
             _remember(name, event_id, "dry_run", "(göndərilmədi — DRY_RUN)", bool(test_code))
+            _journal(name, event_id, "dry_run", "dry_run", bool(test_code), custom)
         else:
             STATS["sent"] += int(resp.get("events_received", 0))
             _remember(name, event_id, "ok", resp.get("fbtrace_id"), bool(test_code))
+            _journal(name, event_id, "ok", resp.get("fbtrace_id"), bool(test_code), custom)
     except Exception as exc:                              # surface, never silently drop
         STATS["failed"] += 1
         STATS["last_error"] = str(exc)
         _remember(name, event_id, "error", str(exc), bool(test_code))
+        _journal(name, event_id, "error", str(exc), bool(test_code), custom)
 
 
 @app.post("/collect")
@@ -201,6 +219,15 @@ def healthz() -> dict:
 @app.get("/stats")
 def stats() -> dict:
     return {**STATS, "recent": list(RECENT)}
+
+
+@app.get("/api/events")
+def events(days: int = 30, include_test: int = 0) -> dict:
+    """Time-bucketed history from the durable journal — daily counts by event
+    name + value sums. This is what makes custom-conversion trends chartable
+    (the in-memory /stats forgets on restart)."""
+    days = max(1, min(int(days), 365))
+    return event_log.report(days, include_test=bool(include_test))
 
 
 @app.get("/capi-bridge.js")
