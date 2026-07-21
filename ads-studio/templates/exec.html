@@ -175,14 +175,61 @@ function render(vm){
       ${card('#5C0F12','🛡️','Reputasiya riski', compStatus==='error'?'error':(comp.status==='demo'?'demo':'live'), repBody)}
     </div>
     <div class="grid md:grid-cols-3 gap-5">
+      ${card('#eb6834','🔁','Konversiya Hadisələri (CAPI)', null, `<div id="capi-slot">${empty('Jurnal yüklənir…')}</div>`, 'md:col-span-2')}
       ${card('#2B2A29','🩺','Mənbə sağlamlığı', null, `<div class="space-y-3">${sources || empty('Mənbə siyahısı yoxdur.')}</div>`, 'md:col-span-1')}
-      ${card('#4a3aa7','✅','Prioritet addımlar (data-əsaslı)', null, actions, 'md:col-span-2')}
+    </div>
+    <div class="grid gap-5">
+      ${card('#4a3aa7','✅','Prioritet addımlar (data-əsaslı)', null, actions)}
     </div>`;
 
   $('#loading').classList.add('hidden');
   $('#content').classList.remove('hidden');
   buildCharts(vm);
+  loadCapi();   // async — the card fills in when the gateway answers
 }
+
+// ---- CAPI card: durable event journal from /api/capi-status ---------------
+async function loadCapi(){
+  const slot = document.getElementById('capi-slot');
+  if(!slot) return;
+  try{
+    const st = await (await fetch('/api/capi-status?days=30')).json();
+    const head = slot.closest('.card').querySelector('.chead');
+    if(!st.reachable){
+      if(head) head.insertAdjacentHTML('beforeend', badge('error'));
+      slot.innerHTML = empty('CAPI gateway (8812) əlçatmazdır — hadisə axını görünmür.');
+      return;
+    }
+    const dry = st.healthz && st.healthz.dry_run;
+    if(head) head.insertAdjacentHTML('beforeend', badge(dry ? 'demo' : 'live'));
+    const ev = st.events || {};
+    if(!(ev.daily || []).length){
+      slot.innerHTML = empty('Jurnal yenidir — real hadisələr axdıqca bu qrafik özü dolacaq. (Sayta bridge qoşulub, göndərici CANLI-dır.)');
+      return;
+    }
+    const kpis = `
+      <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+        <div><div class="num text-xl font-bold">${esc(ev.sent_ok)}</div><div class="text-[11px] text-gray-500">Göndərilib</div></div>
+        <div><div class="num text-xl font-bold ${ev.failed ? 'text-brand-red':''}">${esc(ev.failed)}</div><div class="text-[11px] text-gray-500">Xəta</div></div>
+        <div><div class="num text-xl font-bold">${ev.value_sum ? esc(ev.value_sum)+' '+esc(ev.currency||'') : '—'}</div><div class="text-[11px] text-gray-500">Dəyər (30g)</div></div>
+      </div>`;
+    slot.innerHTML = kpis + canvas('cCapi');
+    const names = (ev.by_event || []).slice(0,6).map(x=>x.event);
+    const days = ev.daily.map(d=>d.date.slice(5));
+    mkChart('cCapi', {
+      type:'bar',
+      data:{ labels: days,
+        datasets: names.map((n,i)=>({ label:n, data: ev.daily.map(d=>(d.by_event||{})[n]||0),
+          backgroundColor: PAL[(i+1)%PAL.length], borderRadius:3, stack:'s' })) },
+      options:{ maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+        plugins:{ legend:{ labels:{ usePointStyle:true, boxWidth:8, font:{size:11} } } },
+        scales:{ x:{ stacked:true, grid:{display:false} }, y:{ stacked:true, beginAtZero:true, grid:{color:'#EEF0F3'}, ticks:{precision:0} } } }
+    });
+  }catch(e){
+    slot.innerHTML = empty('CAPI statusu alınmadı: ' + e.message);
+  }
+}
+function mkChart(id, cfg){ const el = document.getElementById(id); if(el){ CHARTS.push(new Chart(el, cfg)); } }
 
 function buildCharts(vm){
   const gridColor = '#EEF0F3';

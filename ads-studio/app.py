@@ -109,6 +109,32 @@ def briefing_page() -> FileResponse:
     return FileResponse(os.path.join(BASE, "templates", "briefing.html"))
 
 
+_CAPI_GW = os.getenv("CAPI_GW_URL", "http://127.0.0.1:8812")
+
+
+@app.get("/api/capi-status")
+def capi_status(days: int = 30) -> JSONResponse:
+    """Server-side bridge to the CAPI gateway (:8812) for the İcra Paneli card —
+    same pattern as the trend-bridge: the browser talks only to this origin, we
+    fetch healthz + the durable event journal. Honest shape when the gateway is
+    down: {reachable:false}, never invented numbers."""
+    out: dict = {"reachable": False, "gateway": _CAPI_GW}
+    try:
+        import requests
+        h = requests.get(f"{_CAPI_GW}/healthz", timeout=4).json()
+        out.update(reachable=True, healthz=h)
+        out["events"] = requests.get(f"{_CAPI_GW}/api/events",
+                                     params={"days": days}, timeout=6).json()
+        try:  # volatile session counters — nice-to-have, never fatal
+            s = requests.get(f"{_CAPI_GW}/stats", timeout=4).json()
+            out["session"] = {k: s.get(k) for k in ("received", "sent", "failed")}
+        except Exception:
+            pass
+    except Exception as exc:
+        out["error"] = str(exc)[:200]
+    return JSONResponse(out)
+
+
 @app.get("/exec")
 def exec_panel() -> FileResponse:
     # İcra Paneli — the visual CEO-style dashboard over the SAME blended feed as
