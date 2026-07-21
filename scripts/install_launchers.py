@@ -1,17 +1,26 @@
-"""Put the one-click access launchers on THIS machine's Desktop.
+"""Put the ONE product key on THIS machine's Desktop.
 
-Why this exists (2026-07-13, Alim's rule): the access launchers must travel to
-BOTH twins automatically, not be a Mac-local afterthought. The engine already
-syncs via git; this makes the *desktop buttons* part of that engine so opening
-the system on either machine puts them in reach — no manual copying, no reminders.
+Doctrine (2026-07-21, Alim's "Ferrari" rule): the Desktop is the PRODUCT plane,
+not the workshop. A driver presses ONE button, the factory boots, and the whole
+system opens live in front of them. So this installs exactly one launcher —
+"Marketing OS" — and actively retires every scattered port/tool shortcut we used
+to scatter here. Builder-plane utilities (secure-key, add-Claude-account) live in
+the repo, not on the owner's daily Desktop.
 
-It is platform-aware because the twins differ:
-  * Windows work PC runs the whole OS LOCALLY -> launchers open localhost URLs.
-  * Mac is a thin console -> launchers SSH-tunnel to the VPS first.
+Why this file exists (Alim's cross-twin rule): the key must travel to BOTH twins
+automatically, not be a per-machine afterthought. The engine already syncs via
+git; this makes the *desktop button* part of that engine so opening the system on
+either machine puts the one key in reach — no manual copying, no reminders.
 
-Idempotent: run it every boot; it just rewrites the current launchers. Called
-from START_MARKETING_OS.ps1 (Windows) and the Mac session-start. Never raises
-in a way that could block boot.
+Platform-aware, because the twins differ:
+  * Windows work PC runs the whole OS LOCALLY -> the key BOOTS everything
+    (START_MARKETING_OS.ps1) and the front door opens live.
+  * Mac is a thin console -> the key SSH-tunnels to the always-on VPS, then
+    opens the same front door.
+
+Idempotent: run it every boot; it retires the old launchers and rewrites the one
+key. Called from START_MARKETING_OS.ps1 (Windows) and the Mac session-start.
+Never raises in a way that could block boot.
 """
 
 from __future__ import annotations
@@ -20,36 +29,28 @@ import os
 import sys
 from pathlib import Path
 
-PANEL_PORT = os.getenv("PANEL_PORT", "8890")
-DASH_PORT = os.getenv("DASHBOARD_PORT", "7733")
-ADS_PORT = os.getenv("ADS_STUDIO_PORT", "8800")
+HUB_PORT = os.getenv("HUB_PORT", "8000")  # the front door — the live overview
 ROOT = Path(__file__).resolve().parent.parent
 
-# --- Windows: everything runs locally, so just open localhost -------------
+# --- Windows: everything runs locally, so the key BOOTS the factory --------
+# One button -> START boots every service from services.json (visible progress)
+# -> the front door opens live. Absolute paths only (no %~dp0 fragility).
 _WIN = {
-    "Secure API Key.bat":
-        f'@echo off\r\ncd /d "{ROOT}"\r\ncall SECURE_KEY.bat META_ACCESS_TOKEN\r\n',
-    "🎛 Idareetme Merkezi.bat":
-        f'@echo off\r\nstart "" "http://localhost:{PANEL_PORT}/"\r\n',
-    "🗺 Canli Xerite.bat":
-        f'@echo off\r\nstart "" "http://localhost:{PANEL_PORT}/map"\r\n',
-    "📈 Ads Studio.bat":
-        f'@echo off\r\nstart "" "http://localhost:{ADS_PORT}/"\r\n',
-    "📊 Dashboard.bat":
-        f'@echo off\r\nstart "" "http://localhost:{DASH_PORT}/"\r\n',
-    "🔑 Beyin Girisi (Claude).bat":
-        '@echo off\r\ncd /d "%~dp0..\\"\r\n'
-        'powershell -ExecutionPolicy Bypass -NoProfile -File '
-        '"%~dp0..\\scripts\\add_claude_account.ps1"\r\n'
-        'pause\r\n',
+    "🏎 Marketing OS.bat":
+        "@echo off\r\n"
+        "title Marketing OS\r\n"
+        f'cd /d "{ROOT}"\r\n'
+        "powershell -ExecutionPolicy Bypass -NoProfile -File "
+        f'"{ROOT}\\START_MARKETING_OS.ps1"\r\n',
 }
 
-# --- Mac: thin console -> tunnel to the VPS -------------------------------
-def _mac_tunnel(path: str, port: str = PANEL_PORT) -> str:
+
+# --- Mac: thin console -> tunnel to the always-on VPS, open the front door --
+def _mac_tunnel(path: str, port: str = HUB_PORT, health: str = "/api/status") -> str:
     return (
         "#!/bin/bash\n"
         f'PORT={port}; URL="http://127.0.0.1:$PORT{path}"\n'
-        f'up(){{ curl -s --max-time 2 "http://127.0.0.1:{port}/api/health" | grep -q \'"ok":true\'; }}\n'
+        f'up(){{ curl -s --max-time 2 "http://127.0.0.1:{port}{health}" | grep -q \'"ok":true\'; }}\n'
         'if ! up; then ssh -f -N -L "$PORT:127.0.0.1:$PORT" -o ExitOnForwardFailure=yes hetzner-agents || { echo "tunel alinmadi"; sleep 3; exit 1; }\n'
         '  for _ in {1..10}; do up && break; sleep 1; done\nfi\n'
         'open -a "Google Chrome" "$URL" 2>/dev/null || open "$URL"\n'
@@ -57,30 +58,27 @@ def _mac_tunnel(path: str, port: str = PANEL_PORT) -> str:
 
 
 _MAC = {
-    "Təhlükəsiz API Açarı.command": (
-        "#!/bin/bash\n"
-        'ssh -t hetzner-agents "cd /opt/marketing-hub-os && '
-        'PY=./.venv/bin/python; [ -x \\\"$PY\\\" ] || PY=python3; '
-        '\\\"$PY\\\" scripts/secure_key.py META_ACCESS_TOKEN"\n'
-    ),
-    "🎛 İdarəetmə Mərkəzi.command": _mac_tunnel("/"),
-    "🗺 Canlı Xəritə.command": _mac_tunnel("/map"),
-    "📈 Ads Studio.command": _mac_tunnel("/", ADS_PORT),
-    "🔑 Beyin Girişi (Claude).command": (
-        "#!/bin/bash\n"
-        'echo "Claude hesab(lar) əlavə edirik (2 hesab tövsiyə olunur)..."\n'
-        "n=1\n"
-        "while true; do\n"
-        '  ssh -t hetzner-agents "cd /opt/marketing-hub-os && scripts/add_claude_account.sh account-$n"\n'
-        '  read -p "Başqa hesab? (b=bəli): " m; case "$m" in b|B) n=$((n+1));; *) break;; esac\n'
-        "done\n"
-    ),
-    "📊 Dashboard.command": (
-        "#!/bin/bash\n"
-        'cd "$HOME/control-center/dashboard" 2>/dev/null || { echo "dashboard tapılmadı"; sleep 2; exit 1; }\n'
-        'PY="$(command -v python3 || echo /usr/bin/python3)"; exec "$PY" server.py\n'
-    ),
+    "🏎 Marketing OS.command": _mac_tunnel("/"),
 }
+
+# --- Old scattered launchers we now retire (the one-key doctrine) ----------
+# Deleted by exact name only — never touches arbitrary user files. Safe if absent.
+_RETIRED = [
+    # Windows
+    "Secure API Key.bat",
+    "🎛 Idareetme Merkezi.bat",
+    "🗺 Canli Xerite.bat",
+    "📈 Ads Studio.bat",
+    "📊 Dashboard.bat",
+    "🔑 Beyin Girisi (Claude).bat",
+    # Mac
+    "Təhlükəsiz API Açarı.command",
+    "🎛 İdarəetmə Mərkəzi.command",
+    "🗺 Canlı Xəritə.command",
+    "📈 Ads Studio.command",
+    "🔑 Beyin Girişi (Claude).command",
+    "📊 Dashboard.command",
+]
 
 
 def _desktop() -> Path:
@@ -94,6 +92,14 @@ def _desktop() -> Path:
 def install() -> list[str]:
     dst = _desktop()
     dst.mkdir(parents=True, exist_ok=True)
+
+    # Retire the old scattered launchers first — the Desktop is one key only.
+    for name in _RETIRED:
+        try:
+            (dst / name).unlink(missing_ok=True)
+        except Exception as exc:  # never let cleanup break a boot
+            print(f"[launchers] retire skip {name}: {exc}")
+
     files = _WIN if os.name == "nt" else _MAC
     written = []
     for name, body in files.items():
@@ -111,6 +117,6 @@ def install() -> list[str]:
 if __name__ == "__main__":
     try:
         w = install()
-        print(f"[launchers] {len(w)} launcher(s) -> {_desktop()}")
+        print(f"[launchers] {len(w)} key -> {_desktop()}")
     except Exception as exc:  # noqa: BLE001 — boot must never break on this
         print(f"[launchers] install skipped: {exc}", file=sys.stderr)
