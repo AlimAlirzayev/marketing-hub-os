@@ -109,6 +109,15 @@ def briefing_page() -> FileResponse:
     return FileResponse(os.path.join(BASE, "templates", "briefing.html"))
 
 
+@app.get("/exec")
+def exec_panel() -> FileResponse:
+    # İcra Paneli — the visual CEO-style dashboard over the SAME blended feed as
+    # /briefing (scripts/daily_briefing.py via /api/briefing). Charts, not tables;
+    # every card source-labelled CANLI/DEMO/QOŞULMAYIB/ƏLÇATMAZ. Adds a view, does
+    # not replace the text briefing.
+    return FileResponse(os.path.join(BASE, "templates", "exec.html"))
+
+
 @app.get("/api/briefing")
 def briefing_api(refresh: int = 0) -> JSONResponse:
     try:

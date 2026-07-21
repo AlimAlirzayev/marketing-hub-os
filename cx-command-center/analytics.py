@@ -108,22 +108,23 @@ def _counter_rows(counter: Counter) -> list[dict]:
 
 
 def executive_brief(report: dict) -> dict:
+    # User-facing strings are Azerbaijani (house language rule); keys stay EN.
     totals = report["totals"]
     root = report["root_causes"][:3]
-    top = ", ".join(f"{r['category']} ({r['count']})" for r in root) or "no dominant issue"
+    top = ", ".join(f"{r['category']} ({r['count']})" for r in root) or "dominant problem yoxdur"
     if totals["critical_open"] or totals["overdue"]:
         level = "red"
-        title = "Immediate recovery attention needed"
+        title = "Təcili müdaxilə tələb olunur"
     elif totals["risk_score"] >= 55:
         level = "amber"
-        title = "Complaint pressure is elevated"
+        title = "Şikayət təzyiqi yüksəlib"
     else:
         level = "green"
-        title = "Complaint system is under control"
+        title = "Şikayət sistemi nəzarət altındadır"
     text = (
-        f"Last {report['period_days']} days: {totals['messages']} signals, "
-        f"{totals['open']} open, {totals['overdue']} overdue, {totals['critical_open']} critical. "
-        f"Main drivers: {top}. Resolution rate is {totals['resolution_rate']}%."
+        f"Son {report['period_days']} gün: {totals['messages']} siqnal, "
+        f"{totals['open']} açıq, {totals['overdue']} gecikmiş, {totals['critical_open']} kritik. "
+        f"Əsas səbəblər: {top}. Həll faizi: {totals['resolution_rate']}%."
     )
     return {"level": level, "title": title, "text": text}
 

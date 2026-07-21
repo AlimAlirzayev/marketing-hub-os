@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>İcra Paneli — Xalq Sigorta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      brand: { red:'#E31E24', reddark:'#B3171C', charcoal:'#2B2A29', ink:'#1C1B17', burgundy:'#5C0F12' },
+      surface: { bg:'#F5F6F8', card:'#FFFFFF', line:'#E5E7EB' },
+    },
+    fontFamily: { sans:['Inter','system-ui','sans-serif'], tight:['"Inter Tight"','Inter','sans-serif'] },
+  }}};
+</script>
+<style>
+  body { background:#F5F6F8; }
+  .num { font-variant-numeric: tabular-nums; font-family:'Inter Tight', Inter, sans-serif; }
+  .card { background:#fff; border:1px solid #ECEEF1; border-radius:18px; box-shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); overflow:hidden; }
+  .chead { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 16px; color:#fff; }
+  .chead .t { font-weight:700; font-size:14px; }
+  .cbody { padding:16px; }
+  .skeleton { background: linear-gradient(90deg,#eef0f3 25%,#e3e6ea 37%,#eef0f3 63%); background-size:400% 100%; animation: sh 1.3s ease infinite; border-radius:12px; }
+  @keyframes sh { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+  .fade-in { animation: fi .35s ease both; }
+  @keyframes fi { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+  .badge { display:inline-flex; align-items:center; gap:6px; font-size:10px; font-weight:700; border-radius:999px; padding:3px 9px; }
+  .b-live    { background:rgba(255,255,255,.9); color:#0B7A47; }
+  .b-demo    { background:rgba(255,255,255,.9); color:#92610A; }
+  .b-missing { background:rgba(255,255,255,.85); color:#4B5563; }
+  .b-error   { background:rgba(255,255,255,.9); color:#B3171C; }
+  .chartbox { position:relative; height:190px; }
+  .chartbox.sm { height:150px; }
+  @media print { .no-print{display:none!important} body{background:#fff} .card{box-shadow:none;border:1px solid #ddd;break-inside:avoid} @page{margin:10mm} }
+</style>
+</head>
+<body class="font-sans text-brand-ink">
+
+<header class="bg-brand-ink text-white no-print">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+    <img src="/static/logo-white.svg" alt="Xalq Sigorta" class="h-9 w-auto" />
+    <div class="leading-tight border-l border-white/15 pl-3 ml-1">
+      <div class="font-tight font-bold text-[15px]">İcra Paneli</div>
+      <div class="text-white/55 text-[12px]">Bütün marketinq mənzərəsi bir səhifədə — real, mənbə-etiketli</div>
+    </div>
+    <div class="ml-auto flex items-center gap-2 flex-wrap justify-end">
+      <a href="/" class="text-sm bg-white/10 hover:bg-white/20 transition px-3 py-2 rounded-lg font-medium">← Hesabatlılıq</a>
+      <a href="/briefing" class="text-sm bg-white/10 hover:bg-white/20 transition px-3 py-2 rounded-lg font-medium">📄 Mətn hesabatı</a>
+      <button id="btn-print" class="text-sm bg-white/10 hover:bg-white/20 transition px-3 py-2 rounded-lg font-medium">🖨 Çap</button>
+      <button id="btn-refresh" class="text-sm bg-brand-red hover:bg-brand-reddark transition px-3 py-2 rounded-lg font-medium">🔄 Canlı yenilə</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+  <div id="loading" class="space-y-4">
+    <div class="skeleton h-8 w-72"></div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="skeleton h-24"></div><div class="skeleton h-24"></div>
+      <div class="skeleton h-24"></div><div class="skeleton h-24"></div>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="skeleton h-56"></div><div class="skeleton h-56"></div><div class="skeleton h-56"></div>
+    </div>
+  </div>
+  <div id="content" class="hidden space-y-5"></div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Same source-honesty vocabulary as briefing.html — never invent a status.
+const BADGE = { live:['b-live','CANLI'], demo:['b-demo','DEMO'], missing:['b-missing','QOŞULMAYIB'], error:['b-error','ƏLÇATMAZ'] };
+const TONE = { red:'text-brand-red', amber:'text-amber-600', green:'text-emerald-600', warn:'text-amber-600', error:'text-gray-400', neutral:'text-brand-ink' };
+// dataviz-validated categorical order, brand red leading.
+const PAL = ['#E31E24','#2a78d6','#1baf7a','#eda100','#e87ba4','#4a3aa7','#eb6834','#008300'];
+const CHARTS = [];
+let VM = null;
+
+function badge(status){ const [cls,label] = BADGE[status] || BADGE.error; return `<span class="badge ${cls}">● ${label}</span>`; }
+// Collector texts arrive as markdown-ish strings; render **bold** safely.
+const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+const shortLabel = (s, n=30) => { s = String(s ?? ''); return s.length > n ? s.slice(0, n) + '…' : s; };
+
+// A CEO-style card: colored header (title + source badge) over a white body.
+function card(color, icon, title, status, body, cls){
+  return `<section class="card fade-in ${cls||''}">
+    <div class="chead" style="background:${color}">
+      <span class="t">${icon ? icon+' ' : ''}${esc(title)}</span>
+      ${status ? badge(status) : ''}
+    </div>
+    <div class="cbody">${body}</div>
+  </section>`;
+}
+function empty(msg){ return `<div class="text-sm text-gray-500 py-6 text-center">${esc(msg)}</div>`; }
+function canvas(id, sm){ return `<div class="chartbox ${sm?'sm':''}"><canvas id="${id}"></canvas></div>`; }
+
+function render(vm){
+  VM = vm;
+  CHARTS.forEach(c => { try{ c.destroy(); }catch(e){} }); CHARTS.length = 0;
+
+  // ---- KPI row (from the blended VM, already source-aware) ----
+  const kpis = (vm.kpis || []).map(k => `
+    <div class="card p-4">
+      <div class="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">${esc(k.label)}</div>
+      <div class="num text-3xl font-bold mt-1 ${TONE[k.tone] || ''}">${esc(k.value)}</div>
+      <div class="text-[12px] text-gray-500 mt-1">${esc(k.sub || '')}</div>
+    </div>`).join('');
+
+  // ---- Source health strip ----
+  const sources = (vm.sources || []).map(s =>
+    `<div class="flex items-center gap-2">${badge(s.status)}<span class="text-sm text-gray-600">${esc(s.label)}</span></div>`).join('');
+
+  // ---- Meta (sales) ----
+  const sal = vm.sales || {};
+  const salStatus = sal.status === 'live' ? 'live' : (sal.status === 'demo' ? 'demo' : 'error');
+  const hasDaily = sal.status === 'live' && (sal.daily || []).length;
+  const hasCamp  = sal.status === 'live' && (sal.campaigns || []).length;
+  const metaTrend = hasDaily ? canvas('cMetaTrend') : empty(sal.status==='demo' ? 'Meta hesabı qoşulmayıb (demo) — real trend yoxdur.' : 'Meta mənbəyi əlçatmazdır.');
+  const metaCamp  = hasCamp  ? canvas('cMetaCamp') : (sal.status==='live' ? empty('Bu ay kampaniya xərci yoxdur.') : empty(sal.status==='demo' ? 'Demo rejim — kampaniya datası yoxdur.' : 'Əlçatmaz.'));
+
+  // ---- GA4 (website) ----
+  const web = vm.website || {};
+  const webStatus = web.totals ? (web.status === 'demo' ? 'demo' : 'live') : 'missing';
+  const webKpi = web.totals ? `
+    <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+      <div><div class="num text-xl font-bold">${esc(web.totals.sessions ?? '—')}</div><div class="text-[11px] text-gray-500">Sessiya</div></div>
+      <div><div class="num text-xl font-bold">${esc(web.totals.conversions ?? '—')}</div><div class="text-[11px] text-gray-500">Konversiya</div></div>
+      <div><div class="num text-xl font-bold">${esc(web.totals.conversion_rate ?? '—')}%</div><div class="text-[11px] text-gray-500">Konv. faizi</div></div>
+    </div>` : '';
+  const webChart = (web.channels || []).length ? canvas('cWebCh', true) : '';
+  const webBody = web.totals ? (webKpi + (webChart || empty('Kanal bölgüsü yoxdur.')))
+                             : empty('GA4 qoşulmayıb — sistem açarı özü alacaq, sən dolanda CANLI olacaq.');
+
+  // ---- CX (complaints + reputation) ----
+  const comp = vm.complaints || {};
+  const compStatus = comp.status === 'error' ? 'error' : (comp.status === 'demo' ? 'demo' : 'live');
+  const compChart = (comp.channels || []).length ? canvas('cCxCh', true) : empty(comp.status==='error' ? 'CX əlçatmazdır.' : 'Şikayət kanalı datası yoxdur.');
+
+  const rep = vm.reputation || {};
+  const repColor = { red:'#B3171C', amber:'#B45309', green:'#0B7A47' }[rep.level] || '#6B7280';
+  const repBody = rep.risk_score == null
+    ? empty('CX datası olmadan risk qiymətləndirilmir.')
+    : `<div class="text-center">
+        <div class="num text-5xl font-bold" style="color:${repColor}">${esc(rep.risk_score)}<span class="text-2xl text-gray-400">/100</span></div>
+        <div class="font-semibold mt-1" style="color:${repColor}">${esc(rep.title)}</div>
+        <div class="w-full h-2 rounded-full bg-surface-bg mt-3 overflow-hidden"><div class="h-full rounded-full" style="width:${Math.min(100,Math.max(3,rep.risk_score))}%;background:${repColor}"></div></div>
+        <div class="text-[12px] text-gray-500 mt-3 text-left">${esc(rep.text)}</div>
+        <div class="text-[11px] text-gray-400 mt-2 text-left">Neqativ siqnal (7 gün): ${esc(rep.negative)} / ${esc(rep.total)}${comp.status==='demo' ? ' · demo' : ''}</div>
+      </div>`;
+
+  // ---- Priority actions ----
+  const actions = (vm.actions || []).length
+    ? `<ol class="list-decimal ml-5 space-y-2 text-sm">${vm.actions.map(a => `<li>${md(a)}</li>`).join('')}</ol>`
+    : empty('Bu gün üçün prioritet addım yoxdur.');
+
+  $('#content').innerHTML = `
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="text-sm text-gray-500">Sonuncu yığım: <b class="num">${esc(vm.generated_label)}</b></div>
+      <div class="flex items-center gap-3 flex-wrap no-print">${sources}</div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">${kpis}</div>
+    <div class="grid md:grid-cols-2 gap-5">
+      ${card('#E31E24','📈','Reklam — müraciət trendi', salStatus, metaTrend)}
+      ${card('#B3171C','🎯','Reklam — kampaniya xərci', salStatus, metaCamp)}
+    </div>
+    <div class="grid md:grid-cols-3 gap-5">
+      ${card('#2a78d6','🌐','Vebsayt — kanallar (GA4)', webStatus, webBody)}
+      ${card('#1baf7a','💬','Müştəri — şikayət kanalları', compStatus, compChart)}
+      ${card('#5C0F12','🛡️','Reputasiya riski', compStatus==='error'?'error':(comp.status==='demo'?'demo':'live'), repBody)}
+    </div>
+    <div class="grid md:grid-cols-3 gap-5">
+      ${card('#2B2A29','🩺','Mənbə sağlamlığı', null, `<div class="space-y-3">${sources || empty('Mənbə siyahısı yoxdur.')}</div>`, 'md:col-span-1')}
+      ${card('#4a3aa7','✅','Prioritet addımlar (data-əsaslı)', null, actions, 'md:col-span-2')}
+    </div>`;
+
+  $('#loading').classList.add('hidden');
+  $('#content').classList.remove('hidden');
+  buildCharts(vm);
+}
+
+function buildCharts(vm){
+  const gridColor = '#EEF0F3';
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = '#6B7280';
+  const mk = (id, cfg) => { const el = document.getElementById(id); if(el){ CHARTS.push(new Chart(el, cfg)); } };
+
+  const sal = vm.sales || {};
+  if(sal.status === 'live' && (sal.daily || []).length){
+    const d = sal.daily;
+    mk('cMetaTrend', {
+      type:'line',
+      data:{ labels: d.map(x => String(x.date||'').slice(5)),
+        datasets:[
+          { label:'Lead', data:d.map(x=>+x.leads||0), borderColor:'#E31E24', backgroundColor:'rgba(227,30,36,.08)', fill:true, tension:.3, borderWidth:2, pointRadius:0, pointHoverRadius:4 },
+          { label:'Mesaj', data:d.map(x=>+x.messages||0), borderColor:'#2a78d6', backgroundColor:'transparent', fill:false, tension:.3, borderWidth:2, pointRadius:0, pointHoverRadius:4 },
+        ]},
+      options:{ maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+        plugins:{ legend:{ labels:{ usePointStyle:true, boxWidth:8 } } },
+        scales:{ x:{ grid:{display:false} }, y:{ beginAtZero:true, grid:{color:gridColor} } } }
+    });
+  }
+  if(sal.status === 'live' && (sal.campaigns || []).length){
+    const c = [...sal.campaigns].sort((a,b)=>(+b.spend||0)-(+a.spend||0)).slice(0,6);
+    mk('cMetaCamp', {
+      type:'bar',
+      data:{ labels: c.map(x=>shortLabel(x.name)), datasets:[{ label:'Xərc', data:c.map(x=>+x.spend||0), backgroundColor:'#E31E24', borderRadius:5, barThickness:16 }] },
+      options:{ indexAxis:'y', maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ callbacks:{ title: items => c[items[0].dataIndex].name } } },
+        scales:{ x:{ beginAtZero:true, grid:{color:gridColor} }, y:{ grid:{display:false}, ticks:{ autoSkip:false, font:{size:11} } } } }
+    });
+  }
+
+  const web = vm.website || {};
+  if((web.channels || []).length){
+    const ch = web.channels;
+    mk('cWebCh', {
+      type:'doughnut',
+      data:{ labels: ch.map(x=>x.channel), datasets:[{ data:ch.map(x=>+x.sessions||0), backgroundColor:PAL, borderColor:'#fff', borderWidth:2 }] },
+      options:{ maintainAspectRatio:false, cutout:'60%',
+        plugins:{ legend:{ position:'right', labels:{ usePointStyle:true, boxWidth:8, font:{size:11} } } } }
+    });
+  }
+
+  const comp = vm.complaints || {};
+  if((comp.channels || []).length){
+    const ch = comp.channels;
+    mk('cCxCh', {
+      type:'bar',
+      data:{ labels: ch.map(x=>x.key), datasets:[{ label:'Şikayət', data:ch.map(x=>+x.count||0), backgroundColor:'#1baf7a', borderRadius:5, barThickness:20 }] },
+      options:{ maintainAspectRatio:false, plugins:{ legend:{display:false} },
+        scales:{ x:{ grid:{display:false}, ticks:{font:{size:10}} }, y:{ beginAtZero:true, grid:{color:gridColor} } } }
+    });
+  }
+}
+
+async function load(refresh){
+  $('#content').classList.add('hidden');
+  $('#loading').classList.remove('hidden');
+  try{
+    const r = await fetch('/api/briefing' + (refresh ? '?refresh=1' : ''));
+    const vm = await r.json();
+    if(vm.error){ $('#loading').innerHTML = `<div class="card p-5 text-brand-red">Kollektor xətası: ${esc(vm.error)}</div>`; return; }
+    render(vm);
+  }catch(e){
+    $('#loading').innerHTML = `<div class="card p-5 text-brand-red">Panel alınmadı: ${esc(e.message)}</div>`;
+  }
+}
+
+$('#btn-refresh').onclick = () => load(true);
+$('#btn-print').onclick = () => window.print();
+load(false);
+</script>
+</body>
+</html>
