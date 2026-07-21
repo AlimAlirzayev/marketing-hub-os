@@ -591,6 +591,11 @@ def _codex_agent(task: str, workspace: Path, *, timeout: int = 600) -> str:
             "--output-last-message", str(out_file), prompt]
     proc = subprocess.run(args, cwd=str(workspace), capture_output=True, text=True,
                           timeout=timeout, encoding="utf-8", errors="replace")
+    # Codex only counts as done when it wrote its final-message file. Without
+    # it (usage limit, auth error, crash) stdout is just the prompt echo plus an
+    # ERROR line -- NOT a deliverable. Returning that would ship raw internal
+    # machinery to the operator AND make the caller skip the Claude fallback
+    # wired right after us. So raise: let a real builder take over.
     text = ""
     if out_file.exists():
         text = out_file.read_text(encoding="utf-8", errors="replace").strip()
@@ -599,10 +604,10 @@ def _codex_agent(task: str, workspace: Path, *, timeout: int = 600) -> str:
         except Exception:
             pass
     if not text:
-        text = (proc.stdout or proc.stderr or "").strip()
-    if proc.returncode != 0 and not text:
-        raise RuntimeError(f"codex exec failed: {(proc.stderr or '')[:200]}")
-    return text or "Codex icra etdi (mətn qaytarılmadı)."
+        tail = (proc.stderr or proc.stdout or "").strip()
+        raise RuntimeError(
+            f"codex produced no final message (rc={proc.returncode}): {tail[-200:]}")
+    return text
 
 
 def _save_artifact(job_id: int, text: str, *, reply: bool = False) -> str:
