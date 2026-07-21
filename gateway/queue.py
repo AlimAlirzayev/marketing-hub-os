@@ -231,3 +231,16 @@ def list_jobs(status: str | None = None, limit: int = 20) -> list[Job]:
                 "SELECT * FROM jobs ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
         return [Job._from_row(r) for r in rows]
+
+
+def done_between(start_ts: float, end_ts: float) -> list[Job]:
+    """Jobs that FINISHED (status='done') within [start_ts, end_ts). The impact
+    ledger reads this to count real deliverables the OS produced in a period.
+    Read-only; oldest first."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM jobs WHERE status='done' AND finished_at >= ? "
+            "AND finished_at < ? ORDER BY finished_at ASC",
+            (start_ts, end_ts),
+        ).fetchall()
+        return [Job._from_row(r) for r in rows]

@@ -149,6 +149,20 @@ def _is_ads_watch(task: str) -> bool:
     return any(cue in low for cue in _ADS_WATCH_CUES)
 
 
+# Impact Ledger rail (gateway/impact_ledger.py): the monthly "what the OS did for
+# Xalq" blended scorecard — business RESULTS (leads/CPA/conversions/SLA, live +
+# source-labelled) beside system WORK (deliverables + hours saved from the real
+# job queue). The operator's indispensability argument. Cues stay specific so
+# ordinary "hesabat" chatter keeps routing to the normal briefing.
+_IMPACT_CUES = ("təsir jurnalı", "tesir jurnali", "impact ledger", "təsir hesabatı",
+                "tesir hesabati", "xalq təsir", "xalq tesir", "/impact")
+
+
+def _is_impact_ledger(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return any(cue in low for cue in _IMPACT_CUES)
+
+
 # Brain curation rail (brain/curator.py): the scheduled autonomous review of
 # the pending lesson queue — the LLM promotes/rejects reflect suggestions and
 # the operator gets a digest instead of a queue chore. Cues stay narrow so
@@ -382,6 +396,12 @@ _SELF_FACTS = (
     "and relaunched automatically (auto-restart is ON by default, circuit-broken after "
     "repeated failures; set WATCHDOG_AUTO_RESTART=0 to pause). Do NOT propose building "
     "service monitoring; it exists.\n"
+    "- Impact Ledger (gateway/impact_ledger.py): say 'təsir jurnalı' (or /impact) for "
+    "the monthly 'what the OS did for Xalq' scorecard — business RESULTS (leads/CPA/"
+    "conversions/complaint-SLA, live + source-labelled CANLI/DEMO/ƏLÇATMAZ) beside "
+    "system WORK (real deliverable counts + hours-saved estimate from the job queue). "
+    "The indispensability argument; numbers are never invented. Do NOT propose building "
+    "an impact/ROI report; it exists.\n"
     "- Self-improving memory: after each job the brain distills lessons (reflect), "
     "and a daily autonomous CURATOR (brain/curator.py) reviews that queue itself — "
     "promoting the good ones into long-term memory, dropping the noise — so learning "
@@ -396,6 +416,9 @@ _SELF_FACTS = (
     "- Google Ads policy audit exists at ads-studio/google_ads_policy_audit.py: it "
     "reads disapproved/limited ad policy topics only when Google Ads credentials are "
     "configured; edits and appeals remain human-approved production actions.\n"
+    "- Azerbaijani Google Ads language support cannot be enabled by API or Editor; "
+    "ads-studio/google_ads_az_language_request.py converts an Editor export into a "
+    "redacted official-support dossier and never bypasses policy.\n"
     "- Machines: twins — a Windows work PC runs the OS locally, this VPS "
     "(/opt/marketing-hub-os) is the always-on brain; they sync over git."
 )
@@ -1409,6 +1432,16 @@ def execute(job: Job) -> dict:
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} ads-watch", {"task": job.task[:80]})
             return {"result": f"_[ads-watch]_\n\n{text}", "artifacts": [artifact]}
+
+        # Impact Ledger rail: the monthly blended Xalq-impact scorecard. Live
+        # results are source-labelled (CANLI/DEMO/ƏLÇATMAZ — never invented); the
+        # work side is real counts from the durable job queue. Zero LLM tokens.
+        if _is_impact_ledger(job.task):
+            from . import impact_ledger
+            text = impact_ledger.report()
+            artifact = _save_artifact(job.id, text)
+            sense.emit("job", f"#{job.id} impact-ledger", {"task": job.task[:80]})
+            return {"result": f"_[impact-ledger]_\n\n{text}", "artifacts": [artifact]}
 
         # Brain curation rail: the system reviews its own pending lessons and
         # reports the outcome. Schedule row carries source='telegram' + the
