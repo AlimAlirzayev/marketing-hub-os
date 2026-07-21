@@ -63,6 +63,15 @@ _IMPACT_ENABLED = os.getenv("IMPACT_LEDGER_ENABLED", "1").lower() not in {
     "no",
     "off",
 }
+# Operations Self-Review: the weekly reliability retrospective that grades the OS's
+# own week and files lessons to the brain. Self-gates to once a week.
+_SELF_REVIEW_TICK = float(os.getenv("SELF_REVIEW_TICK_SECONDS", "21600"))  # 6h
+_SELF_REVIEW_ENABLED = os.getenv("SELF_REVIEW_ENABLED", "1").lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
 
 
 def _supervise(name: str, step, idle: float) -> None:
@@ -157,6 +166,31 @@ def _impact_ledger_forever() -> None:
         _stop.wait(max(_IMPACT_TICK, 3600.0))
 
 
+def _self_review_forever() -> None:
+    """Deliver the weekly Operations Self-Review to the owner and file its lessons
+    to the brain's review queue. Self-gating (self_review.run_if_due): slow tick,
+    emitted once a week. Owner-facing retrospective, not a risky outward action."""
+    while not _stop.is_set():
+        try:
+            from . import self_review
+            res = self_review.run_if_due()
+            if not res.get("skipped"):
+                owner = (os.getenv("TELEGRAM_OWNER_CHAT_ID")
+                         or os.getenv("GATEWAY_OWNER_ID") or "").strip()
+                if owner and telegram.is_configured():
+                    telegram.send_message(owner, res["text"])
+                try:
+                    sense.emit("self-review", f"weekly review ({res.get('status')})",
+                               {"lessons": res.get("lessons", 0)})
+                except Exception:
+                    pass
+                print(f"[supervisor] self-review delivered ({res.get('status')}, "
+                      f"{res.get('lessons', 0)} lessons)")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[supervisor] self-review error: {exc}")
+        _stop.wait(max(_SELF_REVIEW_TICK, 3600.0))
+
+
 def _watchdog_forever() -> None:
     """Health-check + (opt-in) heal the standing services.json organs on this
     machine. A crashed uvicorn service currently stays down until a human
@@ -226,6 +260,8 @@ def main() -> None:
         _start("watchdog", _watchdog_forever)
     if _IMPACT_ENABLED:
         _start("impact-ledger", _impact_ledger_forever)
+    if _SELF_REVIEW_ENABLED:
+        _start("self-review", _self_review_forever)
 
     print("[supervisor] running. Ctrl+C to stop.")
     try:

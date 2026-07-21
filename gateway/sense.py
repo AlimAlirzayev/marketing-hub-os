@@ -130,6 +130,33 @@ def recent(n: int = 20, kind: str | None = None) -> list[dict]:
     return out[-n:]
 
 
+def since(ts: float, kind: str | None = None) -> list[dict]:
+    """Every event at or after ``ts`` (newest last), optionally filtered by kind.
+    The time-windowed counterpart to recent() — the weekly self-review reads its
+    whole window this way. Never raises; returns [] on any read problem."""
+    path = _events_path()
+    if not path.exists():
+        return []
+    out: list[dict] = []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if rec.get("ts", 0) < ts:
+                continue
+            if kind and rec.get("kind") != kind:
+                continue
+            out.append(rec)
+    except Exception:
+        return out
+    return out
+
+
 # --- the reflex: read .env reality now, masked ----------------------------
 
 def _dotenv_values(env_path: str | None = None) -> dict[str, str]:

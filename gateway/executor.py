@@ -163,6 +163,20 @@ def _is_impact_ledger(task: str) -> bool:
     return any(cue in low for cue in _IMPACT_CUES)
 
 
+# Operations Self-Review rail (gateway/self_review.py): the weekly reliability
+# retrospective — how well the OS ran, what broke, brain fallbacks, security —
+# with distilled lessons to the brain. Cues stay specific so ordinary chatter
+# routes to the normal briefing/advisor, not here.
+_SELF_REVIEW_CUES = ("özünü qiymətləndir", "ozunu qiymetlendir", "əməliyyat hesabatı",
+                     "emeliyyat hesabati", "self review", "self-review", "/selfreview",
+                     "özü-qiymətləndirmə", "ozu-qiymetlendirme")
+
+
+def _is_self_review(task: str) -> bool:
+    low = (task or "").strip().lower()
+    return any(cue in low for cue in _SELF_REVIEW_CUES)
+
+
 # Brain curation rail (brain/curator.py): the scheduled autonomous review of
 # the pending lesson queue — the LLM promotes/rejects reflect suggestions and
 # the operator gets a digest instead of a queue chore. Cues stay narrow so
@@ -405,6 +419,12 @@ _SELF_FACTS = (
     "document (gateway/impact_render.py, Xalq brand, headless-Edge PDF) beside the "
     "Telegram text. The indispensability argument; numbers are never invented. Do NOT "
     "propose building an impact/ROI report; it exists.\n"
+    "- Self-improvement (gateway/self_review.py): a WEEKLY Operations Self-Review grades "
+    "the OS's own week from its event log (reliability, service incidents, premium-brain "
+    "free-fallbacks, security rejects) and files durable lessons to the brain's review "
+    "queue; a supervisor thread delivers it on its own, or say 'özünü qiymətləndir' / "
+    "'self review' on demand. This is Pillar 4 (the system learns from itself); do NOT "
+    "propose building an ops self-review or reliability retrospective — it exists.\n"
     "- Self-improving memory: after each job the brain distills lessons (reflect), "
     "and a daily autonomous CURATOR (brain/curator.py) reviews that queue itself — "
     "promoting the good ones into long-term memory, dropping the noise — so learning "
@@ -415,7 +435,8 @@ _SELF_FACTS = (
     "- Trello work board: gateway/trello.py connects only the allowlisted Xalq Insurance "
     "board RRlLCaSG. It can read snapshots after local authorization; create/move/update/"
     "comment writes require an exact saved-plan approval code, while deletion, membership, "
-    "visibility, and cross-board actions are blocked.\n"
+    "visibility, and cross-board actions are blocked. Its connection-check runs headlessly, "
+    "opens no browser, performs no board write, and saves a secret-free status artifact.\n"
     "- Safety: risky/outward actions (post/send/pay/delete) PARK at a human checkpoint "
     "(/approve N, /reject N).\n"
     "- Marketing data: you have NO live Meta/Google Ads pull unless credentials are "
@@ -1452,6 +1473,16 @@ def execute(job: Job) -> dict:
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} impact-ledger", {"task": job.task[:80]})
             return {"result": f"_[impact-ledger]_\n\n{text}", "artifacts": [artifact]}
+
+        # Operations Self-Review rail: on-demand weekly reliability retrospective
+        # (the supervisor also delivers it weekly on its own). Deterministic counts
+        # over the sense event log; zero LLM tokens.
+        if _is_self_review(job.task):
+            from . import self_review
+            text = self_review.report()
+            artifact = _save_artifact(job.id, text)
+            sense.emit("job", f"#{job.id} self-review", {"task": job.task[:80]})
+            return {"result": f"_[self-review]_\n\n{text}", "artifacts": [artifact]}
 
         # Brain curation rail: the system reviews its own pending lessons and
         # reports the outcome. Schedule row carries source='telegram' + the

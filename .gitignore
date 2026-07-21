@@ -140,6 +140,7 @@ data/skills/
 data/watchdog_state.json
 data/logs/watchdog-*.log
 data/impact_ledger_state.json
+data/self_review_state.json
 # Impact Ledger leadership docs — generated artifacts w/ live business figures
 output/impact/
 # Stray secret from the OpenWebUI pilot — never let a secret sit trackable at root
@@ -158,3 +159,5 @@ output/replies/
 
 # scraper cache — transient, never track (2026-07-20 cleanup)
 influencer-hunter/data/cache/
+output/trello-*.png
+output/atlassian-email-*.png
