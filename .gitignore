@@ -142,6 +142,8 @@ data/logs/watchdog-*.log
 data/impact_ledger_state.json
 # Impact Ledger leadership docs — generated artifacts w/ live business figures
 output/impact/
+# Stray secret from the OpenWebUI pilot — never let a secret sit trackable at root
+.webui_secret_key
 
 # Browser profiles used by lab/QA automation - contain cookies and sessions, never track
 data/canvas-lab-profile/
