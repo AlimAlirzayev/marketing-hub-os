@@ -302,6 +302,66 @@ def report(month: str | None = None) -> str:
     return "\n".join(lines)
 
 
+# --- monthly autonomy: deliver last month's ledger once, on its own -----------
+# The scheduler speaks daily HH:MM only, so a MONTHLY report self-gates (the
+# radar/signal_radar pattern): a supervisor thread calls run_if_due() on a slow
+# tick; the first call on/after DELIVER_DAY of a new month emits the PREVIOUS
+# month's ledger exactly once, then records it. State is machine-local.
+_STATE = _ROOT / "data" / "impact_ledger_state.json"   # git-ignored
+_DELIVER_DAY = int(os.getenv("IMPACT_LEDGER_DELIVER_DAY", "1"))
+
+
+def _prev_month_of(d: _dt.date) -> str:
+    return (d.replace(day=1) - _dt.timedelta(days=1)).strftime("%Y-%m")
+
+
+def monthly_due(today: _dt.date, last_reported: str | None,
+                deliver_day: int = 1) -> str | None:
+    """Pure: the month to report if a monthly delivery is due, else None. On/after
+    deliver_day, the PREVIOUS month is due once (last_reported guards the repeat;
+    a never-reported prior month is caught up on first run)."""
+    if today.day < deliver_day:
+        return None
+    target = _prev_month_of(today)
+    return None if last_reported == target else target
+
+
+def _load_state() -> dict:
+    try:
+        import json
+        return json.loads(_STATE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_state(state: dict) -> None:
+    try:
+        import json
+        _STATE.parent.mkdir(parents=True, exist_ok=True)
+        _STATE.write_text(json.dumps(state), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def run_if_due(now: _dt.datetime | None = None) -> dict:
+    """Deliver the previous month's ledger once when a new month has turned.
+    Returns {"skipped": True} when not due, else {"skipped": False, "month",
+    "text"}. Never raises — it rides the always-on supervisor."""
+    try:
+        now = now or _dt.datetime.now()
+        state = _load_state()
+        target = monthly_due(now.date(), state.get("last_month"), _DELIVER_DAY)
+        if not target:
+            return {"skipped": True}
+        text = report(target)
+        state["last_month"] = target
+        _save_state(state)
+        return {"skipped": False, "month": target, "text": text}
+    except Exception as exc:  # noqa: BLE001
+        print(f"[impact_ledger] run_if_due error: {exc}")
+        return {"skipped": True}
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")

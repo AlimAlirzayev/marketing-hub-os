@@ -139,6 +139,7 @@ data/last_sync.json
 data/skills/
 data/watchdog_state.json
 data/logs/watchdog-*.log
+data/impact_ledger_state.json
 
 # Browser profiles used by lab/QA automation - contain cookies and sessions, never track
 data/canvas-lab-profile/

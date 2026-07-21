@@ -99,6 +99,46 @@ class Bounds(unittest.TestCase):
         self.assertEqual(dt.datetime.fromtimestamp(start).day, 1)
 
 
+class MonthlyDue(unittest.TestCase):
+    import datetime as _d
+
+    def test_due_on_first_reports_previous_month(self):
+        import datetime as dt
+        self.assertEqual(il.monthly_due(dt.date(2026, 8, 1), None, 1), "2026-07")
+
+    def test_not_due_before_deliver_day(self):
+        import datetime as dt
+        self.assertIsNone(il.monthly_due(dt.date(2026, 8, 1), None, 3))
+
+    def test_not_repeated_same_month(self):
+        import datetime as dt
+        self.assertIsNone(il.monthly_due(dt.date(2026, 8, 5), "2026-07", 1))
+
+    def test_january_rolls_to_previous_december(self):
+        import datetime as dt
+        self.assertEqual(il.monthly_due(dt.date(2026, 1, 1), None, 1), "2025-12")
+
+    def test_run_if_due_gates_and_records(self):
+        from unittest import mock
+        import datetime as dt
+        state = {}
+        with mock.patch.object(il, "_load_state", side_effect=lambda: dict(state)), \
+                mock.patch.object(il, "_save_state", side_effect=state.update), \
+                mock.patch.object(il, "report", return_value="LEDGER-TEXT"):
+            first = il.run_if_due(dt.datetime(2026, 8, 1, 9, 0))
+            self.assertFalse(first["skipped"])
+            self.assertEqual(first["month"], "2026-07")
+            self.assertEqual(state["last_month"], "2026-07")
+            # same month again -> skipped (delivered once)
+            again = il.run_if_due(dt.datetime(2026, 8, 2, 9, 0))
+            self.assertTrue(again["skipped"])
+
+    def test_run_if_due_never_raises(self):
+        from unittest import mock
+        with mock.patch.object(il, "_load_state", side_effect=RuntimeError("boom")):
+            self.assertEqual(il.run_if_due(), {"skipped": True})
+
+
 class ReportText(unittest.TestCase):
     def test_report_runs_offline_labels_sources(self):
         # every source down → report still renders and flags the honesty note

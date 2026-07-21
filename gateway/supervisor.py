@@ -54,6 +54,15 @@ _WATCHDOG_ENABLED = os.getenv("WATCHDOG_ENABLED", "1").lower() not in {
     "no",
     "off",
 }
+# Impact Ledger: the monthly "what the OS did for Xalq" scorecard, delivered on
+# its own when a new month turns. Slow tick — it self-gates to once a month.
+_IMPACT_TICK = float(os.getenv("IMPACT_LEDGER_TICK_SECONDS", "21600"))  # 6h
+_IMPACT_ENABLED = os.getenv("IMPACT_LEDGER_ENABLED", "1").lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
 
 
 def _supervise(name: str, step, idle: float) -> None:
@@ -123,6 +132,31 @@ def _signal_radar_forever() -> None:
         _stop.wait(max(_SIGNAL_RADAR_TICK, 60.0))
 
 
+def _impact_ledger_forever() -> None:
+    """Deliver the monthly Xalq Impact Ledger to the owner when a new month turns.
+    Self-gating (impact_ledger.run_if_due): a slow tick, but the report is emitted
+    exactly once per month. Delivering the owner their own scorecard is an
+    owner-facing report like the morning briefing — not a risky outward action."""
+    while not _stop.is_set():
+        try:
+            from . import impact_ledger
+            res = impact_ledger.run_if_due()
+            if not res.get("skipped"):
+                owner = (os.getenv("TELEGRAM_OWNER_CHAT_ID")
+                         or os.getenv("GATEWAY_OWNER_ID") or "").strip()
+                if owner and telegram.is_configured():
+                    telegram.send_message(owner, res["text"])
+                try:
+                    sense.emit("impact-ledger", f"monthly ledger {res['month']} delivered",
+                               {"month": res["month"]})
+                except Exception:
+                    pass
+                print(f"[supervisor] impact ledger delivered {res['month']}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[supervisor] impact ledger error: {exc}")
+        _stop.wait(max(_IMPACT_TICK, 3600.0))
+
+
 def _watchdog_forever() -> None:
     """Health-check + (opt-in) heal the standing services.json organs on this
     machine. A crashed uvicorn service currently stays down until a human
@@ -190,6 +224,8 @@ def main() -> None:
         _start("signal-radar", _signal_radar_forever)
     if _WATCHDOG_ENABLED:
         _start("watchdog", _watchdog_forever)
+    if _IMPACT_ENABLED:
+        _start("impact-ledger", _impact_ledger_forever)
 
     print("[supervisor] running. Ctrl+C to stop.")
     try:
