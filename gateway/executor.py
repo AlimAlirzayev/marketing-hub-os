@@ -324,6 +324,9 @@ def _seo_mission(job: Job, thread: str) -> tuple[str, list[str]]:
 
 def _choose_mode(task: str) -> str:
     low = task.lower()
+    from . import social
+    if social.is_social_url(task):
+        return "social"
     if any(k in low for k in _TOOL_HINTS):
         return "tools"
     if any(k in low for k in _BROWSER_HINTS):
@@ -742,6 +745,11 @@ def _execute_direct(task: str) -> tuple[str, str]:
         resp = chat.send_message(task)
         text = resp.text or "Aletler icra edildi, lakin metn qaytarilmadi."
         return f"agentic-tools:{agent_model}", text
+
+    if mode == "social":
+        from . import social
+        text, label = social.handle(task)
+        return label, text
 
     if mode == "browser":
         agent_model = AGENT_MODEL
@@ -1655,6 +1663,9 @@ def execute(job: Job) -> dict:
             bundle = _bundle_workspace(job.id, ws)
             if bundle:
                 text += f"\n\n📦 İş sahəsi paketi (yüklə): {bundle}"
+        elif mode == "social":
+            from . import social
+            text, label = social.handle(job.task)
         elif mode == "browser":
             agent_model = AGENT_MODEL
             text = agent.run_browser_agent(job.task, model=agent_model)

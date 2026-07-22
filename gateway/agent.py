@@ -136,8 +136,13 @@ def _run_browser_claude(task: str, max_steps: int = _MAX_STEPS) -> str:
                     prompt, system=_CLAUDE_SYSTEM,
                     timeout=int(os.getenv("BROWSER_CLAUDE_TIMEOUT", "150")))
                 act = _parse_action(reply)
-                if act is None:  # not JSON -> treat the reply as the final answer
-                    return reply.strip()
+                if act is None:
+                    # First turn with no JSON = the model rejected the planner
+                    # role (e.g. Claude Code refusing the injected persona), not a
+                    # gathered deliverable -> fall back to the Gemini planner.
+                    if not transcript:
+                        raise RuntimeError("browser planner returned no action on first turn")
+                    return reply.strip()  # later turn: prose after gathering = final answer
                 name = act.get("action")
                 if name == "finish":
                     return (act.get("answer") or "").strip() or "\n".join(transcript)
