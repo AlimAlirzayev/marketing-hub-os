@@ -1397,6 +1397,7 @@ def execute(job: Job) -> dict:
       plain    -> straight LLM completion
     Raises on unrecoverable failure; the worker turns that into a failed job.
     """
+    thread = ""
     try:
         # One microphone: every channel shares ONE conversation thread, so the
         # brain answers with cross-channel history (delivery still uses chat_id).
@@ -1709,10 +1710,24 @@ def execute(job: Job) -> dict:
                              + extra_artifacts}
     except Exception as e:
         error_msg = str(e)
-        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-            safe_msg = "⚠️ **Sistem Yüklənməsi (Limits):** Google Gemini pulsuz limitlərini keçdiniz. Zəhmət olmasa təxminən 30-40 saniyə gözləyib yenidən cəhd edin."
-        else:
-            safe_msg = f"❌ **İcra xətası:** {error_msg}"
+        # A lane that thinks on Gemini (crew/tools/content/research) hit its quota
+        # or errored. The system's promise is that no single provider stopping ever
+        # stops the work, and Claude is the DEFAULT brain — so before surfacing any
+        # failure, fall back to the resilient Claude-first conversational brain
+        # (gateway.brain cascade). This turns "Gemini limit, retry later" into a
+        # real answer, and is why the operator never again sees a provider name as a
+        # dead end. Only if the fallback ALSO produces nothing do we admit failure.
+        sense.emit("llm", f"lane error -> brain fallback: {error_msg[:120]}",
+                   {"job": job.id, "mode": "fallback"})
+        try:
+            text, label = _converse(job.task, thread)
+            if text and text.strip() and not text.startswith("[brain error]"):
+                artifact = _save_artifact(job.id, text, reply=True)
+                return {"result": f"_[{label}]_\n\n{text}", "artifacts": [artifact]}
+        except Exception as fb:  # noqa: BLE001 — fallthrough to an honest error
+            sense.emit("llm", f"brain fallback failed: {fb}", {"job": job.id})
+        safe_msg = ("⚠️ Bu tapşırığı indi tamamlaya bilmədim (bütün beyinlər müvəqqəti "
+                    "əlçatmazdır). Bir azdan yenə yaz, ya da başqa cür soruş.")
         return {"result": safe_msg, "artifacts": []}
     finally:
         knowledge.set_current_thread(None)
