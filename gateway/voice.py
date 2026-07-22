@@ -191,6 +191,37 @@ def _tts_elevenlabs(text: str) -> bytes | None:
     return _mp3_to_ogg(r.content) or r.content
 
 
+def _tts_edge(text: str) -> bytes | None:
+    """Microsoft Edge TTS (az-AZ neural, no API key, free) -> ogg/opus. Our
+    dependable AZ voice floor: the Gemini key is spend-capped and the ElevenLabs
+    account is free tier (which blocks API TTS), so this is what actually speaks."""
+    try:
+        import edge_tts
+    except Exception:
+        return None
+    voice_id = os.getenv("EDGE_TTS_VOICE", "az-AZ-BanuNeural")
+
+    async def _run() -> bytes:
+        buf = bytearray()
+        async for ch in edge_tts.Communicate(text, voice_id).stream():
+            if ch["type"] == "audio":
+                buf.extend(ch["data"])
+        return bytes(buf)
+
+    import asyncio
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        mp3 = asyncio.run(_run())              # no loop here (worker thread)
+    else:
+        import concurrent.futures              # called inside a loop: isolate one
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            mp3 = ex.submit(lambda: asyncio.run(_run())).result()
+    if not mp3:
+        return None
+    return _mp3_to_ogg(mp3) or mp3
+
+
 def synthesize(text: str) -> bytes | None:
     """Render a reply to an OGG/Opus voice note (Telegram-native). Tries Gemini
     TTS (free) then ElevenLabs (paid); returns None if disabled or all fail, so
@@ -200,7 +231,8 @@ def synthesize(text: str) -> bytes | None:
     spoken = _despeechify(text or "")
     if not spoken:
         return None
-    for name, fn in (("gemini-tts", _tts_gemini), ("elevenlabs", _tts_elevenlabs)):
+    for name, fn in (("edge-tts", _tts_edge), ("gemini-tts", _tts_gemini),
+                     ("elevenlabs", _tts_elevenlabs)):
         try:
             audio = fn(spoken)
             if audio:
