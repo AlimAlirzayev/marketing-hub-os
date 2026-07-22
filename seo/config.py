@@ -23,7 +23,12 @@ def _load_env() -> None:
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             k, v = line.split("=", 1)
-            os.environ.setdefault(k.strip(), v.strip())
+            v = v.strip()
+            # python-dotenv writes quoted values; strip a matching surrounding
+            # pair so paths/URLs don't carry literal quotes (os.path.exists fails).
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+                v = v[1:-1]
+            os.environ.setdefault(k.strip(), v)
 
 
 _load_env()
@@ -60,6 +65,15 @@ GSC_SERVICE_ACCOUNT_FILE = (
     or os.getenv("GA4_SERVICE_ACCOUNT_FILE", "")
     or os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 ).strip()
+# Cross-machine fallback: env paths are per-OS (a Windows path won't exist on the
+# Linux twin), but ga4-studio materializes the SA from GA4_SERVICE_ACCOUNT_JSON_B64
+# (synced in the vault) to this repo-relative file on EVERY machine. So if the
+# env-named file is absent, fall back to that known location — GSC then goes live
+# on the twin automatically once the b64 is in the vault, with no path juggling.
+if not GSC_SERVICE_ACCOUNT_FILE or not os.path.exists(GSC_SERVICE_ACCOUNT_FILE):
+    _ga4_secret = REPO / "ga4-studio" / "secrets" / "ga4-service-account.json"
+    if _ga4_secret.exists():
+        GSC_SERVICE_ACCOUNT_FILE = str(_ga4_secret)
 GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
 GSC_API = "https://searchconsole.googleapis.com/webmasters/v3"
 
