@@ -59,6 +59,14 @@ GBP_LOCATION_IDS = [
 ]
 GBP_REVIEW_PAGE_SIZE = int(os.getenv("GOOGLE_BUSINESS_PROFILE_REVIEW_PAGE_SIZE", "50"))
 
+# YouTube social-listening (free Data API v3). Fills the "Sosial dinləmə" gap.
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
+YOUTUBE_QUERIES = [
+    q.strip()
+    for q in os.getenv("YOUTUBE_QUERIES", "Xalq Sigorta,Xalq Sığorta").split(",")
+    if q.strip()
+]
+
 META_GRAPH_API_VERSION = os.getenv("META_GRAPH_API_VERSION") or os.getenv("META_API_VERSION", "v25.0")
 META_GRAPH_ACCESS_TOKEN = os.getenv("META_GRAPH_ACCESS_TOKEN") or os.getenv("META_ACCESS_TOKEN", "")
 META_FACEBOOK_PAGE_IDS = [

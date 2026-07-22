@@ -242,6 +242,16 @@ def sync_meta(max_pages: int = 1) -> JSONResponse:
     return JSONResponse(result)
 
 
+@app.post("/api/sync/youtube")
+def sync_youtube(max_videos: int = 5) -> JSONResponse:
+    result = collector.sync_youtube(max_videos=max_videos)
+    if not result["ok"]:
+        first = next((ch for ch in result["channels"].values() if ch.get("error")), None)
+        detail = _safe_error(first.get("error") if first else "YouTube sync failed")
+        raise HTTPException(status_code=400, detail=detail)
+    return JSONResponse(result)
+
+
 @app.post("/api/sync/all")
 def sync_all(max_pages: int = 1) -> JSONResponse:
     result = collector.sync_all(max_pages=max_pages)

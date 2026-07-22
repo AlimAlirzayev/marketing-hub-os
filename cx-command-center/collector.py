@@ -10,7 +10,7 @@ import alerts
 import config
 import store
 import triage
-from connectors import chatplace, google_reviews, meta_graph
+from connectors import chatplace, google_reviews, meta_graph, youtube_mentions
 
 _scheduler_started = False
 
@@ -61,6 +61,12 @@ def integration_status() -> dict:
                     ]
                 ),
             },
+            "youtube_pull": {
+                "configured": youtube_mentions.configured(),
+                "mode": "pull",
+                "detail": "YouTube brand-mention videos and public comments (social listening)",
+                "missing": _missing([("YOUTUBE_API_KEY", bool(config.YOUTUBE_API_KEY))]),
+            },
             "telegram_alerts": {
                 "configured": bool(config.TELEGRAM_BOT_TOKEN and config.CX_ALERT_CHAT_ID),
                 "mode": "alert",
@@ -79,6 +85,18 @@ def sync_all(*, max_pages: int = 1) -> dict:
     _run_channel(results, "meta_graph_pull", lambda: meta_graph.sync_comments(max_pages=max_pages))
     _run_channel(results, "chatplace_pull", lambda: chatplace.sync_pull(limit=200))
     _run_channel(results, "google_reviews", lambda: google_reviews.sync_reviews(max_pages_per_location=max_pages))
+    _run_channel(results, "youtube_pull", lambda: youtube_mentions.sync_mentions())
+    results["ok"] = results["totals"]["errors"] == 0
+    return results
+
+
+def sync_youtube(*, max_videos: int = 5) -> dict:
+    results = {
+        "ok": True,
+        "channels": {},
+        "totals": {"received": 0, "new": 0, "updated": 0, "alerts": 0, "errors": 0},
+    }
+    _run_channel(results, "youtube_pull", lambda: youtube_mentions.sync_mentions(max_videos=max_videos))
     results["ok"] = results["totals"]["errors"] == 0
     return results
 
@@ -136,6 +154,9 @@ def _run_channel(results: dict, name: str, fetcher: Callable[[], list[dict]]) ->
         results["channels"][name] = {"configured": False, "skipped": True, "reason": "missing_config"}
         return
     if name == "google_reviews" and not google_reviews.configured():
+        results["channels"][name] = {"configured": False, "skipped": True, "reason": "missing_config"}
+        return
+    if name == "youtube_pull" and not youtube_mentions.configured():
         results["channels"][name] = {"configured": False, "skipped": True, "reason": "missing_config"}
         return
     try:
