@@ -50,6 +50,26 @@ GA4_SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
 GA4_API = "https://analyticsdata.googleapis.com/v1beta"
 TIMEOUT = int(os.getenv("GA4_TIMEOUT", "30"))
 
+# Portable secret: the encrypted key vault (gateway/keyvault.py) carries the
+# service-account JSON as base64 (GA4_SERVICE_ACCOUNT_JSON_B64) so the whole
+# connection travels to the twin machine — a file path alone is machine-specific
+# and a multi-line JSON is not a KEY=VALUE the vault can move. If the pointed-at
+# file is missing but the b64 is present, materialize it locally once and use it.
+_SA_B64 = os.getenv("GA4_SERVICE_ACCOUNT_JSON_B64", "").strip()
+if _SA_B64 and (not SERVICE_ACCOUNT_FILE or not os.path.exists(SERVICE_ACCOUNT_FILE)):
+    try:
+        import base64 as _b64
+        _dest = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "secrets", "ga4-service-account.json")
+        os.makedirs(os.path.dirname(_dest), exist_ok=True)
+        _raw = _b64.b64decode(_SA_B64)
+        if not os.path.exists(_dest) or open(_dest, "rb").read() != _raw:
+            with open(_dest, "wb") as _f:
+                _f.write(_raw)
+        SERVICE_ACCOUNT_FILE = _dest
+    except Exception:
+        pass  # stay in demo rather than crash on a malformed blob
+
 # --------------------------------------------------------------------------
 # Data source — demo (synthetic, no creds) vs live (real GA4). Auto-detects:
 # a property id + a readable credentials file => live, unless GA4_DATA_MODE
