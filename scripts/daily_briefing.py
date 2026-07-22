@@ -111,9 +111,52 @@ except Exception as exc:
 """
 
 
+GSC_COLLECTOR = r"""
+import json
+try:
+    from seo import config as scfg
+    from seo.connectors import gsc
+    days = 7
+    totals = gsc.query(days=days, dimension="date", row_limit=10)   # true 7d totals
+    q = gsc.top_queries(days=days, limit=100)   # wide pool: brand terms rank #1, opportunities sit deeper
+    p = gsc.top_pages(days=days, limit=5)
+    err = totals.error or q.error or p.error
+    tot_c, tot_i = totals.total_clicks, totals.total_impressions
+    imps = sum(r.impressions for r in q.rows) or 1
+    avg_pos = round(sum(r.position * r.impressions for r in q.rows) / imps, 1) if q.rows else 0.0
+    # SEO opportunity = lots of impressions but off page 1 (position > 10): a term
+    # people search, we show for, but rank too low to win the click. Ranked by impressions.
+    opp = sorted([r for r in q.rows if r.impressions >= 150 and r.position > 10],
+                 key=lambda r: r.impressions, reverse=True)[:5]
+    print(json.dumps({
+        "status": "ok" if not err else "error",
+        "mode": totals.mode,
+        "site": scfg.GSC_SITE_URL,
+        "range": totals.start + " → " + totals.end,
+        "totals": {"clicks": tot_c, "impressions": tot_i,
+                   "ctr": round(tot_c / tot_i, 4) if tot_i else 0.0, "position": avg_pos},
+        "top_queries": [{"query": r.key, "clicks": r.clicks, "impressions": r.impressions,
+                         "ctr": r.ctr, "position": r.position} for r in q.rows[:10]],
+        "opportunities": [{"query": r.key, "clicks": r.clicks, "impressions": r.impressions,
+                           "ctr": r.ctr, "position": r.position} for r in opp],
+        "top_pages": [{"page": r.key, "clicks": r.clicks, "impressions": r.impressions,
+                       "position": r.position} for r in p.rows[:5]],
+        "detail": err or "",
+    }, default=str))
+except Exception as exc:
+    print(json.dumps({"status": "error", "detail": f"{type(exc).__name__}: {exc}"}))
+"""
+
+
 def collect_ga4() -> dict:
     """Run the GA4 website-analytics collector (7-day window) in its own cwd."""
     return _collect("ga4", GA4_DIR, GA4_COLLECTOR, timeout=60)
+
+
+def collect_gsc() -> dict:
+    """Run the Google Search Console collector (7-day window). Runs from the repo
+    root with the root venv because `seo` is a top-level package (not an app dir)."""
+    return _collect("gsc", REPO_ROOT, GSC_COLLECTOR, timeout=60)
 
 
 def collect_all() -> tuple[dict, dict]:
@@ -182,7 +225,7 @@ def _fmt(n, digits: int = 0) -> str:
         return str(n)
 
 
-def _source_status(cx: dict, ads: dict, ga4: dict | None = None) -> list[str]:
+def _source_status(cx: dict, ads: dict, ga4: dict | None = None, gsc: dict | None = None) -> list[str]:
     rows = [
         "| Mənbə | Status | Qeyd |",
         "|---|---|---|",
@@ -212,13 +255,23 @@ def _source_status(cx: dict, ads: dict, ga4: dict | None = None) -> list[str]:
         }.get(ga4_mode, "")
         rows.append(f"| Vebsayt analitikası (GA4) | **{MODE_LABEL.get(ga4_mode, ga4_mode)}** | {ga4_note} |")
 
+    if gsc is not None:
+        gsc_mode = gsc.get("mode", "error") if gsc.get("status") == "ok" else "error"
+        gsc_note = {
+            "live": f"Search Console API, sayt {gsc.get('site', '?')}.",
+            "demo": "GSC service-account / sayt qoşulmayıb (GSC_SITE_URL), demo rejim.",
+            "error": gsc.get("detail", "naməlum xəta"),
+        }.get(gsc_mode, "")
+        rows.append(f"| Axtarış görünürlüyü (Search Console) | **{MODE_LABEL.get(gsc_mode, gsc_mode)}** | {gsc_note} |")
+
     rows.append(
-        "| Sosial dinləmə (TikTok/forumlar) | **QOŞULMAYIB** | "
-        "Ayrıca listening aləti yoxdur; yalnız CX-ə daxil olan siqnallar görünür. |"
+        "| Sosial dinləmə (TikTok/forumlar) | **QISMƏN** | "
+        "YouTube brend-axtarışı CX-ə qoşulub; TikTok/forumlar hələ yox. |"
     )
     rows.append(
         "| Google Reviews | **QOŞULMAYIB** | "
-        "GBP token konfiqurasiya olunmayıb (`GOOGLE_BUSINESS_PROFILE_ACCESS_TOKEN`). |"
+        "GBP rəyləri sahib-OAuth + Google API təsdiqi (kvota 0→300) tələb edir — "
+        "kod hazırdır (`cx-command-center/GBP_SETUP.md`), təsdiq gözlənilir. |"
     )
     return rows
 
@@ -384,6 +437,46 @@ def _website_section(ga4: dict) -> list[str]:
     return lines
 
 
+def _search_section(gsc: dict) -> list[str]:
+    if gsc.get("status") != "ok":
+        return [
+            "## 4b. Axtarış görünürlüyü (Search Console) — [MƏNBƏ ƏLÇATMAZ]",
+            "",
+            f"GSC oxuna bilmədi: `{gsc.get('detail', '?')}`. Rəqəm təqdim edilmir.",
+        ]
+    mode = MODE_LABEL.get(gsc.get("mode", "demo"), "DEMO")
+    t = gsc.get("totals", {})
+    lines = [f"## 4b. Axtarış görünürlüyü (Search Console) — [{mode}]", ""]
+    if gsc.get("mode") == "demo":
+        lines += [
+            "> ⚠ Bu rəqəmlər **sintetik demo datasıdır** (GSC hələ qoşulmayıb). "
+            "Yalnız sistemin işlədiyini göstərir, real axtarış datasını yox.",
+            "",
+        ]
+    lines += [
+        f"- Son 7 gün ({gsc.get('range', '')}): **{_fmt(t.get('clicks'))} klik**, "
+        f"{_fmt(t.get('impressions'))} göstərim, "
+        f"CTR {float(t.get('ctr') or 0)*100:.1f}%, orta mövqe {_fmt(t.get('position'), 1)}",
+    ]
+    tq = gsc.get("top_queries") or []
+    if tq:
+        top = ", ".join(f"{q['query']} ({q['clicks']} klik, möv {_fmt(q['position'],1)})"
+                        for q in tq[:5])
+        lines.append(f"- Ən çox klik gətirən sorğular: {top}")
+    # High-impression, off-page-1 queries = the concrete SEO opportunity
+    opp = gsc.get("opportunities") or []
+    if opp:
+        o = ", ".join(f"{q['query']} (möv {_fmt(q['position'],1)}, {_fmt(q['impressions'])} göstərim)"
+                      for q in opp[:3])
+        lines.append(f"- 🎯 Fürsət (çox göstərim, 1-ci səhifədən kənar): {o}")
+    tp = gsc.get("top_pages") or []
+    if tp:
+        pg = ", ".join(f"{p['page'].replace('https://www.xalqsigorta.az', '') or '/'} ({p['clicks']})"
+                       for p in tp[:3])
+        lines.append(f"- Ən güclü səhifələr: {pg}")
+    return lines
+
+
 def _crosschannel_note(ads: dict, ga4: dict) -> list[str]:
     """Cross-tool reconciliation — only when BOTH sides are live (real numbers).
     Honest: in demo the two datasets are unrelated, so we don't fake a link."""
@@ -437,10 +530,10 @@ def _social_section(cx: dict, ads: dict) -> list[str]:
     return lines
 
 
-def build_actions(cx: dict, ads: dict, ga4: dict | None = None) -> list[str]:
+def build_actions(cx: dict, ads: dict, ga4: dict | None = None, gsc: dict | None = None) -> list[str]:
     """Derive the top data-driven priority actions. Pure list of action strings
-    so both the CLI report and the dashboard can render them. ``ga4`` is optional
-    so existing callers (the Streamlit panel) keep working unchanged."""
+    so both the CLI report and the dashboard can render them. ``ga4``/``gsc`` are
+    optional so existing callers (the Streamlit panel) keep working unchanged."""
     actions: list[str] = []
 
     cx_ok = cx.get("status") == "ok"
@@ -500,9 +593,24 @@ def build_actions(cx: dict, ads: dict, ga4: dict | None = None) -> list[str]:
         elif ga4.get("status") != "ok":
             actions.append("**GA4 kollektorunu düzəlt:** vebsayt datası oxunmur — səbəb mənbə cədvəlindədir.")
 
+    if gsc is not None and gsc.get("status") == "ok" and gsc.get("mode") == "live":
+        opp = gsc.get("opportunities") or []
+        if opp:
+            q0 = opp[0]
+            actions.append(
+                f"**SEO fürsəti (Search Console, canlı):** “{q0['query']}” sorğusu "
+                f"{_fmt(q0['impressions'])} göstərim alır, amma orta mövqe {_fmt(q0['position'],1)} — "
+                "hədəf səhifə optimallaşdırılsa 1-ci səhifəyə çıxa bilər (real klik qazancı)."
+            )
+    elif gsc is not None and gsc.get("status") == "ok" and gsc.get("mode") == "demo":
+        actions.append(
+            "**Search Console-u canlıya qoş:** service-account Search Console-a əlavə edilsin + "
+            "`GSC_SITE_URL` (`seo/config.py`). Bu olmadan axtarış görünürlüyü demo qalır."
+        )
+
     actions.append(
-        "**Google Reviews-u qoş:** GBP tokeni konfiqurasiya olunub `/api/sync/google-reviews` "
-        "işə salınsın — reputasiya bölməsi üçün yeganə müstəqil kənar mənbədir."
+        "**Google Reviews-u qoş:** GBP OAuth (business.manage) + Google API təsdiqi tamamlansın "
+        "(`cx-command-center/GBP_SETUP.md`) — reputasiya üçün yeganə müstəqil kənar mənbədir."
     )
     actions.append(
         "**Sosial dinləmə boşluğu:** TikTok/forum monitorinqi üçün mənbə seçilsin "
@@ -512,26 +620,28 @@ def build_actions(cx: dict, ads: dict, ga4: dict | None = None) -> list[str]:
     return actions[:6]
 
 
-def _actions_section(cx: dict, ads: dict, ga4: dict | None = None) -> list[str]:
+def _actions_section(cx: dict, ads: dict, ga4: dict | None = None, gsc: dict | None = None) -> list[str]:
     lines = ["## 6. Prioritet addımlar (data-əsaslı)", ""]
-    for i, action in enumerate(build_actions(cx, ads, ga4), 1):
+    for i, action in enumerate(build_actions(cx, ads, ga4, gsc), 1):
         lines.append(f"{i}. {action}")
     return lines
 
 
-def build_view_model(cx: dict, ads: dict, ga4: dict | None = None) -> dict:
+def build_view_model(cx: dict, ads: dict, ga4: dict | None = None, gsc: dict | None = None) -> dict:
     """Compact, display-ready payload for any UI (the hub home page consumes
     this as JSON). All business logic stays here in one place; the frontend is
-    purely presentational and never recomputes or invents anything. ``ga4`` is
-    optional so existing callers keep working unchanged."""
+    purely presentational and never recomputes or invents anything. ``ga4``/``gsc``
+    are optional so existing callers keep working unchanged."""
     now = datetime.now(timezone.utc).astimezone()
 
     cx_ok = cx.get("status") == "ok"
     ads_ok = ads.get("status") == "ok"
     ga4_ok = bool(ga4) and ga4.get("status") == "ok"
+    gsc_ok = bool(gsc) and gsc.get("status") == "ok"
     cx_mode = cx.get("mode", "error") if cx_ok else "error"
     ads_mode = ads.get("mode", "error") if ads_ok else "error"
     ga4_mode = ga4.get("mode", "error") if ga4_ok else "error"
+    gsc_mode = gsc.get("mode", "error") if gsc_ok else "error"
 
     def kind(mode: str) -> str:
         return {"live": "live", "demo": "demo"}.get(mode, "error")
@@ -542,6 +652,8 @@ def build_view_model(cx: dict, ads: dict, ga4: dict | None = None) -> dict:
     ]
     if ga4 is not None:
         sources.append({"key": "ga4", "label": "Vebsayt (GA4)", "status": kind(ga4_mode)})
+    if gsc is not None:
+        sources.append({"key": "gsc", "label": "Axtarış (Search Console)", "status": kind(gsc_mode)})
     sources += [
         {"key": "reviews", "label": "Google Reviews", "status": "missing"},
         {"key": "listening", "label": "Sosial dinləmə", "status": "missing"},
@@ -578,6 +690,15 @@ def build_view_model(cx: dict, ads: dict, ga4: dict | None = None) -> dict:
     elif ga4 is not None:
         kpis.append({"label": "Sayt sessiya (7g)", "value": "—", "sub": "demo / əlçatmaz", "tone": "error"})
 
+    if gsc_ok:
+        st = gsc.get("totals", {})
+        sfx = " · demo" if gsc_mode == "demo" else ""
+        kpis.append({"label": "Axtarış klik (7g)", "value": _fmt(st.get("clicks")),
+                     "sub": f"{_fmt(st.get('impressions'))} göstərim · möv {_fmt(st.get('position'),1)}{sfx}",
+                     "tone": "neutral"})
+    elif gsc is not None:
+        kpis.append({"label": "Axtarış klik (7g)", "value": "—", "sub": "demo / əlçatmaz", "tone": "error"})
+
     website = {"status": ga4_mode if ga4 is not None else "missing"}
     if ga4_ok:
         gt = ga4["totals"]
@@ -590,6 +711,16 @@ def build_view_model(cx: dict, ads: dict, ga4: dict | None = None) -> dict:
             "channels": ga4.get("channels", [])[:6],
             "funnel": ga4.get("funnel", []),
             "top_pages": ga4.get("top_pages", [])[:5],
+        })
+
+    search = {"status": gsc_mode if gsc is not None else "missing"}
+    if gsc_ok:
+        search.update({
+            "site": gsc.get("site"), "range": gsc.get("range"),
+            "totals": gsc.get("totals", {}),
+            "top_queries": (gsc.get("top_queries") or [])[:10],
+            "opportunities": (gsc.get("opportunities") or [])[:5],
+            "top_pages": (gsc.get("top_pages") or [])[:5],
         })
 
     complaints = {"status": cx_mode}
@@ -633,13 +764,14 @@ def build_view_model(cx: dict, ads: dict, ga4: dict | None = None) -> dict:
         "reputation": reputation,
         "sales": sales,
         "website": website,
+        "search": search,
         "social": {"platforms": social_platforms},
-        "actions": build_actions(cx, ads, ga4),
-        "markdown": render(cx, ads, ga4),
+        "actions": build_actions(cx, ads, ga4, gsc),
+        "markdown": render(cx, ads, ga4, gsc),
     }
 
 
-def render(cx: dict, ads: dict, ga4: dict | None = None) -> str:
+def render(cx: dict, ads: dict, ga4: dict | None = None, gsc: dict | None = None) -> str:
     now = datetime.now(timezone.utc).astimezone()
     parts = [
         "# Xalq Sigorta — Gündəlik rəhbərlik hesabatı",
@@ -651,7 +783,7 @@ def render(cx: dict, ads: dict, ga4: dict | None = None) -> str:
         "",
         "## Mənbə statusu",
         "",
-        *_source_status(cx, ads, ga4),
+        *_source_status(cx, ads, ga4, gsc),
         "",
         *_complaints_section(cx),
         "",
@@ -661,11 +793,13 @@ def render(cx: dict, ads: dict, ga4: dict | None = None) -> str:
     ]
     if ga4 is not None:
         parts += ["", *_website_section(ga4), *_crosschannel_note(ads, ga4)]
+    if gsc is not None:
+        parts += ["", *_search_section(gsc)]
     parts += [
         "",
         *_social_section(cx, ads),
         "",
-        *_actions_section(cx, ads, ga4),
+        *_actions_section(cx, ads, ga4, gsc),
         "",
         "---",
         f"_Generated by scripts/daily_briefing.py at {now.isoformat(timespec='seconds')}_",
@@ -684,12 +818,13 @@ def main() -> int:
 
     cx, ads = collect_all()
     ga4 = collect_ga4()
+    gsc = collect_gsc()
 
     if args.json:
-        print(json.dumps(build_view_model(cx, ads, ga4), ensure_ascii=False, default=str))
+        print(json.dumps(build_view_model(cx, ads, ga4, gsc), ensure_ascii=False, default=str))
         return 0
 
-    report = render(cx, ads, ga4)
+    report = render(cx, ads, ga4, gsc)
     print(report)
 
     if not args.no_save:

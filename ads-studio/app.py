@@ -99,7 +99,8 @@ def _briefing_vm(refresh: bool = False) -> dict:
     import daily_briefing as briefing
     cx, ads_data = briefing.collect_all()
     ga4 = briefing.collect_ga4()
-    vm = briefing.build_view_model(cx, ads_data, ga4)
+    gsc = briefing.collect_gsc()
+    vm = briefing.build_view_model(cx, ads_data, ga4, gsc)
     _briefing_cache.update(at=time.time(), vm=vm)
     return vm
 
