@@ -137,6 +137,24 @@ function render(vm){
   const webBody = web.totals ? (webKpi + (webChart || empty('Kanal bölgüsü yoxdur.')))
                              : empty('GA4 qoşulmayıb — sistem açarı özü alacaq, sən dolanda CANLI olacaq.');
 
+  // ---- GSC (organic search) ----
+  const se = vm.search || {};
+  const seStatus = se.totals ? (se.status === 'demo' ? 'demo' : 'live') : 'missing';
+  const sePct = se.totals && se.totals.ctr != null ? (se.totals.ctr*100).toFixed(1) : '—';
+  const seKpi = se.totals ? `
+    <div class="grid grid-cols-4 gap-2 mb-3 text-center">
+      <div><div class="num text-xl font-bold">${esc(se.totals.clicks ?? '—')}</div><div class="text-[11px] text-gray-500">Klik (7g)</div></div>
+      <div><div class="num text-xl font-bold">${esc(se.totals.impressions ?? '—')}</div><div class="text-[11px] text-gray-500">Göstərim</div></div>
+      <div><div class="num text-xl font-bold">${esc(sePct)}%</div><div class="text-[11px] text-gray-500">CTR</div></div>
+      <div><div class="num text-xl font-bold">${esc(se.totals.position ?? '—')}</div><div class="text-[11px] text-gray-500">Orta mövqe</div></div>
+    </div>` : '';
+  const seChart = (se.top_queries || []).length ? canvas('cGscQ') : '';
+  const seOpp = (se.opportunities || []).length
+    ? `<div class="mt-3 text-[12px] text-gray-600"><span class="font-semibold text-brand-red">🎯 SEO fürsəti:</span> ${se.opportunities.slice(0,3).map(o=>`${esc(o.query)} <span class="text-gray-400">(möv ${esc(o.position)}, ${esc(o.impressions)} göstərim)</span>`).join(' · ')}</div>`
+    : '';
+  const seBody = se.totals ? (seKpi + (seChart || empty('Sorğu datası yoxdur.')) + seOpp)
+                           : empty('Search Console qoşulmayıb — sistem özü qoşacaq, sən dolanda CANLI olacaq.');
+
   // ---- CX (complaints + reputation) ----
   const comp = vm.complaints || {};
   const compStatus = comp.status === 'error' ? 'error' : (comp.status === 'demo' ? 'demo' : 'live');
@@ -173,6 +191,9 @@ function render(vm){
       ${card('#2a78d6','🌐','Vebsayt — kanallar (GA4)', webStatus, webBody)}
       ${card('#1baf7a','💬','Müştəri — şikayət kanalları', compStatus, compChart)}
       ${card('#5C0F12','🛡️','Reputasiya riski', compStatus==='error'?'error':(comp.status==='demo'?'demo':'live'), repBody)}
+    </div>
+    <div class="grid gap-5">
+      ${card('#7c3aed','🔎','Üzvi axtarış — Google Search Console', seStatus, seBody)}
     </div>
     <div class="grid md:grid-cols-3 gap-5">
       ${card('#eb6834','🔁','Konversiya Hadisələri (CAPI)', null, `<div id="capi-slot">${empty('Jurnal yüklənir…')}</div>`, 'md:col-span-2')}
@@ -273,6 +294,22 @@ function buildCharts(vm){
       data:{ labels: ch.map(x=>x.channel), datasets:[{ data:ch.map(x=>+x.sessions||0), backgroundColor:PAL, borderColor:'#fff', borderWidth:2 }] },
       options:{ maintainAspectRatio:false, cutout:'60%',
         plugins:{ legend:{ position:'right', labels:{ usePointStyle:true, boxWidth:8, font:{size:11} } } } }
+    });
+  }
+
+  const se = vm.search || {};
+  if((se.top_queries || []).length){
+    const q = se.top_queries.slice(0,8);
+    mk('cGscQ', {
+      type:'bar',
+      data:{ labels: q.map(x=>shortLabel(x.query, 34)),
+        datasets:[{ label:'Klik', data:q.map(x=>+x.clicks||0), backgroundColor:'#7c3aed', borderRadius:5, barThickness:16 }] },
+      options:{ indexAxis:'y', maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ callbacks:{
+            title: items => q[items[0].dataIndex].query,
+            afterLabel: it => { const r=q[it.dataIndex]; return `Göstərim: ${r.impressions} · Mövqe: ${r.position}`; } } } },
+        scales:{ x:{ beginAtZero:true, grid:{color:gridColor} }, y:{ grid:{display:false}, ticks:{ autoSkip:false, font:{size:11} } } } }
     });
   }
 
