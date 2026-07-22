@@ -47,7 +47,9 @@ _WORK_MODES = ("agentic-tools", "browser", "google-search", "web-search",
 _STOP = {"the", "and", "for", "with", "bir", "üçün", "və", "the", "that", "bu",
          "mən", "sən", "sistem", "zəhmət", "olmasa", "please", "make", "yaz"}
 # markers in a delivered result that mean the job soft-failed (see learn gate)
-_FAIL_MARKS = ("icra xətası", "❌", "⏸", "alınmadı", "failed")
+_FAIL_MARKS = ("icra xətası", "❌", "⏸", "alınmadı", "failed",
+               "hit your usage limit", "upgrade to plus",
+               "codex exec failed", "produced no final message")
 # outcome bookkeeping: sidecar next to the cards, injections awaiting a verdict
 # expire after a day, and a card that only ever loses is retired at this count.
 _STATS_NAME = "_stats.json"

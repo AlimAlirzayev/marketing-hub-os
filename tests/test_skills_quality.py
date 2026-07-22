@@ -58,6 +58,20 @@ class OutcomeLedger(unittest.TestCase):
         distill.assert_not_called()  # a failure never becomes a card
         self.assertEqual(skills.stats_snapshot()["landing-page"]["losses"], 1)
 
+    def test_agentic_usage_limit_dump_is_a_loss_not_learned(self):
+        # Regression: job 158 (2026-07-21) shipped a raw Codex usage-limit dump
+        # as a "result"; it must count as a LOSS and never distill a card.
+        _write_card("landing-page", "Landing craft", "landing, sayt")
+        skills.relevant(TASK)
+        distill = MagicMock()
+        dump = ("_[agentic-tools:codex]_\n\nERROR: You've hit your usage limit. "
+                "Upgrade to Plus to continue using Codex.")
+        with patch.object(skills, "_distill", distill):
+            out = skills.learn_from_job(TASK, dump)
+        self.assertIsNone(out)
+        distill.assert_not_called()
+        self.assertEqual(skills.stats_snapshot()["landing-page"]["losses"], 1)
+
     def test_card_that_never_wins_is_retired(self):
         _write_card("landing-page", "Landing craft", "landing, sayt")
         distill = MagicMock()
