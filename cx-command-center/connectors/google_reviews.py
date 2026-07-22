@@ -1,7 +1,21 @@
-"""Google Business Profile review pull connector."""
+"""Google Business Profile review pull + reply connector.
+
+Reviews (read AND reply) are owned-business data: the Business Profile API
+(mybusiness.googleapis.com/v4 — still the current reviews surface in 2026)
+requires a USER principal that manages the verified profile, authenticated via
+OAuth 2.0 with the `business.manage` scope. A service account cannot read or
+reply to reviews. Live access additionally requires Google's one-time approval
+of the project (quota flips 0 -> 300 QPM once granted); until then this connector
+labels itself honestly and never fabricates reviews.
+
+Endpoints used:
+  * list  : GET  v4/accounts/{acc}/locations/{loc}/reviews          (verified only)
+  * reply : PUT  v4/accounts/{acc}/locations/{loc}/reviews/{id}/reply {"comment": ...}
+"""
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import requests
@@ -16,9 +30,61 @@ STAR_RATING = {
     "FIVE": 5,
 }
 
+_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_token_cache = {"access_token": "", "exp": 0.0}
+
+
+def _has_oauth_refresh() -> bool:
+    return bool(config.GBP_OAUTH_CLIENT_ID and config.GBP_OAUTH_CLIENT_SECRET
+                and config.GBP_OAUTH_REFRESH_TOKEN)
+
+
+def _has_auth() -> bool:
+    """Either a manual short-lived token (testing) or durable refresh creds."""
+    return bool(config.GBP_ACCESS_TOKEN or _has_oauth_refresh())
+
+
+def access_token() -> str:
+    """Return a usable bearer token. Prefers an explicit GBP_ACCESS_TOKEN (manual
+    OAuth-Playground testing); otherwise mints and caches one from the refresh
+    token so the system runs itself without hourly manual refreshes."""
+    if config.GBP_ACCESS_TOKEN:
+        return config.GBP_ACCESS_TOKEN
+    if not _has_oauth_refresh():
+        raise RuntimeError(
+            "GBP OAuth not configured: need GOOGLE_BUSINESS_PROFILE_ACCESS_TOKEN, "
+            "or CLIENT_ID + CLIENT_SECRET + REFRESH_TOKEN.")
+    now = time.time()
+    if _token_cache["access_token"] and _token_cache["exp"] - 60 > now:
+        return _token_cache["access_token"]
+    resp = requests.post(_TOKEN_URL, data={
+        "client_id": config.GBP_OAUTH_CLIENT_ID,
+        "client_secret": config.GBP_OAUTH_CLIENT_SECRET,
+        "refresh_token": config.GBP_OAUTH_REFRESH_TOKEN,
+        "grant_type": "refresh_token",
+    }, timeout=20)
+    resp.raise_for_status()
+    payload = resp.json()
+    _token_cache["access_token"] = payload["access_token"]
+    _token_cache["exp"] = now + int(payload.get("expires_in", 3600))
+    return _token_cache["access_token"]
+
 
 def configured() -> bool:
-    return bool(config.GBP_ACCESS_TOKEN and config.GBP_ACCOUNT_ID and config.GBP_LOCATION_IDS)
+    return bool(_has_auth() and config.GBP_ACCOUNT_ID and config.GBP_LOCATION_IDS)
+
+
+def blockers() -> list[str]:
+    """Honest, human-readable reasons live GBP reviews are unavailable."""
+    out: list[str] = []
+    if not _has_auth():
+        out.append("OAuth yoxdur: ya GBP_ACCESS_TOKEN, ya da CLIENT_ID+SECRET+REFRESH_TOKEN lazımdır "
+                   "(business.manage scope, profili idarə edən hesabla)")
+    if not config.GBP_ACCOUNT_ID:
+        out.append("GOOGLE_BUSINESS_PROFILE_ACCOUNT_ID yoxdur")
+    if not config.GBP_LOCATION_IDS:
+        out.append("GOOGLE_BUSINESS_PROFILE_LOCATION_IDS yoxdur")
+    return out
 
 
 def sync_reviews(max_pages_per_location: int = 2) -> list[dict]:
@@ -56,7 +122,7 @@ def _list_reviews(location_id: str, page_token: str | None) -> dict:
     resp = requests.get(
         url,
         params=params,
-        headers={"Authorization": f"Bearer {config.GBP_ACCESS_TOKEN}"},
+        headers={"Authorization": f"Bearer {access_token()}"},
         timeout=20,
     )
     resp.raise_for_status()
@@ -93,12 +159,12 @@ def reply_to_review(resource_name: str, comment: str, dry_run: bool = True) -> d
     payload = {"comment": comment}
     if dry_run:
         return {"dry_run": True, "method": "PUT", "url": url, "json": payload}
-    if not config.GBP_ACCESS_TOKEN:
-        raise RuntimeError("GOOGLE_BUSINESS_PROFILE_ACCESS_TOKEN is not configured")
+    if not _has_auth():
+        raise RuntimeError("GBP OAuth is not configured (no access token / refresh creds)")
     resp = requests.put(
         url,
         json=payload,
-        headers={"Authorization": f"Bearer {config.GBP_ACCESS_TOKEN}"},
+        headers={"Authorization": f"Bearer {access_token()}"},
         timeout=20,
     )
     resp.raise_for_status()

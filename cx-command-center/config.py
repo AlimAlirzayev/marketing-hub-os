@@ -51,6 +51,14 @@ CHATPLACE_PULL_URL = os.getenv("CHATPLACE_PULL_URL", "")
 CHATPLACE_API_TOKEN = os.getenv("CHATPLACE_API_TOKEN", "")
 
 GBP_ACCESS_TOKEN = os.getenv("GOOGLE_BUSINESS_PROFILE_ACCESS_TOKEN", "")
+# Durable OAuth: reviews (read + reply) need a USER principal that manages the
+# profile — a service account can't. A raw access token expires hourly, so for a
+# system that runs itself we mint short-lived tokens from a long-lived refresh
+# token (installed-app OAuth, scope business.manage). GBP_ACCESS_TOKEN stays as a
+# manual override for OAuth-Playground testing before the client-id is minted.
+GBP_OAUTH_CLIENT_ID = os.getenv("GOOGLE_BUSINESS_PROFILE_OAUTH_CLIENT_ID", "")
+GBP_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_BUSINESS_PROFILE_OAUTH_CLIENT_SECRET", "")
+GBP_OAUTH_REFRESH_TOKEN = os.getenv("GOOGLE_BUSINESS_PROFILE_OAUTH_REFRESH_TOKEN", "")
 GBP_ACCOUNT_ID = os.getenv("GOOGLE_BUSINESS_PROFILE_ACCOUNT_ID", "")
 GBP_LOCATION_IDS = [
     part.strip()

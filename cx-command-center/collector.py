@@ -51,15 +51,10 @@ def integration_status() -> dict:
             },
             "google_reviews": {
                 "configured": google_reviews.configured(),
-                "mode": "pull",
-                "detail": "Google Business Profile review sync and reply",
-                "missing": _missing(
-                    [
-                        ("GOOGLE_BUSINESS_PROFILE_ACCESS_TOKEN", bool(config.GBP_ACCESS_TOKEN)),
-                        ("GOOGLE_BUSINESS_PROFILE_ACCOUNT_ID", bool(config.GBP_ACCOUNT_ID)),
-                        ("GOOGLE_BUSINESS_PROFILE_LOCATION_IDS", bool(config.GBP_LOCATION_IDS)),
-                    ]
-                ),
+                "mode": "pull+reply",
+                "detail": "Google Business Profile reviews (read + reply) — OAuth business.manage; "
+                          "needs Google API access approval (quota 0→300 QPM) on a 60-day-verified profile",
+                "missing": google_reviews.blockers(),
             },
             "youtube_pull": {
                 "configured": youtube_mentions.configured(),
