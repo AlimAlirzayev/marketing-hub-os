@@ -242,16 +242,36 @@ def is_available() -> bool:
     return False
 
 
+def _primary_index(accts: list[dict]) -> int | None:
+    """The operator's DEFAULT account (alim.alirzayev) — always tried first when it
+    isn't resting, so the system stays on his primary Claude subscription instead of
+    drifting onto whichever account answered last. Marked by "primary": true in
+    claude_accounts.json, or by name via CLAUDE_PRIMARY_ACCOUNT."""
+    want = (os.getenv("CLAUDE_PRIMARY_ACCOUNT") or "").strip().lower()
+    for i, a in enumerate(accts):
+        if a.get("primary") or (want and a.get("name", "").strip().lower() == want):
+            return i
+    return None
+
+
 def _account_order() -> list[tuple[int, dict]]:
-    """Accounts to try this turn, best first: the persisted 'active' one, then
-    the rest, skipping any still cooling down after hitting its cap."""
+    """Accounts to try this turn, best first: the operator's PRIMARY account, then
+    the persisted 'active' one, then the rest — skipping any still cooling down after
+    hitting its cap. Primary-first means we always return to his default subscription
+    once its cap resets, rather than drifting onto a secondary account."""
     data = _load_accounts()
     accts = data.get("accounts", [])
     if not accts:
         return []
     now = time.time()
     active = data.get("active", 0)
-    order = list(range(active, len(accts))) + list(range(0, active))
+    primary = _primary_index(accts)
+    seq = ([primary] if primary is not None else []) \
+        + list(range(active, len(accts))) + list(range(0, active))
+    order: list[int] = []
+    for i in seq:
+        if i not in order:
+            order.append(i)
     ready = [(i, accts[i]) for i in order if accts[i].get("cooldown_until", 0) <= now]
     # if ALL are cooling down, still try the soonest-to-reset (better than nothing)
     return ready or [(order[0], accts[order[0]])]
