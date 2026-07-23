@@ -20,9 +20,13 @@ conversational path here. Requires the `claude` CLI installed AND authenticated
 (subscription login) on whatever machine runs the bot.
 
 SAFETY: runs with permission-mode "default" (headless auto-declines tools that
-need approval → read/answer freely, no unsupervised writes). The queue's outward-
-action checkpoint still applies on top. Power users on a trusted box can widen it
-with CLAUDE_BRIDGE_PERMISSION_MODE=acceptEdits.
+need approval → no unsupervised writes/edits/outward actions). On top of that the
+chat turn is granted a READ/RESEARCH allowlist (Read/Grep/Glob + WebSearch/WebFetch,
+all non-destructive) so it answers like Claude Code in the IDE — grounded in our
+own repo/memory/lab and able to read the operator's links live. Kill switches:
+CLAUDE_BRIDGE_RESEARCH=0 (research surface), CLAUDE_BRIDGE_HANDS=0 (studio/summon
+door). The queue's outward-action checkpoint still applies on top. Power users on a
+trusted box can widen writes with CLAUDE_BRIDGE_PERMISSION_MODE=acceptEdits.
 """
 
 from __future__ import annotations
@@ -150,10 +154,54 @@ def _chat_ladder() -> list[str]:
 def _mark_model_gone(model: str) -> None:
     _model_cooldown[model] = time.time() + _MODEL_RETRY_S
 
+
+# ── The mic brain's tool surface (safety by permission model, not prompt-shackle).
+# READ/RESEARCH — the non-destructive tools that turn the mic brain from a guesser
+# into "Claude Code in the IDE" for ANSWERING: read our OWN repo + memory + lab to
+# ground in what THIS system knows, and reach the live web to verify facts and to
+# READ THE LINKS the operator sends (his recurring ask). All read-only — they can
+# never write, delete, or act outward, so widening here buys ANSWER QUALITY, not
+# risk: the envelope is unchanged (permission-mode "default" still auto-declines
+# every write/edit/outward tool). A fetched page could carry a prompt injection, but
+# a chat turn holds NO destructive hands, so the worst case is a wrong text reply to
+# the owner-only operator — self-correcting. Kill switch: CLAUDE_BRIDGE_RESEARCH=0.
+_RESEARCH_TOOLS = ("Read", "Grep", "Glob", "WebSearch", "WebFetch")
+# SERVICE HANDS — the chat turn may USE the live studios through exactly one governed
+# door (`python -m gateway.studio_api`: registered studios only, 127.0.0.1 only,
+# risky POSTs blocked, responses token-scrubbed) and enqueue heavy work via
+# gateway.summon ("the model is the router", 2026-07-20). Compound shell is
+# permission-checked per segment, so the prefix cannot be chained past. Kill switch:
+# CLAUDE_BRIDGE_HANDS=0.
+_HANDS_TOOLS = ("Bash(python3 -m gateway.studio_api:*)",
+                "Bash(python -m gateway.studio_api:*)",
+                "Bash(python3 -m gateway.summon:*)",
+                "Bash(python -m gateway.summon:*)")
+
+
+def _allowed_tools(hands: bool, research: bool) -> list[str]:
+    """Compose the chat turn's --allowedTools from the two governed surfaces, each
+    independently kill-switchable. An empty list means the flag is dropped entirely
+    and permission-mode 'default' alone governs every tool (read-only tools still
+    work; everything needing approval auto-declines)."""
+    tools: list[str] = []
+    if research:
+        tools += list(_RESEARCH_TOOLS)
+    if hands:
+        tools += list(_HANDS_TOOLS)
+    return tools
+
+
 _FRAMING = (
     "You are answering the operator through a microphone (Telegram/panel/CLI), "
     "not the terminal. Reply in the operator's language (Azerbaijani), concise and "
-    "direct — no preamble. Do not make outward/irreversible changes. "
+    "direct — no preamble. "
+    "TOOLS — you are not a guesser: you HAVE real read/research tools, use them "
+    "instead of hedging. Read/Grep our own repo, memory and lab to ground answers "
+    "in what THIS system already knows; WebSearch and WebFetch to check current "
+    "facts and to OPEN and read any link the operator sends, then evaluate it — "
+    "never tell him you cannot open a link or that your knowledge is dated. Prefer "
+    "a grounded, checked answer over a hedge. Do not make outward/irreversible "
+    "changes (post/pay/send/delete) without a plain go-ahead. "
     "ROUTING: you are the router. If — and only if — the operator asks for a "
     "HEAVY multi-studio marketing deliverable (campaign strategy, full report, "
     "budget analysis, competitor research), do not grind it inline: run "
@@ -236,19 +284,13 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
     to resume a stale session — both are retried once (the retry drops --resume),
     so a blip doesn't needlessly bounce the turn to the free brain."""
     perm = os.getenv("CLAUDE_BRIDGE_PERMISSION_MODE", "default")
-    # SERVICE HANDS: the chat turn may USE the live studios through exactly one
-    # governed door — `python -m gateway.studio_api` (registered studios only,
-    # 127.0.0.1 only, risky POSTs blocked, responses token-scrubbed). Under
-    # permission-mode "default" every other tool still auto-declines; compound
-    # shell commands are permission-checked per segment, so the prefix cannot be
-    # chained past. Kill switch: CLAUDE_BRIDGE_HANDS=0.
+    # The mic brain's governed tool surface (defined at module scope): read/research
+    # by default (ground answers + read the operator's links) plus the studio/summon
+    # hands. Each independently kill-switchable; permission-mode "default" still
+    # auto-declines every write/edit/outward tool regardless.
     hands = os.getenv("CLAUDE_BRIDGE_HANDS", "1").strip().lower() not in ("0", "off", "false")
-    _HANDS_TOOLS = ("Bash(python3 -m gateway.studio_api:*)",
-                    "Bash(python -m gateway.studio_api:*)",
-                    # async crew summon — "the model is the router" (2026-07-20):
-                    # the brain enqueues heavy work instead of grinding inline
-                    "Bash(python3 -m gateway.summon:*)",
-                    "Bash(python -m gateway.summon:*)")
+    research = os.getenv("CLAUDE_BRIDGE_RESEARCH", "1").strip().lower() not in ("0", "off", "false")
+    allowed = _allowed_tools(hands, research)
     env = os.environ.copy()
     # The child claude -p session inherits this repo's SessionStart/SessionEnd
     # hooks (sync, capture, pulse). A headless brain turn must not fire them:
@@ -271,8 +313,8 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
         for attempt in range(2):
             cmd = ["claude", "-p", "--output-format", "json",
                    "--permission-mode", perm, "--model", model]
-            if hands:
-                cmd += ["--allowedTools", ",".join(_HANDS_TOOLS)]
+            if allowed:
+                cmd += ["--allowedTools", ",".join(allowed)]
             # The FIRST attempt of EVERY rung resumes the thread; only a retry
             # (attempt 1, after a failure on the same rung) starts fresh. It used
             # to be rung 0 only — but with a credit-gated model on top (fable),

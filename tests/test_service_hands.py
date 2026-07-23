@@ -88,12 +88,48 @@ class BridgeAllowlist(unittest.TestCase):
         self.assertNotIn("rm ", allowed)
 
     def test_hands_kill_switch(self):
-        with mock.patch.dict(os.environ, {"CLAUDE_BRIDGE_HANDS": "0"}), \
+        # Both governed surfaces off -> no allowlist at all (permission-mode
+        # 'default' alone governs; read-only tools work, the rest auto-decline).
+        with mock.patch.dict(os.environ, {"CLAUDE_BRIDGE_HANDS": "0",
+                                          "CLAUDE_BRIDGE_RESEARCH": "0"}), \
              mock.patch.object(self.cb, "is_available", return_value=True), \
              mock.patch.object(self.cb.subprocess, "run",
                                return_value=self._proc()) as run:
             self.cb.ask("salam", thread="t-nohands")
         self.assertNotIn("--allowedTools", run.call_args.args[0])
+
+    def test_ask_allowlists_the_research_surface(self):
+        # Default: the mic brain reads our repo + reaches the live web to ground
+        # answers and READ the links the operator sends — "like you in the IDE".
+        with mock.patch.object(self.cb, "is_available", return_value=True), \
+             mock.patch.object(self.cb.subprocess, "run",
+                               return_value=self._proc()) as run:
+            self.cb.ask("bu linki oxu", thread="t-research")
+        cmd = run.call_args.args[0]
+        allowed = cmd[cmd.index("--allowedTools") + 1]
+        for tool in ("WebFetch", "WebSearch", "Read", "Grep"):
+            self.assertIn(tool, allowed)
+
+    def test_research_kill_switch_keeps_hands(self):
+        # Research off, hands on: the studio door survives, the web tools do not.
+        with mock.patch.dict(os.environ, {"CLAUDE_BRIDGE_RESEARCH": "0"}), \
+             mock.patch.object(self.cb, "is_available", return_value=True), \
+             mock.patch.object(self.cb.subprocess, "run",
+                               return_value=self._proc()) as run:
+            self.cb.ask("SEO auditi et", thread="t-nores")
+        cmd = run.call_args.args[0]
+        allowed = cmd[cmd.index("--allowedTools") + 1]
+        self.assertIn("gateway.studio_api", allowed)
+        self.assertNotIn("WebFetch", allowed)
+
+    def test_allowed_tools_composition(self):
+        both = self.cb._allowed_tools(hands=True, research=True)
+        self.assertIn("WebFetch", both)
+        self.assertTrue(any("studio_api" in t for t in both))
+        self.assertEqual(self.cb._allowed_tools(hands=False, research=False), [])
+        res_only = self.cb._allowed_tools(hands=False, research=True)
+        self.assertIn("WebSearch", res_only)
+        self.assertFalse(any("studio_api" in t for t in res_only))
 
 
 class WorkspaceVerify(unittest.TestCase):
