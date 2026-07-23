@@ -22,9 +22,11 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 from . import brain
 
@@ -98,6 +100,24 @@ def _youtube_id(url: str) -> str | None:
     return m.group(1) if m else None
 
 
+def _add_youtube_transcript(ref: dict, url: str) -> None:
+    """Attach the YouTube transcript (the real content) to ref, best-effort."""
+    vid = _youtube_id(url)
+    if not vid:
+        return
+    try:  # version-tolerant call across youtube_transcript_api releases
+        from youtube_transcript_api import YouTubeTranscriptApi as _YT
+        if hasattr(_YT, "get_transcript"):
+            segs = _YT.get_transcript(vid, languages=["az", "en", "ru", "tr"])
+        else:  # newer API: instance .fetch()
+            segs = [{"text": s.text} for s in _YT().fetch(vid)]
+        joined = " ".join(s.get("text", "") for s in segs).strip()
+        if joined:
+            ref["transcript"] = joined[:4000]
+    except Exception:  # noqa: BLE001 — caption/title still useful without it
+        pass
+
+
 def _extract_youtube(url: str) -> dict:
     ref: dict = {"platform": "YouTube", "url": url}
     try:  # oEmbed gives title + channel with no key
@@ -107,20 +127,7 @@ def _extract_youtube(url: str) -> dict:
         ref["author"] = o.get("author_name", "")
     except Exception as exc:  # noqa: BLE001
         ref["error"] = f"{type(exc).__name__}: {exc}"
-    vid = _youtube_id(url)
-    if vid:
-        try:  # transcript is the real content; version-tolerant call
-            from youtube_transcript_api import YouTubeTranscriptApi as _YT
-            segs = None
-            if hasattr(_YT, "get_transcript"):
-                segs = _YT.get_transcript(vid, languages=["az", "en", "ru", "tr"])
-            else:  # newer API: instance .fetch()
-                segs = [{"text": s.text} for s in _YT().fetch(vid)]
-            joined = " ".join(s.get("text", "") for s in segs).strip()
-            if joined:
-                ref["transcript"] = joined[:4000]
-        except Exception:  # noqa: BLE001 — caption/title still useful without it
-            pass
+    _add_youtube_transcript(ref, url)
     return ref
 
 
@@ -158,10 +165,81 @@ def _extract_og(url: str, platform: str) -> dict:
     return ref
 
 
+# Instagram/TikTok serve a login wall to datacenter IPs, so the only reliable
+# read is an authenticated cookie jar. If the operator dropped one (a BURNER
+# account, exported Netscape cookies.txt) at IG_COOKIES_FILE — or the default
+# private path below — yt-dlp uses it and reels/posts read properly. Without it
+# the code degrades honestly (says it could not open the link).
+_IG_COOKIES = os.getenv("IG_COOKIES_FILE") or str(
+    Path(__file__).resolve().parent.parent / "data" / "private_context" / "ig_cookies.txt")
+
+
+class _SilentLogger:
+    """Swallow yt-dlp's own logging (it prints ERROR lines to stderr even with
+    quiet=True) so a blocked Instagram fetch does not spam the journal."""
+    def debug(self, m): pass
+    def info(self, m): pass
+    def warning(self, m): pass
+    def error(self, m): pass
+
+
+def _ytdlp_opts(url: str) -> dict:
+    opts = {"quiet": True, "skip_download": True, "no_warnings": True,
+            "socket_timeout": _FETCH_TIMEOUT, "extractor_retries": 1,
+            "logger": _SilentLogger()}
+    low = url.lower()
+    if ("instagram.com" in low or "tiktok.com" in low) and os.path.exists(_IG_COOKIES):
+        opts["cookiefile"] = _IG_COOKIES
+    return opts
+
+
+def _extract_ytdlp(url: str, platform: str) -> dict | None:
+    """Rich, uniform read via yt-dlp — author, title, caption, engagement across
+    every platform, and the reliable path for Instagram/TikTok WHEN a cookie jar
+    is present. Returns None (so the caller falls back to OG/oEmbed) when yt-dlp
+    can't read it — e.g. Instagram from a datacenter IP with no cookies."""
+    try:
+        import yt_dlp
+    except Exception:  # noqa: BLE001 — library absent -> fall back
+        return None
+    try:
+        with yt_dlp.YoutubeDL(_ytdlp_opts(url)) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception:  # noqa: BLE001 — blocked/needs-cookies -> fall back honestly
+        return None
+    if not info:
+        return None
+    ref = {
+        "platform": platform,
+        "url": url,
+        "author": info.get("uploader") or info.get("channel") or info.get("uploader_id") or "",
+        "title": (info.get("title") or "").strip(),
+        "caption": (info.get("description") or "").strip(),
+        "thumbnail": info.get("thumbnail") or "",
+    }
+    bits = []
+    for key, label in (("view_count", "views"), ("like_count", "likes"),
+                       ("comment_count", "comments"), ("duration", "sec")):
+        if info.get(key):
+            bits.append(f"{info[key]:,} {label}")
+    if bits:
+        ref["engagement"] = ", ".join(bits)
+    # Only trust it if it actually carries readable content.
+    return ref if (ref["caption"] or ref["title"]) else None
+
+
 def extract(url: str) -> dict:
-    """Best-effort structured reference for one social URL. Never raises."""
+    """Best-effort structured reference for one social URL. Never raises.
+
+    Order: yt-dlp first (richest + uniform + cookie-aware for IG/TikTok), then the
+    platform-specific OG/oEmbed/transcript fallback so nothing regresses."""
     platform = platform_of(url) or "Web"
     try:
+        rich = _extract_ytdlp(url, platform)
+        if rich:
+            if platform == "YouTube" and not rich.get("transcript"):
+                _add_youtube_transcript(rich, url)  # transcript is the real content
+            return rich
         if platform == "YouTube":
             return _extract_youtube(url)
         return _extract_og(url, platform)
@@ -181,6 +259,8 @@ def _render_reference(refs: list[dict]) -> str:
             lines.append(f"    author: {r['author']}")
         if r.get("caption"):
             lines.append(f"    caption/description: {r['caption']}")
+        if r.get("engagement"):
+            lines.append(f"    engagement: {r['engagement']}")
         if r.get("transcript"):
             lines.append(f"    transcript (excerpt): {r['transcript']}")
         if r.get("thumbnail"):

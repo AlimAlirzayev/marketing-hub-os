@@ -51,6 +51,13 @@ class MetaParsing(unittest.TestCase):
 
 
 class Extract(unittest.TestCase):
+    def setUp(self):
+        # Force the OG/oEmbed fallback path so these stay offline + deterministic
+        # (yt-dlp would otherwise make a real network call).
+        p = patch.object(social, "_extract_ytdlp", return_value=None)
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_extract_og_pulls_caption(self):
         page = ('<meta property="og:title" content="Author on Instagram">'
                 '<meta property="og:description" content="a nice reel caption">')
@@ -67,6 +74,11 @@ class Extract(unittest.TestCase):
 
 
 class Handle(unittest.TestCase):
+    def setUp(self):
+        p = patch.object(social, "_extract_ytdlp", return_value=None)
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_handle_grounds_prompt_in_caption_and_returns_az(self):
         page = ('<meta property="og:title" content="mohcinale on Instagram">'
                 '<meta property="og:description" content="#SpeedTracking #YOLOv8 #AI">')
@@ -138,6 +150,37 @@ class Handle(unittest.TestCase):
         # honest AZ fallback, not an English refusal or a stack trace
         self.assertIn("ref caption text", text)
         self.assertNotIn("[brain error]", text)
+
+
+class YtDlp(unittest.TestCase):
+    def test_extract_prefers_ytdlp_when_it_reads(self):
+        rich = {"platform": "Instagram", "url": "u", "author": "mohcinale",
+                "title": "", "caption": "real reel caption via cookies",
+                "engagement": "6,597 views"}
+        with patch.object(social, "_extract_ytdlp", return_value=rich), \
+             patch.object(social, "_fetch", side_effect=AssertionError("OG must NOT be hit")):
+            ref = social.extract("https://www.instagram.com/reel/ABC/")
+        self.assertEqual(ref["caption"], "real reel caption via cookies")
+        self.assertEqual(ref["engagement"], "6,597 views")
+
+    def test_extract_falls_back_to_og_when_ytdlp_blocked(self):
+        page = '<meta property="og:description" content="og fallback caption">'
+        with patch.object(social, "_extract_ytdlp", return_value=None), \
+             patch.object(social, "_fetch", return_value=page):
+            ref = social.extract("https://www.instagram.com/reel/ABC/")
+        self.assertEqual(ref["caption"], "og fallback caption")
+
+    def test_ytdlp_opts_adds_cookies_only_when_file_present(self):
+        with patch.object(social.os.path, "exists", return_value=True):
+            self.assertIn("cookiefile",
+                          social._ytdlp_opts("https://www.instagram.com/reel/ABC/"))
+        with patch.object(social.os.path, "exists", return_value=False):
+            self.assertNotIn("cookiefile",
+                             social._ytdlp_opts("https://www.instagram.com/reel/ABC/"))
+        # a YouTube URL never attaches IG cookies
+        with patch.object(social.os.path, "exists", return_value=True):
+            self.assertNotIn("cookiefile",
+                             social._ytdlp_opts("https://youtu.be/abcDEFghij1"))
 
 
 if __name__ == "__main__":
