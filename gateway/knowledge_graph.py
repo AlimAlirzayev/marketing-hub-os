@@ -29,6 +29,12 @@ _ROOT = Path(__file__).resolve().parent.parent
 _DECISIONS = _ROOT / "memory" / "decisions.jsonl"
 _MEM_DIR = _ROOT / "data" / "memory"
 _SKILLS_DIR = _ROOT / "data" / "skills"
+# The research lab lives beside us on the VPS (its own repo, deliberately not on
+# the Windows twin). When present we fold its full knowledge docs into the graph
+# so the system's OWN research compounds into the connected view; when absent
+# (the twin) the graph simply spans the brain + memory it does have. The lab also
+# flows into memory/decisions.jsonl via brain_bridge, so nothing is lost either way.
+_LAB_DIR = Path("/opt/research-lab/knowledge")
 
 # Curated lexicon of core system capabilities/concepts. A term links two entries
 # that both mention the same capability even when they carry no shared tag. Kept
@@ -116,7 +122,8 @@ def _load_decisions(g: Graph) -> None:
                     ts=_parse_ts(d.get("ts")), tags=list(d.get("tags") or []))
 
 
-def _load_md_dir(g: Graph, directory: Path, prefix: str) -> None:
+def _load_md_dir(g: Graph, directory: Path, prefix: str,
+                 kind_override: str | None = None) -> None:
     if not directory.exists():
         return
     for f in sorted(directory.glob("*.md")):
@@ -126,10 +133,19 @@ def _load_md_dir(g: Graph, directory: Path, prefix: str) -> None:
             continue
         m = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
         label = (m.group(1).strip() if m else f.stem.replace("-", " "))
-        # kind from the lesson-/pattern-/playbook- filename convention
-        kind = f.stem.split("-", 1)[0] if "-" in f.stem else "note"
+        # kind from the lesson-/pattern-/playbook- filename convention, unless the
+        # caller overrides it (lab files are date-prefixed, so the prefix is noise)
+        kind = kind_override or (f.stem.split("-", 1)[0] if "-" in f.stem else "note")
         g.add_entry(f"{prefix}:{f.stem}", label, body, kind=kind,
                     ts=f.stat().st_mtime, tags=[])
+
+
+def _load_lab(g: Graph) -> None:
+    """Fold the research lab's full knowledge docs into the graph, if present."""
+    if not _LAB_DIR.exists():
+        return
+    _load_md_dir(g, _LAB_DIR / "engineering", "labeng", kind_override="lab-engineering")
+    _load_md_dir(g, _LAB_DIR / "creator-radar", "labcr", kind_override="lab-radar")
 
 
 def _parse_ts(ts: str | None) -> float:
@@ -150,6 +166,7 @@ def build(force: bool = False) -> Graph:
     _load_decisions(g)
     _load_md_dir(g, _MEM_DIR, "mem")
     _load_md_dir(g, _SKILLS_DIR, "skill")
+    _load_lab(g)
     _CACHE, _CACHE_AT = g, time.time()
     return g
 
