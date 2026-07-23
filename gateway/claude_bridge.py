@@ -122,9 +122,14 @@ _MODEL_GONE_CUES = ("usage credits are required", "out of usage credits",
                     "no longer available", "not available", "model not found",
                     "does not exist", "invalid model", "unknown model")
 
-# Chat prefers Fable (fast + cheap so it never eats the Opus cap the builders
-# need), then degrades. A dead rung is skipped for a while, then re-probed — so a
-# restored Fable is picked up automatically without restarting anything.
+# The chat model ladder MIRRORS the current Claude Code tier and auto-adapts: it
+# tries Fable first (fast/cheap probe), then the strongest brain (Opus 4.8), then
+# Sonnet, then Haiku — stepping down by ITSELF the moment a rung is capped, gone, or
+# credit-gated (exactly "Fable runs out -> switch to Opus on its own"). A dead rung
+# is skipped for a while then re-probed, so a funded Fable — or a model Anthropic
+# renames/retires — is absorbed with no restart. Override the whole tier without a
+# deploy via CLAUDE_CHAT_LADDER; pin one model via CLAUDE_BRIDGE_MODEL. So the lineup
+# is never hardcoded-and-forgotten: it degrades gracefully and is data-tunable.
 _MODEL_RETRY_S = int(os.getenv("CLAUDE_MODEL_RETRY_MIN", "30")) * 60
 _model_cooldown: dict[str, float] = {}
 
@@ -139,7 +144,7 @@ def _full_ladder() -> list[str]:
     if pin:  # an explicit pin forces a single model, no laddering
         return [pin]
     raw = os.getenv("CLAUDE_CHAT_LADDER",
-                    "claude-fable-5,claude-sonnet-5,claude-sonnet-4-6,claude-haiku-4-5-20251001")
+                    "claude-fable-5,claude-opus-4-8,claude-sonnet-5,claude-haiku-4-5-20251001")
     return [m.strip() for m in raw.split(",") if m.strip()]
 
 

@@ -183,6 +183,15 @@ class ModelStepdown(unittest.TestCase):
         self.assertEqual(run.call_count, 2)            # fable failed -> stepped down
         self.assertIn("claude-fable-5", self.cb._model_cooldown)  # model benched, not account
 
+    def test_default_ladder_reflects_current_tier(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CLAUDE_BRIDGE_MODEL", None)
+            os.environ.pop("CLAUDE_CHAT_LADDER", None)
+            ladder = self.cb._full_ladder()
+        self.assertIn("claude-opus-4-8", ladder)              # strongest tier present
+        self.assertLess(ladder.index("claude-fable-5"),
+                        ladder.index("claude-opus-4-8"))       # fable probes before opus
+
 
 if __name__ == "__main__":
     unittest.main()
