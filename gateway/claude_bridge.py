@@ -118,6 +118,7 @@ def _cooldown_until(msg: str) -> float:
 # the id no longer exists. Distinct from _is_limit (a per-account usage cap) —
 # gone means step DOWN the model ladder; capped means rotate the account.
 _MODEL_GONE_CUES = ("usage credits are required", "out of usage credits",
+                    "requires usage credits", "requires credits",
                     "no longer available", "not available", "model not found",
                     "does not exist", "invalid model", "unknown model")
 
@@ -332,11 +333,17 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
             out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
             if proc.returncode != 0:
                 last = err or out or "empty output"
-                if _is_limit(last):
-                    raise RuntimeError(f"claude -p capped: {last[:200]}")  # rotate account
+                # A credit-gated / gone MODEL steps DOWN the ladder; only a real
+                # account cap rotates accounts. Check model-gone FIRST: a 429 that
+                # says "requires usage credits" is fable needing credits (step down
+                # to sonnet on the SAME account), not this account being capped —
+                # misreading it benched a HEALTHY account and dropped the whole
+                # premium brain to the free floor (2026-07-23).
                 if _is_model_gone(last):
                     _mark_model_gone(model)
                     break  # step down to the next model rung
+                if _is_limit(last):
+                    raise RuntimeError(f"claude -p capped: {last[:200]}")  # rotate account
                 continue  # transient / bad-session -> retry fresh
             try:
                 data = json.loads(out)
@@ -347,11 +354,13 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
             if data.get("is_error") or not text:
                 detail = text or str(data)[:200]
                 last = detail
-                if _is_limit(detail):
-                    raise RuntimeError(f"claude -p capped: {detail[:200]}")
+                # model-gone before cap (see the returncode branch above): a
+                # credit-gated model steps down on the same account, not a cap.
                 if _is_model_gone(detail):
                     _mark_model_gone(model)
                     break  # step down
+                if _is_limit(detail):
+                    raise RuntimeError(f"claude -p capped: {detail[:200]}")
                 raise RuntimeError(f"claude -p error: {detail[:200]}")
             new_sid = data.get("session_id")
             if new_sid:
@@ -417,10 +426,10 @@ def _run_stateless(prompt: str, timeout: int | None, token: str | None) -> tuple
         out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
         if proc.returncode != 0:
             msg = err or out or "empty output"
+            if _is_model_gone(msg):  # credit-gated/gone model -> step down, not a cap
+                _mark_model_gone(model); last = msg; continue  # next rung
             if _is_limit(msg):
                 raise RuntimeError(f"claude -p capped: {msg[:200]}")  # rotate account
-            if _is_model_gone(msg):
-                _mark_model_gone(model); last = msg; continue  # next rung
             raise RuntimeError(f"claude -p failed: {msg[:200]}")
         try:
             data = json.loads(out)
@@ -429,10 +438,10 @@ def _run_stateless(prompt: str, timeout: int | None, token: str | None) -> tuple
         text = (data.get("result") or "").strip()
         if data.get("is_error") or not text:
             detail = text or str(data)[:200]
+            if _is_model_gone(detail):  # step down (same account), not a cap
+                _mark_model_gone(model); last = detail; continue
             if _is_limit(detail):
                 raise RuntimeError(f"claude -p capped: {detail[:200]}")
-            if _is_model_gone(detail):
-                _mark_model_gone(model); last = detail; continue
             raise RuntimeError(f"claude -p error: {detail[:200]}")
         return text, "claude-code/" + str(data.get("model") or model)
     raise RuntimeError(f"claude -p: all model rungs unavailable: {last[:150]}")
