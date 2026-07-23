@@ -166,12 +166,40 @@ def _extract_og(url: str, platform: str) -> dict:
 
 
 # Instagram/TikTok serve a login wall to datacenter IPs, so the only reliable
-# read is an authenticated cookie jar. If the operator dropped one (a BURNER
-# account, exported Netscape cookies.txt) at IG_COOKIES_FILE — or the default
-# private path below — yt-dlp uses it and reels/posts read properly. Without it
-# the code degrades honestly (says it could not open the link).
-_IG_COOKIES = os.getenv("IG_COOKIES_FILE") or str(
-    Path(__file__).resolve().parent.parent / "data" / "private_context" / "ig_cookies.txt")
+# read is an authenticated cookie jar (a BURNER account, exported Netscape
+# cookies.txt). The operator drops it via `/setfile IG_COOKIES` (lands in
+# data/couriered/IG_COOKIES) or at data/private_context/ig_cookies.txt, or points
+# IG_COOKIES_FILE at it. First present wins; yt-dlp then reads reels properly.
+# Without any, the lane degrades honestly (says it could not open the link).
+_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _ig_cookie_candidates() -> list[str]:
+    cands = []
+    env = os.getenv("IG_COOKIES_FILE")
+    if env:
+        cands.append(env)
+    cands.append(str(_ROOT / "data" / "private_context" / "ig_cookies.txt"))
+    cands.append(str(_ROOT / "data" / "couriered" / "IG_COOKIES"))  # /setfile IG_COOKIES
+    return cands
+
+
+def _ig_cookies_path() -> str | None:
+    """First present cookie jar, or None."""
+    for c in _ig_cookie_candidates():
+        if os.path.exists(c):
+            return c
+    return None
+
+
+def ig_status() -> str:
+    """One-line readiness report the operator can check after dropping cookies."""
+    p = _ig_cookies_path()
+    if p:
+        return f"✅ IG cookies aktiv: {p} — reel-lər oxunacaq."
+    return ("⚠️ IG cookies yoxdur. Instagram reel-lərini oxumaq üçün BURNER hesabın "
+            "cookies.txt faylını Telegram-da `/setfile IG_COOKIES` başlığı ilə göndər "
+            "(və ya data/private_context/ig_cookies.txt-ə qoy).")
 
 
 class _SilentLogger:
@@ -188,8 +216,9 @@ def _ytdlp_opts(url: str) -> dict:
             "socket_timeout": _FETCH_TIMEOUT, "extractor_retries": 1,
             "logger": _SilentLogger()}
     low = url.lower()
-    if ("instagram.com" in low or "tiktok.com" in low) and os.path.exists(_IG_COOKIES):
-        opts["cookiefile"] = _IG_COOKIES
+    ck = _ig_cookies_path()
+    if ck and ("instagram.com" in low or "tiktok.com" in low):
+        opts["cookiefile"] = ck
     return opts
 
 

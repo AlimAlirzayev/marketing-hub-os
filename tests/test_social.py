@@ -182,6 +182,13 @@ class YtDlp(unittest.TestCase):
             self.assertNotIn("cookiefile",
                              social._ytdlp_opts("https://youtu.be/abcDEFghij1"))
 
+    def test_ig_status_reflects_cookie_presence(self):
+        with patch.object(social.os.path, "exists", return_value=False):
+            self.assertIn("yoxdur", social.ig_status())
+            self.assertIn("/setfile IG_COOKIES", social.ig_status())
+        with patch.object(social.os.path, "exists", return_value=True):
+            self.assertIn("aktiv", social.ig_status())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -123,6 +123,25 @@ def _is_radar_pulse(task: str) -> bool:
     return any(cue in low for cue in _RADAR_PULSE_CUES)
 
 
+# Knowledge-graph rail (gateway/knowledge_graph.py): "qraf <mövzu>" / "əlaqələr
+# <mövzu>" returns the CONNECTED memory neighbourhood (GraphRAG retrieval over the
+# system's own decisions/lessons) — distinct from vector RAG's "what is similar".
+# First-word trigger so ordinary chat is never diverted. Deterministic, no tokens.
+_GRAPH_CUES = ("qraf", "əlaqələr", "elaqeler", "bağlantılar", "baglantilar",
+               "/qraf", "/graph")
+
+
+def _is_graph_query(task: str) -> bool:
+    low = (task or "").strip().lower()
+    first = low.split(None, 1)[0] if low else ""
+    return first in _GRAPH_CUES
+
+
+def _graph_topic(task: str) -> str:
+    parts = (task or "").strip().split(None, 1)
+    return parts[1].strip() if len(parts) > 1 else ""
+
+
 # Swipe rail-i (idea-studio/adsworld.py): Ads of the World swipe faylının
 # təzələnməsi. Schedule hər gün çağırır; 7 günlük keş taktı özü qoruyur —
 # fayl təzədirsə skript şəbəkəyə çıxmadan dərhal qayıdır. Deterministik
@@ -370,7 +389,7 @@ _CHAT_SYSTEM = (
     "pipeline mechanics (\"növbəyə salındı\", \"build xəttinə verildi\", \"ayrıca "
     "mesajla gələcək\"). Do not pretend you did something you did not — if you "
     "cannot actually create/post/build from here, say so plainly instead of "
-    "inventing a result. If an action needs a go-ahead, ask one plain hə/yox."
+    "inventing a result. Only an OUTWARD or irreversible action (post/pay/send/delete) needs a go-ahead — for those ask one plain hə/yox. For INTERNAL work (analysis, drafting, research, planning), and ALWAYS when the operator gave a direct imperative (\"et\", \"başla\", \"bitir\", \"hamısını et\"), do NOT ask permission — do it, or if you genuinely cannot act from here say so plainly. Never ask hə/yox for something you yourself say needs no approval."
 )
 
 # The chat brain answers from a prompt, NOT from the repo — so without this it has
@@ -1436,6 +1455,15 @@ def execute(job: Job) -> dict:
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} briefing", {"task": job.task[:80]})
             return {"result": f"_[briefing]_\n\n{text}", "artifacts": [artifact]}
+
+        # Knowledge-graph rail: connected knowledge for a topic, straight from the
+        # graph (no LLM) — grounded, fast, and shows HOW entries connect.
+        if _is_graph_query(job.task):
+            from . import knowledge_graph
+            text = knowledge_graph.graph_recall(_graph_topic(job.task))
+            artifact = _save_artifact(job.id, text, reply=True)
+            sense.emit("job", f"#{job.id} knowledge-graph", {"task": job.task[:80]})
+            return {"result": f"_[knowledge-graph]_\n\n{text}", "artifacts": [artifact]}
 
         # AI Radar rail-i: gündəlik nəbz (yalnız kritik olanda sahibə yazır) və
         # həftəlik dərin brif. Schedule hər gün çağırır; taktı radar özü qoruyur.
