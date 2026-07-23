@@ -73,6 +73,20 @@ class GraphLogic(unittest.TestCase):
         finally:
             kg._CACHE = None
 
+    def test_graph_context_enriches_and_self_gates(self):
+        g = self._graph()
+        kg._CACHE, kg._CACHE_AT = g, kg.time.time()
+        try:
+            ctx = kg.graph_context("instagram reel content")
+            self.assertIn("QRAF KONTEKSTİ", ctx)
+            self.assertIn("yt-dlp + IG cookies", ctx)
+            # short/greeting queries never enrich (no bloat on trivial turns)
+            self.assertEqual(kg.graph_context("salam"), "")
+            # nothing connected -> empty, not noise
+            self.assertEqual(kg.graph_context("kubernetes helm istio mesh"), "")
+        finally:
+            kg._CACHE = None
+
 
 class RealCorpusSmoke(unittest.TestCase):
     def test_build_reads_real_corpus(self):

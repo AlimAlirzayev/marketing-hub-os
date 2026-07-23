@@ -65,7 +65,7 @@ class ConversationalDefault(_IsolatedJobsDB):
 
         seen = {}
 
-        def _augment(system, task, thread=None):
+        def _augment(system, task, thread=None, include_graph=False):
             seen["system"] = system
             seen["thread"] = thread
             return system

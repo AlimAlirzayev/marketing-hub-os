@@ -810,7 +810,7 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
                 # identity + long-term memory (thread_id=None -> no turn duplication),
                 # not the raw blackboard turns. Before this the bridge answered from
                 # a 2-line framing alone and drifted off what the system actually is.
-                grounding = knowledge.augment_system(_self_facts() + _BRIDGE_HANDS, task)
+                grounding = knowledge.augment_system(_self_facts() + _BRIDGE_HANDS, task, include_graph=True)
                 primed = f"{grounding}\n\n---\nOPERATORUN MESAJI:\n{task}"
                 text, meta = claude_bridge.ask(primed, thread=thread)
                 return text, f"chat:claude-code (sid={str(meta.get('session_id'))[:8]})"
@@ -832,7 +832,7 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
     # router picks the smart cascade while the call site stays mockable/testable.
     from orchestrator.router import ModelChoice
     choice = ModelChoice(provider="gemini", model="gemini-2.5-pro", reason="chat-smart")
-    sys_prompt = knowledge.augment_system(_CHAT_SYSTEM + _self_facts(), task, thread)
+    sys_prompt = knowledge.augment_system(_CHAT_SYSTEM + _self_facts(), task, thread, include_graph=True)
     text, used = llm.complete(choice, task, system=sys_prompt)
     return capped_note + text, f"chat:{used.provider}:{used.model}"
 

@@ -68,7 +68,8 @@ def recall_context(task: str, *, k: int = 4) -> str:
         return ""
 
 
-def augment_system(system: str, task: str, thread_id: str | None = None) -> str:
+def augment_system(system: str, task: str, thread_id: str | None = None,
+                   include_graph: bool = False) -> str:
     """Append self-identity + memory context to a system prompt. The self-card
     (sense.system_card) goes in unconditionally — a brain that doesn't know what
     Ramin-OS contains answers like a generic consultant (observed on Telegram/panel).
@@ -93,6 +94,16 @@ def augment_system(system: str, task: str, thread_id: str | None = None) -> str:
         parts.append(card)
     if ctx:
         parts.append(f"{ctx}{lab_hint}")
+    # Graph enrichment (opt-in, conversational path only): hand the brain what is
+    # CONNECTED to the question in our own memory graph, not just what is similar.
+    if include_graph:
+        try:
+            from . import knowledge_graph
+            gctx = knowledge_graph.graph_context(task)
+            if gctx:
+                parts.append(gctx)
+        except Exception:  # noqa: BLE001 — grounding must survive a graph error
+            pass
     return "\n\n".join(parts)
 
 

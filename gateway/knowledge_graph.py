@@ -244,3 +244,25 @@ def graph_recall(query: str, limit: int = 8) -> str:
         conn = f" · bağlantı: {h['via']}" if h["via"] and h["via"] != "seed" else ""
         lines.append(f"• [{when}] {h['label']}{conn}")
     return "\n".join(lines)
+
+
+def graph_context(query: str, max_items: int = 6, min_len: int = 10) -> str:
+    """A COMPACT 'connected knowledge' block for auto-enriching a system prompt
+    (every channel's brain grounding). Empty for short/greeting queries or when
+    nothing connects, so a trivial turn is never bloated. Never raises — a graph
+    hiccup must never break an answer. This is the vector-RAG complement: recall
+    finds SIMILAR text, this hands the brain what is CONNECTED in our own memory."""
+    try:
+        if len((query or "").strip()) < min_len:
+            return ""
+        hits = related(query, limit=max_items)
+        if not hits:
+            return ""
+        lines = ["QRAF KONTEKSTİ (sistemin öz bilik qrafından bu sorğuya BAĞLI keçmiş "
+                 "qərar/dərs/tapıntılar — uyğun olanı cavabında istifadə et və açıq istinad et):"]
+        for h in hits:
+            when = time.strftime("%Y-%m-%d", time.localtime(h["ts"])) if h["ts"] else "—"
+            lines.append(f"- [{when}] {h['label'][:120]}")
+        return "\n".join(lines)
+    except Exception:  # noqa: BLE001 — grounding must survive any graph error
+        return ""
