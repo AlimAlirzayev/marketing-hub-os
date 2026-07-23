@@ -72,6 +72,14 @@ def _smart() -> list[tuple[str, object]]:
         (gem, ("GEMINI_API_KEY", "GOOGLE_API_KEY")),
         (os.getenv("LLM_OPENROUTER_SMART") or "openrouter/anthropic/claude-3.7-sonnet", "OPENROUTER_API_KEY"),
         ("deepseek/deepseek-reasoner", "DEEPSEEK_API_KEY"),
+        # Strong free floor (2026-07-22): when Claude is capped AND Gemini is over
+        # its spend cap, conversation used to land on groq/llama-3.3-70b — the
+        # "dumb floor" the operator explicitly rejected. Live A/B on real AZ
+        # marketing prompts: openai/gpt-oss-120b (open-weight 120B, on our Groq
+        # key, ~1s, no reasoning leak) clearly beats llama-3.3-70b on Azerbaijani
+        # fluency + structure. So it answers before llama, which stays below as
+        # the last-resort floor if Groq ever drops the gpt-oss model.
+        (os.getenv("LLM_SMART_FLOOR") or "groq/openai/gpt-oss-120b", "GROQ_API_KEY"),
         # Resilience floor: the strongest ALWAYS-configured free model. Without
         # it, a smart-tier call dies whenever the premium/Gemini providers are
         # unconfigured or their key is dead — which is exactly today's state
