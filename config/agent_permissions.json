@@ -383,6 +383,50 @@
       ]
     },
     {
+      "id": "builder_context_bridge",
+      "name": "Builder Context Bridge",
+      "owner": "Ramin-OS Brain",
+      "status": "approved_private_local",
+      "permissions": ["read_only", "sandbox"],
+      "allowed_inputs": [
+        "masked gateway live-state pulse",
+        "memory/decisions.jsonl shared decisions",
+        "Claude Code curated project memory index",
+        "Codex curated memory summary",
+        "repository instruction and context paths"
+      ],
+      "blocked_inputs": [
+        ".env content",
+        "credential values",
+        "tokens",
+        "cookies",
+        "raw agent transcripts",
+        "customer data",
+        "claims data",
+        "policy data",
+        "payment data"
+      ],
+      "allowed_outputs": [
+        "machine-local data/builder_context.md",
+        "session-start context printed to the local builder"
+      ],
+      "blocked_actions": [
+        "edit or merge agent-owned memory stores",
+        "publish memory excerpts",
+        "sync private memory through Git",
+        "print or log credentials",
+        "write production data",
+        "send messages"
+      ],
+      "required_controls": [
+        "Current code, services.json, live state, and superseding shared decisions always outrank agent-memory hints.",
+        "Read only curated memory indexes; never read raw transcripts or credential stores.",
+        "Redact common secret shapes before writing or printing the local context card.",
+        "Keep the generated context card machine-local and git-ignored.",
+        "Durable cross-builder decisions continue through the existing Brain workflow and memory/decisions.jsonl."
+      ]
+    },
+    {
       "id": "brand_dossier",
       "name": "Brand Dossier Engine",
       "owner": "Ramin-OS",

@@ -8,6 +8,11 @@ anything, read and follow:
 3. `SECURITY.md`
 4. `services.json`
 
+Then run `python scripts/builder_context.py --print` and treat its live state
+and latest shared decisions as the common cold-start context used by every
+Ramin-OS builder. Agent-specific memory excerpts are hints, not authority over
+newer code or decisions.
+
 ## Mandatory User-Visible Delivery Gate
 
 For every construction session, `docs/USER_VISIBLE_DELIVERY_STANDARD.md` is a

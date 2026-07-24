@@ -61,6 +61,13 @@ itself. They are the "developers."
 | **OpenCode** | free Gemini 2.5-flash (1M ctx) | Bulk builder / refactors / scaffolds / model A-B | 80% free | Token-heavy grunt work, offline (Ollama), model tests |
 | **Codex CLI** | subscriber CLI | Repo-discipline engineer | subscription (no API $) | Implementation discipline, repo-wide edits |
 
+These harnesses share a cold-start blackboard through
+`scripts/builder_context.py`. After the engine pull, it combines masked live
+state, the newest shared decisions, and curated Claude/Codex memory indexes into
+the machine-local `data/builder_context.md`. Claude receives it through its
+SessionStart hook; other builders run the same command from `AGENTS.md`.
+Agent-private memory remains a hint, never a competing authority.
+
 > **Why OpenCode runs on Gemini, not Groq:** OpenCode sends ~42k tokens of system
 > prompt + AGENTS.md per turn. Groq free tier caps at 12k tokens/minute → rejected.
 > Gemini free (1M context) handles it. Groq stays for single-shot `llm_router`

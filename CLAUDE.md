@@ -12,6 +12,9 @@ Read first:
 5. `claude-agents/CLAUDE.md` for Claude-specific subagent and MCP conventions
 6. `docs/CONTEXT7_GROUNDING.md` for read-only documentation grounding rules
 7. `config/agent_permissions.json` before adding or expanding agents/tools
+8. `data/builder_context.md`, refreshed automatically by the SessionStart hook
+   through `scripts/builder_context.py`, for the same live state and curated
+   memory indexes seen by other builders
 
 Important rule: do not treat `claude-agents/` as a separate product. It is the
 Claude Code control plane inside the larger Ramin-OS ecosystem.

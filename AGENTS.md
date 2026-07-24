@@ -17,6 +17,19 @@ python scripts/sync_engine.py --pull-only
 (Claude Code does this automatically via the SessionStart hook; every other agent
 runs it manually. It is safe: ff-only, never touches local work, exits quietly.)
 
+**Step 0.5 — load the same builder context.** After the pull attempt, every
+interactive builder refreshes the shared cold-start card:
+
+```bash
+python scripts/builder_context.py --print
+```
+
+Claude Code receives it automatically from the project SessionStart hook.
+Codex, Gemini, OpenCode, Copilot, and future entry points must run/read it before
+planning broad work. The card combines live masked state, latest shared
+decisions, and curated Claude/Codex memory indexes. Live code and superseding
+shared decisions always outrank memory-derived hints.
+
 Before planning broad work or editing shared behavior, read:
 
 1. `docs/RAMIN_OS_CONTEXT.md`
@@ -144,6 +157,8 @@ Baseline: 6 suites, 504 tests green, ~30s.
   unfinished capability.
 - The gateway and AI Council are the autonomous execution layer.
 - The Brain is institutional memory.
+- `scripts/builder_context.py` is the shared cold-start bridge across IDE
+  builders; agent-private memory is context, never a competing source of truth.
 - Agent Radar is the governance layer for outside agents and future workflows.
 - CX, Ads, GA4, CAPI, Influencer Hunter, Price Hunter, Creative/Atelier, Copy,
   Publisher, Audio, and Video are domain modules that should become more

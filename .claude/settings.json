@@ -9,6 +9,7 @@
     "SessionStart": [
       { "hooks": [
           { "type": "command", "command": "python scripts/sync_engine.py --pull-only" },
+          { "type": "command", "command": "python scripts/builder_context.py --print" },
           { "type": "command", "command": "python scripts/capture_sweep.py" },
           { "type": "command", "command": "python scripts/session_pulse.py" }
       ] }
