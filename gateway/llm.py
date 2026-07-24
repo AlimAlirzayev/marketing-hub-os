@@ -32,7 +32,16 @@ _RETRYABLE = ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE", "500", "INTERNA
 
 def _is_retryable(exc: Exception) -> bool:
     s = str(exc)
-    return any(tok in s for tok in _RETRYABLE)
+    return not _is_permanent_quota(exc) and any(tok in s for tok in _RETRYABLE)
+
+
+def _is_permanent_quota(exc: Exception) -> bool:
+    """Daily/account exhaustion cannot recover inside a retry loop."""
+    low = str(exc).lower()
+    return any(cue in low for cue in (
+        "daily quota", "quota exceeded", "exceeded your current quota",
+        "usage limit", "out of credits", "credits are required",
+    ))
 
 
 def _retry_delay(exc: Exception, fallback: float) -> float:
@@ -121,13 +130,13 @@ def complete(
     ``(text, used_choice)`` so callers can see if a fallback happened.
     """
     if not use_search:
-        try:
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-            from llm_router import complete as _route
-            text, model = _route(prompt, system=system, tier=_tier_for(choice))
-            return text, ModelChoice(provider="router", model=model, reason="llm_router")
-        except Exception:
-            pass  # router/litellm unavailable → fall back to direct providers
+        # One execution seam. Provider exhaustion must stay visible to the
+        # executor/worker. Swallowing it here previously launched a second,
+        # Gemini-only retry loop and turned a hard failure into a "done" job.
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from llm_router import complete as _route
+        text, model = _route(prompt, system=system, tier=_tier_for(choice))
+        return text, ModelChoice(provider="router", model=model, reason="llm_router")
 
     fn = _PROVIDERS.get(choice.provider)
     if fn is not None:

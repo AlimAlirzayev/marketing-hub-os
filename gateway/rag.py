@@ -21,8 +21,8 @@ def _get_embedding(text: str) -> list[float]:
     vector = embeddings.embed(text, require_enabled=False)
     if vector is None:
         raise RuntimeError(
-            "No embedding provider is available. Configure Gemini credentials or "
-            "set BRAIN_EMBED_PROVIDER=tei with a local/private BRAIN_EMBED_ENDPOINT."
+            "No embedding provider is approved or available. Configure a local/private "
+            "TEI endpoint, or explicitly allow hosted embeddings only for approved data."
         )
     return vector
 

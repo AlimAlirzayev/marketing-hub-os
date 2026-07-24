@@ -45,7 +45,8 @@ _NODES = [
     ("queue", "Job Queue", "intake"),
     ("supervisor", "Supervisor 24/7", "intake"),
     # the dispatch brain
-    ("executor", "Executor / Router", "brain"),
+    ("executor", "Gateway Executor", "brain"),
+    ("claude_router", "Claude Brain / Router", "brain"),
     ("checkpoint", "Human Checkpoint", "brain"),
     # specialist lanes
     ("m_converse", "Converse", "lane"),
@@ -54,11 +55,14 @@ _NODES = [
     ("m_tools", "Tools / Hands", "lane"),
     ("m_browser", "Browser Agent", "lane"),
     ("m_research", "Research (grounded)", "lane"),
-    ("m_council", "AI Council", "lane"),
+    ("summon", "Summon /crew", "lane"),
+    ("m_crew", "CrewAI Workforce", "lane"),
+    ("m_council", "LLM Şurası (explicit)", "lane"),
     ("m_creds", "doit (credentials)", "lane"),
     # shared backends
     ("gateway", "Model Gateway", "backend"),
     ("studios", "Studios", "backend"),
+    ("synthesis", "Claude Synthesis", "backend"),
     ("memory", "Shared Memory", "backend"),
     # Marketing OS (8800) — a standalone live dashboard, not part of the task
     # pipeline above. Only genuine link in: Trendlər reads shared memory.
@@ -72,14 +76,17 @@ _EDGES = [
     ("ch_telegram", "mic"), ("ch_codex", "mic"), ("ch_panel", "mic"),
     ("ch_schedule", "queue"),
     ("mic", "queue"), ("supervisor", "queue"),
-    ("queue", "executor"),
+    ("queue", "executor"), ("executor", "claude_router"),
     ("executor", "checkpoint"),
-    ("executor", "m_converse"), ("executor", "m_fanout"), ("executor", "m_content"),
-    ("executor", "m_tools"), ("executor", "m_browser"), ("executor", "m_research"),
+    ("claude_router", "m_converse"), ("claude_router", "m_fanout"),
+    ("claude_router", "m_content"), ("claude_router", "m_tools"),
+    ("claude_router", "m_browser"), ("claude_router", "m_research"),
+    ("claude_router", "summon"), ("summon", "m_crew"),
     ("executor", "m_council"), ("executor", "m_creds"),
     ("m_converse", "gateway"), ("m_fanout", "gateway"), ("m_content", "gateway"),
     ("m_research", "gateway"), ("m_council", "gateway"),
     ("m_tools", "studios"), ("m_content", "studios"), ("m_browser", "studios"),
+    ("m_crew", "studios"), ("studios", "synthesis"), ("synthesis", "memory"),
     ("m_converse", "memory"), ("m_fanout", "memory"), ("m_tools", "memory"),
     ("checkpoint", "memory"),
     ("memory", "mkt_radar"), ("mkt_ads", "mkt_finance"), ("mkt_organic", "mkt_finance"),
@@ -119,6 +126,8 @@ def _classify(ev: dict) -> str | None:
             return "m_content"
         if s.startswith("council"):
             return "m_council"
+        if s.startswith("crew"):
+            return "m_crew"
         if s.startswith("browser"):
             return "m_browser"
         if "search" in s or "research" in s or "grounded" in s:
@@ -291,7 +300,7 @@ def register(app) -> None:
     from fastapi.responses import HTMLResponse, JSONResponse
 
     @app.get("/api/flow")
-    def _flow() -> JSONResponse:  # noqa: ANN202
+    def _flow():  # JSONResponse is a local import; avoid an unresolved ForwardRef in OpenAPI.
         return JSONResponse(flow_state())
 
     @app.get("/map", response_class=HTMLResponse)
@@ -324,6 +333,7 @@ header .dot{width:9px;height:9px;border-radius:50%;background:var(--active);
   70%{box-shadow:0 0 0 9px rgba(66,230,164,0)}100%{box-shadow:0 0 0 0 rgba(66,230,164,0)}}
 header .spacer{flex:1}
 header .meta{color:var(--dim);font-size:12px}
+.embed header{display:none}
 .kpis{display:flex;gap:10px;padding:10px 18px;flex-wrap:wrap;
   border-bottom:1px solid var(--line);background:var(--panel2)}
 .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;
@@ -372,13 +382,13 @@ svg{display:block;width:100%;height:100%;min-width:900px;min-height:560px}
   <div class="spacer"></div>
   <span class="meta" id="branch"></span>
 </header>
-<div class="kpis" id="kpis"></div>
+<div class="kpis" id="kpis"><div class="kpi"><div class="v">…</div><div class="l">CANLI VƏZİYYƏT YÜKLƏNİR</div></div></div>
 <div class="main">
-  <div class="mapwrap"><svg id="svg" viewBox="0 0 1300 620" preserveAspectRatio="xMidYMid meet"></svg></div>
+  <div class="mapwrap"><svg id="svg" viewBox="0 0 1300 620" preserveAspectRatio="xMidYMid meet"><text x="650" y="300" text-anchor="middle" fill="#8595b4">Canlı xəritə yüklənir…</text></svg></div>
   <div class="side">
     <h2>Canlı axın</h2>
     <div class="banner" id="banner"></div>
-    <div class="events" id="events"></div>
+    <div class="events" id="events"><div class="ev"><span class="s">Hadisələr yüklənir…</span></div></div>
   </div>
 </div>
 <div class="legend">
@@ -390,6 +400,7 @@ svg{display:block;width:100%;height:100%;min-width:900px;min-height:560px}
 </div>
 </div>
 <script>
+if(new URLSearchParams(location.search).get('embed')==='1')document.body.classList.add('embed');
 // layout: fixed columns by group, real architecture left→right
 const COLS = {channel:30, intake:250, brain:455, lane:665, backend:895, marketing:1115};
 const NW=150, NH=46, VGAP=16;

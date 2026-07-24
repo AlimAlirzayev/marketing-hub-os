@@ -13,10 +13,12 @@ from __future__ import annotations
 import re
 import time
 import traceback
+from pathlib import Path
 
 from ._bootstrap import load_env
 from . import knowledge, mic, queue, sense, skills, telegram, voice
 from .executor import execute
+from .contracts import ExecutionOutcome
 
 load_env()
 
@@ -49,17 +51,29 @@ def _notify(job: queue.Job, text: str) -> None:
 # result artifact is skipped — it just repeats the text already sent.
 _DELIVER_SUFFIXES = {".zip", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp",
                      ".mp4", ".mp3", ".wav", ".ogg", ".html", ".csv", ".pptx", ".docx"}
+_DELIVER_ROOT = (Path(__file__).resolve().parent.parent / "output" / "jobs").resolve()
+
+
+def _safe_deliverable(path: str) -> Path | None:
+    """Resolve an artifact only inside the governed job-output tree."""
+    try:
+        candidate = Path(path).resolve(strict=True)
+        if candidate.is_file() and candidate.is_relative_to(_DELIVER_ROOT):
+            return candidate
+    except (OSError, RuntimeError, ValueError):
+        pass
+    return None
 
 
 def _deliver_files(job: queue.Job, artifacts: list[str] | None) -> None:
     """Hand built deliverables to the owner as downloadable Telegram documents."""
     if not (job.source == "telegram" and job.chat_id and telegram.is_configured()):
         return
-    import os as _os
     for path in artifacts or []:
         try:
-            if _os.path.splitext(path)[1].lower() in _DELIVER_SUFFIXES and _os.path.exists(path):
-                telegram.send_document(job.chat_id, path, caption=_os.path.basename(path))
+            candidate = _safe_deliverable(path)
+            if candidate and candidate.suffix.lower() in _DELIVER_SUFFIXES:
+                telegram.send_document(job.chat_id, str(candidate), caption=candidate.name)
         except Exception as exc:
             print(f"[worker] file delivery failed for job {job.id} ({path}): {exc}")
 
@@ -77,17 +91,26 @@ def run_once() -> bool:
         except Exception:
             pass
     try:
-        out = execute(job)
+        out = ExecutionOutcome.model_validate(execute(job))
+        if out.status == "failure":
+            queue.fail(job.id, out.result)
+            print(f"[worker] job {job.id} FAILED ({out.error_code})")
+            sense.emit("job", f"#{job.id} FAILED ({job.source})", {
+                "error_code": out.error_code,
+                "retryable": out.retryable,
+            })
+            _notify(job, out.result)
+            return True
         # Outward-facing action -> the job parks at the human checkpoint instead
         # of completing. The operator decides via /approve or /reject (Telegram
         # or the control panel); approval re-queues it with approved=1.
-        if out.get("needs_approval"):
+        if out.needs_approval:
             queue.park_for_approval(job.id, "outward_action checkpoint")
             print(f"[worker] job {job.id} parked for operator approval")
-            _notify(job, out["result"])
+            _notify(job, out.result)
             return True
-        queue.complete(job.id, out["result"], out.get("artifacts"))
-        print(f"[worker] job {job.id} done -> {out.get('artifacts')}")
+        queue.complete(job.id, out.result, out.artifacts)
+        print(f"[worker] job {job.id} done -> {out.artifacts}")
         sense.emit("job", f"#{job.id} done ({job.source})", {"task": job.task[:80]})
         # The stored result keeps its `_[label]_` tag (the panel renders it as a
         # source chip); the HUMAN delivery must read like ONE continuous
@@ -95,7 +118,7 @@ def run_once() -> bool:
         # arrive as plain teammate text — no "İş #N hazırdır" header, no job
         # number (the owner wants Telegram to feel like the Claude chat, where a
         # result is just presented). The label still drives voice + memory below.
-        label, clean = _split_source_tag(out["result"])
+        label, clean = _split_source_tag(out.result)
         _notify(job, clean)
         # Voice in -> voice out: a job that arrived as a voice note is answered
         # with an Azerbaijani voice note too (the text is already delivered above,
@@ -110,7 +133,7 @@ def run_once() -> bool:
                     telegram.send_voice(job.chat_id, audio)
             except Exception as exc:
                 print(f"[worker] voice reply failed for job {job.id}: {exc}")
-        _deliver_files(job, out.get("artifacts"))
+        _deliver_files(job, out.artifacts)
         # Record the exchange into the shared hierarchical memory (blackboard),
         # keyed by the conversation thread (Telegram chat). CLI jobs have no chat
         # and are skipped. Guarded — memory must never delay or break delivery.
@@ -120,13 +143,13 @@ def run_once() -> bool:
             # not fragmented per chat id.
             thread = mic.thread_for(job)
             knowledge.record_turn(thread, "user", f"[{job.source}] {job.task}")
-            knowledge.record_turn(thread, "assistant", out["result"])
+            knowledge.record_turn(thread, "assistant", out.result)
         except Exception as exc:
             print(f"[worker] memory record skipped for job {job.id}: {exc}")
         # Learn from the finished job AFTER delivery, so the brain never delays
         # the user's result. Guarded + opt-out; failures here are swallowed.
         try:
-            n = knowledge.reflect_job(job.task, out["result"])
+            n = knowledge.reflect_job(job.task, out.result)
             if n:
                 print(f"[worker] job {job.id} -> {n} lesson(s) queued for review")
         except Exception as exc:
@@ -134,7 +157,7 @@ def run_once() -> bool:
         # Hermes-style: turn a successful WORK job into a reusable skill card the
         # work lanes reuse next time. Also post-delivery + guarded (never blocks).
         try:
-            slug = skills.learn_from_job(job.task, out["result"])
+            slug = skills.learn_from_job(job.task, out.result)
             if slug:
                 print(f"[worker] job {job.id} -> learned skill '{slug}'")
         except Exception as exc:

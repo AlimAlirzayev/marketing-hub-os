@@ -8,7 +8,7 @@
 /* ── Studio design tokens (one language: hub · panel · komanda mərkəzi) ── */
 :root{
   --bg:#f4f3f0; --card:#ffffff; --card2:#f8f7f4; --thumb:#edece8;
-  --ink:#1b1d23; --ink2:#4d5361; --mut:#8b8f9a;
+  --ink:#1b1d23; --ink2:#4d5361; --mut:#626875;
   --line:#e5e3dd; --line2:#d3d0c8;
   --acc:#4338ca; --acc-soft:#eceefc; --acc-line:#c7cdf4;
   --ok:#087f5b; --ok-soft:#e3f5ee; --warn:#9a5b00; --warn-soft:#fdf2df;
@@ -248,6 +248,30 @@ svg.awires{position:absolute;inset:0;pointer-events:none}
 .hrow .port{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--mut);width:52px}
 .hrow .key{font-weight:600;width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hrow .nm2{color:var(--ink2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── Şura — visible, consultation-only multi-LLM workspace ───────── */
+.council-wrap{max-width:1180px;margin:0 auto;display:grid;gap:16px}
+.council-hero,.council-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+.council-head{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.council-head h2{margin:0;font-size:20px}.council-head p{margin:4px 0 0;color:var(--mut)}
+.council-mode{margin-left:auto;border:1px solid var(--ok);color:var(--ok);background:var(--ok-soft);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:700}
+.council-compose{display:grid;gap:10px;margin-top:16px}
+.council-compose textarea{width:100%;min-height:130px;resize:vertical;border:1px solid var(--line2);border-radius:12px;padding:13px;background:var(--card2);color:var(--ink);font:inherit;outline:none}
+.council-compose textarea:focus{border-color:var(--acc)}
+.council-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.primarybtn{border:0;border-radius:10px;padding:10px 15px;background:var(--acc);color:white;font-weight:700;cursor:pointer}
+.primarybtn:disabled{opacity:.5;cursor:wait}
+.council-safe{font-size:12px;color:var(--mut)}
+.member-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px}
+.member{border:1px solid var(--line);border-radius:13px;padding:13px;background:var(--card2)}
+.member-top{display:flex;align-items:center;gap:8px}.member-top b{flex:1}
+.mstate{font-size:10px;font-weight:800;text-transform:uppercase;border-radius:999px;padding:3px 7px;background:var(--line);color:var(--mut)}
+.mstate.ok{background:var(--ok-soft);color:var(--ok)}.mstate.bad{background:var(--bad-soft);color:var(--bad)}.mstate.run{background:var(--acc-soft);color:var(--acc)}
+.mtext{margin-top:10px;color:var(--ink2);font-size:13px;max-height:280px;overflow:auto;white-space:pre-wrap}
+.synthesis{white-space:pre-wrap;color:var(--ink2);line-height:1.65}
+.history-list{display:grid;gap:8px;margin-top:10px}
+.history-row{width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card2);color:var(--ink);cursor:pointer}
+.history-row:hover{border-color:var(--acc)}.history-row small{display:block;color:var(--mut);margin-top:3px}
 .warnbox{margin-top:13px;border:1px solid var(--bad);border-left:3px solid var(--bad);
   background:var(--bad-soft);border-radius:12px;padding:13px 15px;font-size:13px;color:var(--bad)}
 .warnbox.amber{border-color:var(--warn);border-left-color:var(--warn);
@@ -302,7 +326,7 @@ svg.awires{position:absolute;inset:0;pointer-events:none}
       <a id="barOpen" href="#" target="_blank" style="display:none">Yeni pəncərədə ↗</a>
     </div>
     <div class="stage">
-      <iframe id="frame" src="about:blank" style="display:none"></iframe>
+      <iframe id="frame" src="about:blank" title="Ramin OS iş sahəsi" style="display:none"></iframe>
       <div id="offline" class="center">
         <div>
           <div class="big">😴</div>
@@ -324,6 +348,7 @@ svg.awires{position:absolute;inset:0;pointer-events:none}
       <div id="health" class="pane"></div>
       <div id="anatomy" class="pane"></div>
       <div id="signals" class="pane"></div>
+      <div id="council" class="pane"></div>
     </div>
   </main>
 </div>
@@ -367,7 +392,9 @@ async function init(){
   await refreshStatus();
   const want = new URLSearchParams(location.search).get('open');
   const s = SERVICES.find(x => x.key === want);
-  if(want === 'anatomy') showAnatomy();
+  if(want === 'observation' || want === 'anatomy') showObservation();
+  else if(want === 'council') showCouncil();
+  else if(want === 'workdesk' || want === 'panel') goPanel();
   else if(s) select(s);
   else showEv();
   setInterval(refreshStatus, 10000);
@@ -407,9 +434,10 @@ function renderNav(){
   });
   /* Port-less organs — the sonarzum rule: every capability is ON the shelf,
      with a card that says how to call it. No more motors rusting unseen. */
-  if(CAPS.length){
+  const shelfCaps=CAPS.filter(c=>!c.native_view);
+  if(shelfCaps.length){
     let ccat = null;
-    CAPS.forEach(c => {
+    shelfCaps.forEach(c => {
       const catName = 'Qabiliyyətlər · ' + (c.cat || 'Alət');
       if(catName !== ccat){ ccat = catName; html += `<div class="cat">${esc(catName)}</div>`; }
       html += `
@@ -422,14 +450,18 @@ function renderNav(){
   }
   html += `
     <div class="cat">Nəzarət</div>
+    <button data-key="_council" class="nav-item">
+      <span class="ic">🏛️</span>
+      <span class="tx"><span class="n">Şura</span><span class="d">Codex · Claude · Gemini — vizual konsultasiya</span></span>
+    </button>
+    <button data-key="_observation" class="nav-item">
+      <span class="ic">🛰️</span>
+      <span class="tx"><span class="n">Müşahidə</span><span class="d">Canlı agent və iş axını xəritəsi</span></span>
+    </button>
     <button data-key="_signals" class="nav-item">
       <span class="ic">🧭</span>
       <span class="tx"><span class="n">Səhər Siqnalları</span><span class="d">Radar qərarları — təsdiqlə / rədd et</span></span>
       <span class="badge" id="sigBadge" style="display:none">0</span>
-    </button>
-    <button data-key="_anatomy" class="nav-item">
-      <span class="ic">🫀</span>
-      <span class="tx"><span class="n">Canlı Anatomiya</span><span class="d">Axış xəritəsi — kim kimə ötürür</span></span>
     </button>
     <button data-key="_health" class="nav-item">
       <span class="ic">🩺</span>
@@ -468,7 +500,8 @@ function renderNav(){
     b.onclick = () => {
       if(b.dataset.key === '_ev') return showEv();
       if(b.dataset.key === '_health') return showHealth();
-      if(b.dataset.key === '_anatomy') return showAnatomy();
+      if(b.dataset.key === '_observation') return showObservation();
+      if(b.dataset.key === '_council') return showCouncil();
       if(b.dataset.key === '_signals') return showSignals();
       select(SERVICES.find(s => s.key === b.dataset.key));
     };
@@ -482,7 +515,7 @@ function renderNav(){
 }
 
 function stage(which, key){
-  ['ev','ext','health','anatomy','signals'].forEach(id => $(id).classList.toggle('on', id === which));
+  ['ev','ext','health','anatomy','signals','council'].forEach(id => $(id).classList.toggle('on', id === which));
   $('offline').classList.toggle('on', which === 'offline');
   $('notunnel').classList.toggle('on', which === 'notunnel');
   $('frame').style.display = which === 'tool' ? 'block' : 'none';
@@ -561,7 +594,7 @@ async function showEv(){
 
   const dels = (o.deliverables || []).map(d => {
     const pbase = REMOTE ? '/t/panel' : `http://127.0.0.1:${panel ? panel.port : 8890}`;
-    const thumb = d.kind === 'image' ? `<img src="${pbase}${d.url}" loading="lazy">`
+    const thumb = d.kind === 'image' ? `<img src="${pbase}${d.url}" loading="lazy" alt="${esc(d.name||'Nəticə şəkli')}">`
       : d.title ? `<b>${esc(d.title)}</b>` : `<span class="ic">${KIND_IC[d.kind] || '📎'}</span>`;
     return `<button class="dtile" onclick="goPanel('neticeler')">
       <div class="dthumb">${thumb}</div>
@@ -680,7 +713,7 @@ function select(s, tab, force){
   $('crumb2').innerHTML = ` <span class="sep">/</span> <b style="color:var(--ink)">${esc(s.name)}</b>`;
   let url = toolUrl(s);
   if(s.key === 'panel'){
-    const qp = ['theme=' + (document.documentElement.dataset.theme || 'light')];
+    const qp = ['embed=1', 'theme=' + (document.documentElement.dataset.theme || 'light')];
     if(tab) qp.push('tab=' + tab);
     url += (url.includes('?') ? '&' : '?') + qp.join('&');
   }
@@ -691,6 +724,7 @@ function select(s, tab, force){
   if(statusMap[s.key] === false){ stage('offline', s.key); return; }
   stage('tool', s.key);
   $('frame').src = url;
+  $('frame').title = s.name + ' — Ramin OS';
   reachable(s).then(ok => {
     if(current === s && !ok) stage('notunnel', s.key);
   });
@@ -747,7 +781,143 @@ function showCap(c){
   };
 }
 
-/* ── Canlı Anatomiya — the organism, head to toe, drawn from reality:
+/* ── Müşahidə — one live map, sourced from gateway.commandcenter ───── */
+function showObservation(){
+  const p=SERVICES.find(s=>s.key==='panel');
+  current=null;
+  stage('tool','_observation');
+  $('crumb').textContent='Nəzarət';
+  $('crumb2').innerHTML=' <span class="sep">/</span> <b style="color:var(--ink)">Müşahidə</b>';
+  $('barstatus').innerHTML='<span class="dot up"></span> canlı';
+  if(!p){stage('offline','_observation');return;}
+  const url=toolUrl({...p,path:'/map?embed=1'});
+  $('barOpen').href=url;
+  $('barOpen').style.display='';
+  $('frame').src=url;
+  reachable(p).then(ok=>{if(!ok)stage('notunnel','_observation');});
+}
+
+/* ── Şura — explicit advice, never automatic execution ─────────────── */
+let COUNCIL_RUN_ID=null,COUNCIL_TIMER=null,COUNCIL_SYNTHESIS='';
+
+function councilStateClass(s){
+  if(['ok','done'].includes(s))return 'ok';
+  if(['running','queued'].includes(s))return 'run';
+  if(['error','timeout','unavailable'].includes(s))return 'bad';
+  return '';
+}
+
+function councilMemberCard(m){
+  const seconds=m.seconds?` · ${Number(m.seconds).toFixed(1)}s`:'';
+  const waiting=['queued','running'].includes(m.status);
+  return `<div class="member">
+    <div class="member-top"><b>${esc(m.name)}</b><span class="mstate ${councilStateClass(m.status)}">${esc(m.status||'gözləyir')}</span></div>
+    <div class="council-safe">${esc(m.auth||'')}${seconds}</div>
+    <div class="mtext">${esc(m.text||(waiting?'Müstəqil rəy hazırlanır…':'Rəy yoxdur.'))}</div>
+  </div>`;
+}
+
+function renderCouncilRun(run){
+  COUNCIL_RUN_ID=run.id||COUNCIL_RUN_ID;
+  $('councilRunState').textContent=run.status==='done'?'Müzakirə tamamlandı':run.status==='error'?'Müzakirə alınmadı':'Şura işləyir…';
+  $('councilMembers').innerHTML=(run.members||[]).map(councilMemberCard).join('')||'<div class="muted">Üzv məlumatı yoxdur.</div>';
+  const syn=run.synthesis||{};
+  COUNCIL_SYNTHESIS=syn.text||'';
+  $('councilSynthesis').textContent=COUNCIL_SYNTHESIS||(run.error||'Üzvlərin rəyləri tamamlandıqdan sonra yekun sintez burada görünəcək.');
+  $('copyCouncil').disabled=!COUNCIL_SYNTHESIS;
+  $('startCouncil').disabled=['queued','running'].includes(run.status);
+  if(['done','error'].includes(run.status)){
+    if(COUNCIL_TIMER)clearInterval(COUNCIL_TIMER);
+    COUNCIL_TIMER=null;
+    loadCouncilHistory();
+  }
+}
+
+async function pollCouncil(){
+  if(!COUNCIL_RUN_ID)return;
+  try{
+    const r=await fetch('/api/council/runs/'+encodeURIComponent(COUNCIL_RUN_ID));
+    const d=await r.json();
+    if(r.ok)renderCouncilRun(d);
+  }catch(e){}
+}
+
+async function loadCouncilHistory(){
+  try{
+    const r=await fetch('/api/council/runs?limit=12');
+    const rows=await r.json();
+    $('councilHistory').innerHTML=Array.isArray(rows)&&rows.length?rows.map(x=>{
+      const when=x.created_at?new Date(x.created_at*1000).toLocaleString('az'):'';
+      return `<button class="history-row" onclick="openCouncilRun('${esc(x.id)}')">${esc((x.topic||'').slice(0,150))}<small>${esc(when)} · ${esc(x.status||'')}</small></button>`;
+    }).join(''):'<div class="muted">Hələ Şura sessiyası yoxdur.</div>';
+  }catch(e){$('councilHistory').innerHTML='<div class="muted">Tarixçə alınmadı.</div>';}
+}
+
+async function openCouncilRun(id){
+  try{
+    const r=await fetch('/api/council/runs/'+encodeURIComponent(id));
+    const d=await r.json();
+    if(r.ok){$('councilTopic').value=d.topic||'';renderCouncilRun(d);}
+  }catch(e){}
+}
+
+async function startCouncil(){
+  const topic=$('councilTopic').value.trim();
+  if(topic.length<10){$('councilMsg').textContent='Mövzunu ən azı 10 simvolla izah edin.';return;}
+  $('startCouncil').disabled=true;
+  $('councilMsg').textContent='Şura sessiyası başladılır…';
+  try{
+    const r=await fetch('/api/council/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'başlamadı');
+    $('councilMsg').textContent='Üzvlər müstəqil işləyir. Bu ekran heç nə icra etməyəcək.';
+    renderCouncilRun(d);
+    if(COUNCIL_TIMER)clearInterval(COUNCIL_TIMER);
+    COUNCIL_TIMER=setInterval(pollCouncil,2500);
+    pollCouncil();
+  }catch(e){
+    $('startCouncil').disabled=false;
+    $('councilMsg').textContent='Xəta: '+e.message;
+  }
+}
+
+async function copyCouncil(){
+  if(!COUNCIL_SYNTHESIS)return;
+  try{await navigator.clipboard.writeText(COUNCIL_SYNTHESIS);$('councilMsg').textContent='Yekun sintez kopyalandı.';}
+  catch(e){$('councilMsg').textContent='Kopyalama alınmadı.';}
+}
+
+async function showCouncil(){
+  current=null;
+  stage('council','_council');
+  $('crumb').textContent='Qərar';
+  $('crumb2').innerHTML=' <span class="sep">/</span> <b style="color:var(--ink)">Şura</b>';
+  $('barstatus').textContent='';
+  $('barOpen').style.display='none';
+  const box=$('council');
+  if(!box.dataset.ready){
+    box.dataset.ready='1';
+    box.innerHTML=`<div class="council-wrap">
+      <div class="council-hero">
+        <div class="council-head"><div><h2>LLM Məsləhət Şurası</h2><p>Codex, Claude və Gemini eyni mövzuya müstəqil baxır; sonra ortaq sintez hazırlanır.</p></div><span class="council-mode">YALNIZ KONSULTASİYA</span></div>
+        <div class="council-compose"><textarea id="councilTopic" placeholder="Müzakirə ediləcək qərarı, konteksti və istədiyiniz hökmü yazın…"></textarea>
+          <div class="council-actions"><button class="primarybtn" id="startCouncil" onclick="startCouncil()">Müzakirəni başlat</button><span class="council-safe" id="councilMsg">Kod, routing və sistem ayarları dəyişdirilmir. İcra ayrıca qərardır.</span></div>
+        </div>
+      </div>
+      <div class="council-card"><div class="council-head"><h3>Üzvlərin müstəqil rəyləri</h3><span class="council-safe" id="councilRunState">Hazırdır</span></div><div class="member-grid" id="councilMembers"><div class="muted">Əlçatanlıq yoxlanılır…</div></div></div>
+      <div class="council-card"><div class="council-head"><h3>Yekun sintez</h3><button class="ghostbtn" id="copyCouncil" onclick="copyCouncil()" disabled>⧉ Kopyala</button></div><div class="synthesis" id="councilSynthesis">Sessiya başladıldıqdan sonra nəticə burada görünəcək.</div></div>
+      <div class="council-card"><h3>Əvvəlki sessiyalar</h3><div class="history-list" id="councilHistory"><div class="muted">Yüklənir…</div></div></div>
+    </div>`;
+  }
+  try{
+    const r=await fetch('/api/council/status');const d=await r.json();
+    if(r.ok&&!COUNCIL_RUN_ID)$('councilMembers').innerHTML=(d.members||[]).map(m=>councilMemberCard({name:m.name,status:m.available?'ready':'unavailable',text:m.available?'Konsultasiyaya hazırdır.':'Bu maşında əlçatan deyil.'})).join('');
+  }catch(e){$('councilMembers').innerHTML='<div class="muted">Şura backend-i əlçatan deyil.</div>';}
+  loadCouncilHistory();
+}
+
+/* ── Canlı Anatomiya — deprecated fallback; no longer exposed in navigation.
+   Kept temporarily for bookmark compatibility while Müşahidə uses /api/flow:
    the task-flow spine is the ORCHESTRATION map; the organs band comes from
    services.json (so a new organ appears here by itself), status dots are the
    same live probes the sidebar uses. n8n-style nodes + bezier wires. ── */

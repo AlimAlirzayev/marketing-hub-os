@@ -288,9 +288,10 @@ def _llm_state() -> dict:
     if not log.exists():
         return {"calls_today": 0}
     today = datetime.date.today().isoformat()
-    calls = in_tok = out_tok = 0
+    calls = attempts = failed = in_tok = out_tok = 0
     cost = 0.0
     by_model: dict[str, int] = {}
+    by_error: dict[str, int] = {}
     try:
         for line in log.read_text(encoding="utf-8").splitlines():
             try:
@@ -299,6 +300,13 @@ def _llm_state() -> dict:
                 continue
             if not str(r.get("ts", "")).startswith(today):
                 continue
+            attempts += 1
+            status = r.get("status", "success")
+            if status != "success":
+                failed += 1
+                code = r.get("error_code", "provider_error")
+                by_error[code] = by_error.get(code, 0) + 1
+                continue
             calls += 1
             in_tok += int(r.get("prompt_tokens", 0) or 0)
             out_tok += int(r.get("completion_tokens", 0) or 0)
@@ -306,8 +314,10 @@ def _llm_state() -> dict:
             by_model[r.get("model", "?")] = by_model.get(r.get("model", "?"), 0) + 1
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)[:80]}
-    return {"calls_today": calls, "in_tok": in_tok, "out_tok": out_tok,
-            "cost_usd_today": round(cost, 4), "by_model": by_model}
+    return {"calls_today": calls, "attempts_today": attempts,
+            "failed_attempts_today": failed, "in_tok": in_tok, "out_tok": out_tok,
+            "cost_usd_today": round(cost, 4), "by_model": by_model,
+            "by_error": by_error}
 
 
 def _git_state() -> dict:

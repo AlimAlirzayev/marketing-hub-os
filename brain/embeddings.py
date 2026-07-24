@@ -255,6 +255,10 @@ def embed(text: str, *, use_cache: bool = True, require_enabled: bool = True) ->
         return cache[key]
 
     provider = _provider()
+    # Gemini is a hosted/external processor. Internal RAG content must never
+    # leave the machine merely because an unrelated Gemini key exists.
+    if provider == "gemini" and not _allow_external():
+        return None
     vec = _embed_gemini(text) if provider == "gemini" else _embed_endpoint(text)
     if vec is None:
         return None

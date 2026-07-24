@@ -49,8 +49,17 @@ do not inspect or print their values.
 ```powershell
 python -m gateway.trello doctor
 python -m gateway.trello report
+python -m gateway.trello connection-check
 python -m gateway.trello snapshot
 ```
+
+`connection-check` is the quiet/background-safe first live check. It never
+opens or focuses a browser, never writes to Trello, and reads only the current
+member ID plus minimal metadata for the allowlisted board. It writes a
+secret-free machine status to `output/trello/connection_status.json` and an
+operator report to `output/trello/connection_status.md`. A non-zero exit means
+authorization or board access is still blocked; the report contains the safe
+next action.
 
 `snapshot` is the first live check. It reads the allowlisted board and makes no
 change. If Trello returns `401`, re-check the human authorization and token
@@ -90,3 +99,8 @@ python -m gateway.trello plan comment_card --target-id CARD_ID --changes-json '{
 - [Authorization](https://developer.atlassian.com/cloud/trello/guides/rest-api/authorization/)
 - [Board REST resources](https://developer.atlassian.com/cloud/trello/rest/api-group-boards/)
 - [Rate limits](https://developer.atlassian.com/cloud/trello/guides/rest-api/rate-limits/)
+
+Trello does not document a service-account bypass for this flow. Both the
+direct token route and OAuth 1.0 require a Trello user authorization step, so a
+background agent can monitor and use an existing authorization but cannot grant
+consent on the user's behalf.

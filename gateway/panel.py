@@ -26,7 +26,7 @@ from pathlib import Path
 import requests
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ._bootstrap import load_env
 from . import advisor, mic, queue, scheduler, sense
@@ -135,13 +135,21 @@ def trends() -> JSONResponse:
             idea = bb._short(bb._field(bb.KNOW / f["file"], "Application idea"), 220)
             out.append({**f, "status": st, "idea": idea})
         out.sort(key=lambda f: (0 if f["status"] == "new" else 1, -f["score"]))
-        return JSONResponse({"findings": out, "proposals": proposals})
+        return JSONResponse({"ok": True, "findings": out, "proposals": proposals})
     except Exception as exc:
-        return JSONResponse({"findings": [], "proposals": [], "error": f"{type(exc).__name__}: {exc}"})
+        return JSONResponse({
+            "ok": False,
+            "findings": [],
+            "proposals": [],
+            "error_code": "research_lab_unavailable",
+            "message": "Research Lab bu maşında əlçatan deyil.",
+            "retryable": True,
+        })
 
 
 class TrendAction(BaseModel):
-    title: str
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=500)
 
 
 @app.post("/api/trends/{action}")
@@ -186,7 +194,16 @@ def job_detail(job_id: int) -> JSONResponse:
 
 
 class NewTask(BaseModel):
-    task: str
+    model_config = ConfigDict(extra="forbid")
+    task: str = Field(min_length=1, max_length=12_000)
+
+    @field_validator("task")
+    @classmethod
+    def _clean_task(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("tapşırıq boş ola bilməz")
+        return value
 
 
 @app.post("/api/jobs")
@@ -235,6 +252,43 @@ def schedules() -> JSONResponse:
 @app.get("/api/events")
 def events(n: int = 30) -> JSONResponse:
     return JSONResponse(sense.recent(n))
+
+
+class NewCouncilRun(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    topic: str = Field(min_length=10, max_length=12_000)
+
+
+@app.get("/api/council/status")
+def council_status() -> JSONResponse:
+    """Readiness for the explicit, consultation-only council workspace."""
+    from . import council_workspace
+    return JSONResponse(council_workspace.availability())
+
+
+@app.get("/api/council/runs")
+def council_runs(limit: int = 20) -> JSONResponse:
+    from . import council_workspace
+    return JSONResponse(council_workspace.recent(limit))
+
+
+@app.get("/api/council/runs/{run_id}")
+def council_run(run_id: str) -> JSONResponse:
+    from . import council_workspace
+    found = council_workspace.get(run_id)
+    if not found:
+        return JSONResponse({"error": "Şura sessiyası tapılmadı."}, status_code=404)
+    return JSONResponse(found)
+
+
+@app.post("/api/council/runs")
+def start_council_run(req: NewCouncilRun) -> JSONResponse:
+    """Start advice only; execution remains a separate operator decision."""
+    from . import council_workspace
+    try:
+        return JSONResponse(council_workspace.start(req.topic), status_code=202)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
 
 
 @app.post("/api/sync")
@@ -438,7 +492,7 @@ _HTML = """<!doctype html>
 /* ── design tokens: light editorial (default) + dark ───────────── */
 :root{
   --bg:#f4f3f0; --card:#ffffff; --card2:#f8f7f4; --thumb:#edece8;
-  --ink:#1b1d23; --ink2:#4d5361; --mut:#8b8f9a;
+  --ink:#1b1d23; --ink2:#4d5361; --mut:#626875;
   --line:#e5e3dd; --line2:#d3d0c8;
   --acc:#4338ca; --acc-soft:#eceefc; --acc-line:#c7cdf4;
   --ok:#087f5b; --ok-soft:#e3f5ee; --warn:#9a5b00; --warn-soft:#fdf2df;
@@ -718,6 +772,13 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
   .tab{flex:1;justify-content:center}.bt small{display:none}
   main{padding:16px 14px 50px}.chatcard{height:auto;min-height:0}.chat{max-height:46vh}
 }
+body.embedded .topbar{padding:8px 18px;gap:8px;background:var(--bg)}
+body.embedded .topbar .brand,body.embedded .topbar>.sp,
+body.embedded .topbar .live,body.embedded .topbar #thBtn{display:none}
+body.embedded .tabs{width:100%;overflow-x:auto;scrollbar-width:thin}
+body.embedded .tab{min-height:40px;white-space:nowrap}
+body.embedded main{padding-top:18px}
+body.embedded .page{min-height:calc(100vh - 92px)}
 </style></head><body>
 
 <header class="topbar">
@@ -885,22 +946,28 @@ pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-hei
 
 <script>
 const $=id=>document.getElementById(id);
+const _tabLoaded=new Set();
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 /* tiny safe markdown: escape FIRST, then transform — only whitelisted tags come out.
    Inline-style output on purpose: bubbles/mdoc are pre-wrap, newlines already render. */
 function md(t){
   const cbs=[];
-  let h=esc(t).replace(/```(\w*)\\n?([\s\S]*?)```/g,(m,l,c)=>{cbs.push(c);return "§CB"+(cbs.length-1)+"§";});
+  let h=esc(t).replace(/```(\\w*)\\n?([\\s\\S]*?)```/g,(m,l,c)=>{cbs.push(c);return "§CB"+(cbs.length-1)+"§";});
   h=h
     .replace(/`([^`\\n]+)`/g,'<code>$1</code>')
     .replace(/^#{1,4} (.+)$/gm,'<span class="mh">$1</span>')
-    .replace(/\*\*([^*\\n]+)\*\*/g,'<b>$1</b>')
-    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\\*\\*([^*\\n]+)\\*\\*/g,'<b>$1</b>')
+    .replace(/\\[([^\\]]+)\\]\\((https?:[^)\\s]+)\\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/^[ \\t]*[-*•] /gm,'<span class="mli">• </span>')
     .replace(/^---+$/gm,'───');
-  return h.replace(/§CB(\d+)§/g,(m,i)=>`<pre class="mcb">${cbs[+i].trimEnd()}</pre>`);
+  return h.replace(/§CB(\\d+)§/g,(m,i)=>`<pre class="mcb">${cbs[+i].trimEnd()}</pre>`);
 }
-async function j(url,opt){const r=await fetch(url,opt);return r.json()}
+async function j(url,opt){
+  const r=await fetch(url,opt);let data;
+  try{data=await r.json();}catch(e){throw new Error(`HTTP ${r.status}: JSON cavabı alınmadı`);}
+  if(!r.ok)throw new Error(data.message||data.error||`HTTP ${r.status}`);
+  return data;
+}
 function toast(txt,err){
   const t=document.createElement("div");t.className="toast"+(err?" err":"");t.textContent=txt;
   $("toasts").appendChild(t);setTimeout(()=>t.remove(),4200);
@@ -937,6 +1004,13 @@ function showTab(t){
   document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id==="page-"+t));
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
   try{localStorage.setItem("rs-tab",t);}catch(e){}
+  if(!_tabLoaded.has(t)){
+    _tabLoaded.add(t);
+    if(t==="studiya"||t==="neticeler")loadDeliverables();
+    if(t==="maliyye")loadFinance();
+    if(t==="trendler")loadTrends();
+    if(t==="muherrik")loadRadar(0);
+  }
 }
 function applyTheme(t){
   document.documentElement.dataset.theme=t;
@@ -974,7 +1048,7 @@ function renderDeliverables(){
   }
   $("gallery").innerHTML=list.map((d,i)=>{
     let thumb;
-    if(d.kind==="image") thumb=`<img src="${d.url}" loading="lazy">`;
+    if(d.kind==="image") thumb=`<img src="${d.url}" loading="lazy" alt="${esc(d.name||'Nəticə şəkli')}">`;
     else if(d.kind==="site") thumb=`<iframe src="${d.url}" scrolling="no" loading="lazy" tabindex="-1"></iframe>`;
     else if(d.kind==="report"&&(d.title||d.snippet))
       thumb=`<div class="rprev"><b>${esc(d.title||d.name)}</b><p>${esc(d.snippet||"")}</p></div>`;
@@ -991,7 +1065,7 @@ function renderRecents(){
   $("tabCnt").textContent=_deliverables.length||"";
   const rs=_deliverables.slice(0,4);
   $("recents").innerHTML=rs.map((d,i)=>`<div class="rrow" onclick="openRecent(${i})">
-    <span class="rthumb">${d.kind==="image"?`<img src="${d.url}" loading="lazy">`:_gicon(d.kind)}</span>
+    <span class="rthumb">${d.kind==="image"?`<img src="${d.url}" loading="lazy" alt="${esc(d.name||'Nəticə şəkli')}">`:_gicon(d.kind)}</span>
     <span class="rtx"><span class="rt">${esc(d.title||d.name)}</span>
     <span class="rs">${KIND_AZ[d.kind]||d.kind} · ${ago(d.mtime)}</span></span>
   </div>`).join("")||`<div class="muted">hələ nəticə yoxdur</div>`;
@@ -1001,8 +1075,9 @@ function openDeliverable(i){const d=_visList()[i];if(d)openD(d);}
 async function openD(d){
   $("mNm").textContent=d.title||d.name; $("mOpen").href=d.url; $("mDl").href=d.url;
   const b=$("mBody");
-  if(d.kind==="image") b.innerHTML=`<img src="${d.url}">`;
-  else if(d.kind==="site"||d.kind==="pdf") b.innerHTML=`<iframe src="${d.url}"></iframe>`;
+  if(d.kind==="image") b.innerHTML=`<img src="${d.url}" alt="${esc(d.name||'Nəticə şəkli')}">`;
+  else if(d.kind==="site") b.innerHTML=`<iframe src="${d.url}" title="${esc(d.name||'Sayt önizləməsi')}" sandbox="allow-scripts allow-forms"></iframe>`;
+  else if(d.kind==="pdf") b.innerHTML=`<iframe src="${d.url}" title="${esc(d.name||'PDF önizləməsi')}"></iframe>`;
   else if(d.kind==="video") b.innerHTML=`<video src="${d.url}" controls style="width:100%;max-height:100%"></video>`;
   else if(d.kind==="audio") b.innerHTML=`<div style="padding:40px"><audio src="${d.url}" controls style="width:100%"></audio></div>`;
   else if(d.kind==="report"){
@@ -1043,7 +1118,7 @@ async function refresh(){
   const envOk=Object.values(env).filter(v=>String(v).startsWith("SET")).length;
   const envAll=Object.keys(env).length;
   $("git").innerHTML=`git: <b>${esc(p.git&&p.git.head||"?")}</b>${p.git&&p.git.dirty?" · dirty":""}`;
-  $("cost").innerHTML=`LLM bu gün: <b>${llm.calls_today||0}</b> çağırış · <b>$${(llm.cost_usd_today||0).toFixed(3)}</b>`;
+  $("cost").innerHTML=`LLM bu gün: <b>${llm.calls_today||0}</b> uğurlu / <b>${llm.attempts_today??llm.calls_today??0}</b> cəhd · <b>$${(llm.cost_usd_today||0).toFixed(3)}</b>`;
   $("cards").innerHTML =
     tile("","Növbədə", q.queued??"–","işləyir: "+(q.running??0))+
     tile("","Hazır", q.done??"–","xəta: "+(q.error??0))+
@@ -1100,7 +1175,7 @@ async function decide(id,action){
 }
 
 /* ── chat: one microphone ── */
-let _watchJob=null,_turns=[],_bubTxt=[];
+let _watchJob=null,_turns=[],_bubTxt=[],_lastFailure=null;
 const _open=new Set();
 function hkey(t){let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return h}
 function bubble(role,text,src,pending){
@@ -1125,13 +1200,14 @@ function renderChat(){
   let html=_turns.map(t=>{
     let src=null, txt=t.content||"";
     if(t.role==="user"){
-      const m=txt.match(/^\[([\w-]+)\]\s*/); if(m){src=m[1];txt=txt.slice(m[0].length);}
+    const m=txt.match(/^\\[([\\w-]+)\\]\\s*/); if(m){src=m[1];txt=txt.slice(m[0].length);}
     }else{
-      const m=txt.match(/^_\[chat:([^\]]*)\]_\s*/);
+    const m=txt.match(/^_\\[chat:([^\\]]*)\\]_\\s*/);
       if(m){src=(m[1].split(/[:/]/).pop()||"").slice(0,30);txt=txt.slice(m[0].length);}
     }
     return bubble(t.role==="user"?"user":"assistant", txt, src, false);
   }).join("");
+  if(_lastFailure)html+=bubble("assistant",_lastFailure,"xəta",false);
   if(_watchJob) html+=bubble("assistant","… işləyir (job #"+_watchJob+")",null,true);
   box.innerHTML=html||`<div class="muted">Söhbətə başla — bura, Telegram və Codex eyni yaddaşı görür.</div>`;
   if(atBottom||_watchJob) box.scrollTop=box.scrollHeight;
@@ -1146,7 +1222,9 @@ async function watchJob(id){
     try{
       const d=await j(`/api/jobs/${id}`);
       if(d.status==="done"||d.status==="error"||d.status==="awaiting_approval"||d.status==="rejected"){
-        _watchJob=null; await loadChat(); refresh(); loadDeliverables(); return;
+        _watchJob=null;
+        _lastFailure=d.status==="error"?(d.error||"Tapşırıq tamamlanmadı."):null;
+        await loadChat(); refresh(); loadDeliverables(); return;
       }
     }catch(e){}
   }
@@ -1154,6 +1232,7 @@ async function watchJob(id){
 }
 async function submitTask(){
   const t=$("task").value.trim(); if(!t)return;
+  _lastFailure=null;
   const r=await j("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task:t})});
   $("msg").textContent=r.id?`Job #${r.id} növbəyə salındı`:(r.error||"xəta");
   setTimeout(()=>{$("msg").textContent="";},6000);
@@ -1261,6 +1340,12 @@ async function loadTrends(){
   const box=$("trendList");
   let r;
   try{r=await j("/api/trends");}catch(e){box.innerHTML=`<div class="muted">radar oxunmadı</div>`;return;}
+  if(r.ok===false){
+    $("trendCnt").textContent="";
+    $("trendMeta").innerHTML=`<b>əlçatan deyil</b>`;
+    box.innerHTML=`<div class="find"><span class="lvl watch">diqqət</span><div><div>${esc(r.message||'Research Lab əlçatan deyil.')}</div><div class="sug">→ Bağlantını yoxlayın və yenidən cəhd edin.</div></div></div>`;
+    return;
+  }
   const findings=r.findings||[], proposals=r.proposals||[];
   const open=findings.filter(f=>f.status==="new");
   $("trendCnt").textContent=open.length||"";
@@ -1321,6 +1406,7 @@ function toggleMic(){
 }
 
 const _qs=new URLSearchParams(location.search);
+if(_qs.get("embed")==="1")document.body.classList.add("embedded");
 let _theme="light";
 try{_theme=localStorage.getItem("rs-theme")||"light";}catch(e){}
 applyTheme(_qs.get("theme")||_theme);
@@ -1329,14 +1415,10 @@ try{_tab=localStorage.getItem("rs-tab")||"studiya";}catch(e){}
 showTab(_qs.get("tab")||_tab);
 refresh();
 loadChat();
-loadDeliverables();
-loadRadar(0);
-loadFinance();
-loadTrends();
 setInterval(refresh, 15000);
 setInterval(loadChat, 12000);
-setInterval(loadDeliverables, 60000);
-setInterval(loadFinance, 90000);
+setInterval(()=>{if(_tabLoaded.has("studiya")||_tabLoaded.has("neticeler"))loadDeliverables();},60000);
+setInterval(()=>{if(_tabLoaded.has("maliyye"))loadFinance();},90000);
 </script>
 </body></html>"""
 

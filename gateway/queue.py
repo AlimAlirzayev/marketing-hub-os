@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     source      TEXT    NOT NULL,            -- 'cli' | 'telegram'
     chat_id     TEXT,                        -- where to deliver the result
+    ingress_key TEXT,                        -- durable source event id (dedup)
     task        TEXT    NOT NULL,
     status      TEXT    NOT NULL DEFAULT 'queued',
     result      TEXT,
@@ -35,11 +36,30 @@ CREATE TABLE IF NOT EXISTS jobs (
     finished_at REAL
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+CREATE TABLE IF NOT EXISTS ingress_events (
+    source       TEXT NOT NULL,
+    event_id     INTEGER NOT NULL,
+    processed_at REAL NOT NULL,
+    PRIMARY KEY (source, event_id)
+);
+CREATE TABLE IF NOT EXISTS ingress_failures (
+    source       TEXT NOT NULL,
+    event_id     INTEGER NOT NULL,
+    attempts     INTEGER NOT NULL DEFAULT 0,
+    last_error   TEXT,
+    updated_at   REAL NOT NULL,
+    PRIMARY KEY (source, event_id)
+);
 """
 
 # Pre-approval databases lack the column; add it in place (SQLite has no
 # IF NOT EXISTS for columns, so probe-and-alter).
-_MIGRATIONS = ("ALTER TABLE jobs ADD COLUMN approved INTEGER NOT NULL DEFAULT 0",)
+_MIGRATIONS = (
+    "ALTER TABLE jobs ADD COLUMN approved INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE jobs ADD COLUMN ingress_key TEXT",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_ingress_key "
+    "ON jobs(ingress_key) WHERE ingress_key IS NOT NULL",
+)
 
 
 @dataclass
@@ -56,6 +76,7 @@ class Job:
     started_at: float | None
     finished_at: float | None
     approved: bool = False
+    ingress_key: str | None = None
 
     @classmethod
     def _from_row(cls, row: sqlite3.Row) -> "Job":
@@ -63,6 +84,7 @@ class Job:
             id=row["id"],
             source=row["source"],
             chat_id=row["chat_id"],
+            ingress_key=row["ingress_key"] if "ingress_key" in row.keys() else None,
             task=row["task"],
             status=row["status"],
             result=row["result"],
@@ -103,6 +125,94 @@ def submit(task: str, source: str = "cli", chat_id: str | None = None) -> int:
             (source, chat_id, task, time.time()),
         )
         return int(cur.lastrowid)
+
+
+def submit_once(
+    task: str,
+    *,
+    source: str,
+    chat_id: str | None,
+    ingress_key: str,
+) -> tuple[int, bool]:
+    """Atomically enqueue one externally identified input.
+
+    Returns ``(job_id, created)``. Replaying the same Telegram update returns
+    the original job instead of creating a second agent run. The unique key is
+    source-scoped by the caller (for example ``telegram:123456``).
+    """
+    init_db()
+    with _connect() as conn:
+        try:
+            cur = conn.execute(
+                "INSERT INTO jobs (source, chat_id, ingress_key, task, created_at) "
+                "VALUES (?,?,?,?,?)",
+                (source, chat_id, ingress_key, task, time.time()),
+            )
+            return int(cur.lastrowid), True
+        except sqlite3.IntegrityError:
+            row = conn.execute(
+                "SELECT id FROM jobs WHERE ingress_key=?",
+                (ingress_key,),
+            ).fetchone()
+            if row is None:
+                raise
+            return int(row["id"]), False
+
+
+def ingress_processed(source: str, event_id: int) -> bool:
+    """Whether a source update completed its handler successfully."""
+    init_db()
+    with _connect() as conn:
+        return conn.execute(
+            "SELECT 1 FROM ingress_events WHERE source=? AND event_id=?",
+            (source, int(event_id)),
+        ).fetchone() is not None
+
+
+def mark_ingress_processed(source: str, event_id: int) -> None:
+    """Persist successful handling before Telegram is asked for newer updates."""
+    init_db()
+    with _connect() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO ingress_events (source, event_id, processed_at) "
+            "VALUES (?,?,?)",
+            (source, int(event_id), time.time()),
+        )
+        conn.execute(
+            "DELETE FROM ingress_failures WHERE source=? AND event_id=?",
+            (source, int(event_id)),
+        )
+
+
+def record_ingress_failure(source: str, event_id: int, error: str) -> int:
+    """Record a poison/update failure and return its durable attempt count."""
+    init_db()
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO ingress_failures "
+            "(source, event_id, attempts, last_error, updated_at) VALUES (?,?,1,?,?) "
+            "ON CONFLICT(source, event_id) DO UPDATE SET "
+            "attempts=attempts+1, last_error=excluded.last_error, "
+            "updated_at=excluded.updated_at",
+            (source, int(event_id), str(error)[:240], time.time()),
+        )
+        row = conn.execute(
+            "SELECT attempts FROM ingress_failures WHERE source=? AND event_id=?",
+            (source, int(event_id)),
+        ).fetchone()
+        return int(row["attempts"])
+
+
+def last_ingress_event(source: str) -> int | None:
+    """Newest durably handled event for restart-safe long-polling."""
+    init_db()
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT MAX(event_id) AS event_id FROM ingress_events WHERE source=?",
+            (source,),
+        ).fetchone()
+        value = row["event_id"] if row else None
+        return int(value) if value is not None else None
 
 
 def has_queued_task(task: str, source: str | None = None) -> bool:
@@ -162,20 +272,24 @@ def claim_next() -> Job | None:
         return Job._from_row(row)
 
 
-def complete(job_id: int, result: str, artifacts: list[str] | None = None) -> None:
+def complete(job_id: int, result: str, artifacts: list[str] | None = None) -> bool:
     with _connect() as conn:
-        conn.execute(
-            "UPDATE jobs SET status='done', result=?, artifacts=?, finished_at=? WHERE id=?",
+        cur = conn.execute(
+            "UPDATE jobs SET status='done', result=?, error=NULL, artifacts=?, finished_at=? "
+            "WHERE id=? AND status='running'",
             (result, json.dumps(artifacts or []), time.time(), job_id),
         )
+        return cur.rowcount > 0
 
 
-def fail(job_id: int, error: str) -> None:
+def fail(job_id: int, error: str) -> bool:
     with _connect() as conn:
-        conn.execute(
-            "UPDATE jobs SET status='error', error=?, finished_at=? WHERE id=?",
+        cur = conn.execute(
+            "UPDATE jobs SET status='error', error=?, finished_at=? "
+            "WHERE id=? AND status='running'",
             (error, time.time(), job_id),
         )
+        return cur.rowcount > 0
 
 
 # --- the human checkpoint (risky actions pause here, never auto-run) -------

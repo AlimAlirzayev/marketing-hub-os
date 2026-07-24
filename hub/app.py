@@ -132,6 +132,72 @@ def _panel(path: str, default):
         return default
 
 
+def _panel_response(method: str, path: str, payload: dict | None = None) -> JSONResponse:
+    """Re-serve an internal panel API as part of the one-origin Hub product."""
+    try:
+        port = next(s["port"] for s in _load_services() if s["key"] == "panel")
+        response = requests.request(
+            method,
+            f"http://127.0.0.1:{port}{path}",
+            json=payload,
+            timeout=20.0,
+        )
+        try:
+            body = response.json()
+        except ValueError:
+            body = {"error": "İş masası etibarlı JSON qaytarmadı."}
+        return JSONResponse(body, status_code=response.status_code)
+    except Exception as exc:
+        return JSONResponse(
+            {"error": f"İş masası hazırda əlçatan deyil: {type(exc).__name__}"},
+            status_code=503,
+        )
+
+
+@app.get("/workdesk")
+def workdesk_deep_link() -> RedirectResponse:
+    return RedirectResponse(url="/?open=workdesk")
+
+
+@app.get("/observation")
+def observation_deep_link() -> RedirectResponse:
+    return RedirectResponse(url="/?open=observation")
+
+
+@app.get("/council")
+def council_deep_link() -> RedirectResponse:
+    return RedirectResponse(url="/?open=council")
+
+
+@app.get("/api/flow")
+def flow() -> JSONResponse:
+    return _panel_response("GET", "/api/flow")
+
+
+@app.get("/api/council/status")
+def council_status() -> JSONResponse:
+    return _panel_response("GET", "/api/council/status")
+
+
+@app.get("/api/council/runs")
+def council_runs(limit: int = 20) -> JSONResponse:
+    return _panel_response("GET", f"/api/council/runs?limit={max(1, min(limit, 50))}")
+
+
+@app.get("/api/council/runs/{run_id}")
+def council_run(run_id: str) -> JSONResponse:
+    return _panel_response("GET", f"/api/council/runs/{run_id}")
+
+
+@app.post("/api/council/runs")
+async def start_council_run(request: Request) -> JSONResponse:
+    try:
+        payload = await request.json()
+    except ValueError:
+        return JSONResponse({"error": "Etibarlı sorğu göndərin."}, status_code=400)
+    return _panel_response("POST", "/api/council/runs", {"topic": payload.get("topic", "")})
+
+
 @app.get("/api/overview")
 def overview() -> JSONResponse:
     """The front door opens on a BRIEFING, not on a random tool: what the

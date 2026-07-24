@@ -20,11 +20,17 @@ from pathlib import Path
 from typing import Any, Callable
 
 from . import permissions, security
+from ._bootstrap import load_env
+
+
+load_env()
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 PERMISSIONS_PATH = ROOT_DIR / "config" / "agent_permissions.json"
 REPORT_PATH = ROOT_DIR / "output" / "trello" / "trello_readiness.md"
+CONNECTION_STATUS_PATH = ROOT_DIR / "output" / "trello" / "connection_status.json"
+CONNECTION_REPORT_PATH = ROOT_DIR / "output" / "trello" / "connection_status.md"
 PLAN_DIR = ROOT_DIR / "data" / "trello" / "pending"
 
 TRELLO_AGENT_ID = "trello_work_board"
@@ -172,10 +178,21 @@ class TrelloClient:
     def request(self, method: str, path: str, params: dict[str, Any] | None = None) -> Any:
         if not path.startswith("/") or ".." in path:
             raise TrelloError("Unsafe Trello API path blocked.")
-        query = {"key": self._api_key, "token": self._token}
-        query.update({key: value for key, value in (params or {}).items() if value is not None})
+        query = {key: value for key, value in (params or {}).items() if value is not None}
         url = f"{TRELLO_API_BASE}{path}?{urllib.parse.urlencode(query)}"
-        request = urllib.request.Request(url, method=method, headers={"Accept": "application/json"})
+        request = urllib.request.Request(
+            url,
+            method=method,
+            headers={
+                "Accept": "application/json",
+                # Trello officially supports this header form. Keeping credentials
+                # out of the URL prevents accidental exposure in proxy/access logs.
+                "Authorization": (
+                    f'OAuth oauth_consumer_key="{self._api_key}", '
+                    f'oauth_token="{self._token}"'
+                ),
+            },
+        )
         try:
             with self._opener(request, timeout=self._timeout) as response:
                 payload = response.read().decode("utf-8")
@@ -198,6 +215,162 @@ class TrelloClient:
                 "card_fields": "name,desc,idList,due,dueComplete,labels,dateLastActivity,url",
             },
         )
+
+    def connection_probe(self, board: str = DEFAULT_BOARD_REF) -> dict[str, Any]:
+        """Verify identity and allowlisted-board access without reading cards."""
+
+        ref = board_ref(board)
+        member = self.request("GET", "/members/me", {"fields": "id"})
+        board_data = self.request(
+            "GET",
+            f"/boards/{ref}",
+            {"fields": "name,url,closed,dateLastActivity"},
+        )
+        return {
+            "member_authorized": bool(member.get("id")),
+            "board_accessible": bool(board_data.get("url") or board_data.get("name")),
+            "board": {
+                "name": str(board_data.get("name") or ""),
+                "url": str(board_data.get("url") or DEFAULT_BOARD_URL),
+                "closed": bool(board_data.get("closed", False)),
+                "date_last_activity": board_data.get("dateLastActivity"),
+            },
+        }
+
+
+def build_connection_status(
+    client: TrelloClient | None = None,
+    *,
+    now: float | None = None,
+    inspect_environment: bool = True,
+) -> dict[str, Any]:
+    """Return a secret-free, browser-free live connection status.
+
+    The check never creates, edits, moves, comments on, or deletes Trello data.
+    It only verifies the current user token and reads minimal metadata for the
+    one allowlisted board.
+    """
+
+    timestamp = time.time() if now is None else now
+    status: dict[str, Any] = {
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(timestamp)),
+        "board_ref": DEFAULT_BOARD_REF,
+        "board_url": DEFAULT_BOARD_URL,
+        "check_mode": "headless_read_only",
+        "browser_opened": False,
+        "board_write_attempted": False,
+        "credential_presence_checked": False,
+        "credentials_present": None,
+        "member_authorized": False,
+        "board_accessible": False,
+        "state": "waiting_for_human_authorization",
+        "blocker": "Trello API key and user token are not available to the connector.",
+        "next_action": (
+            "Complete Trello Power-Up registration and the Trello user consent step, "
+            "then store TRELLO_API_KEY and TRELLO_API_TOKEN with the approved local secret flow."
+        ),
+    }
+
+    if client is None:
+        if not inspect_environment:
+            status["state"] = "human_authorization_not_verified"
+            status["blocker"] = "Live credential inspection was intentionally skipped."
+            status["next_action"] = "Run connection-check after the human Trello consent step is complete."
+            return status
+        api_key = os.getenv("TRELLO_API_KEY", "")
+        token = os.getenv("TRELLO_API_TOKEN", "")
+        status["credential_presence_checked"] = True
+        status["credentials_present"] = bool(api_key and token)
+        if not status["credentials_present"]:
+            return status
+        client = TrelloClient(api_key, token)
+    else:
+        status["credential_presence_checked"] = True
+        status["credentials_present"] = True
+
+    try:
+        probe = client.connection_probe()
+    except TrelloError as exc:
+        safe_error = str(exc)
+        status["state"] = "authorization_or_access_failed"
+        status["blocker"] = safe_error
+        if "HTTP 401" in safe_error:
+            status["next_action"] = "Re-authorize the Trello user token; the current token was rejected."
+        elif "HTTP 403" in safe_error:
+            status["next_action"] = (
+                "Ask the Trello/Atlassian workspace admin to allow the app and verify board membership."
+            )
+        else:
+            status["next_action"] = "Retry the background check after Trello connectivity is restored."
+        return status
+
+    connected = probe["member_authorized"] and probe["board_accessible"]
+    status.update(
+        {
+            "member_authorized": probe["member_authorized"],
+            "board_accessible": probe["board_accessible"],
+            "board": probe["board"],
+            "state": "connected_governed" if connected else "access_incomplete",
+            "blocker": None if connected else "The token is valid but the allowlisted board is not accessible.",
+            "next_action": (
+                "Run a read-only snapshot. Board writes remain disabled unless an exact saved plan is approved."
+                if connected
+                else "Verify that the authorized Trello user can open the allowlisted board."
+            ),
+        }
+    )
+    return status
+
+
+def render_connection_report(status: dict[str, Any]) -> str:
+    board = status.get("board") or {}
+    lines = [
+        "# Trello Background Connection Status",
+        "",
+        f"Generated: {status['generated_at']}",
+        f"Board: {status['board_url']}",
+        f"State: {status['state']}",
+        "Mode: headless read-only probe (no browser window)",
+        "",
+        "## Checks",
+        "",
+        f"- Credential presence checked: {status['credential_presence_checked']}",
+        f"- Credentials available to connector: {status['credentials_present'] if status['credential_presence_checked'] else 'unknown'}",
+        f"- Trello member authorized: {status['member_authorized']}",
+        f"- Allowlisted board accessible: {status['board_accessible']}",
+        f"- Board write attempted: {status['board_write_attempted']}",
+    ]
+    if board:
+        lines.extend(
+            [
+                f"- Board name: {board.get('name') or 'unavailable'}",
+                f"- Board closed: {board.get('closed', False)}",
+                f"- Last activity: {board.get('date_last_activity') or 'unavailable'}",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Result",
+            "",
+            f"- Blocker: {status.get('blocker') or 'none'}",
+            f"- Next action: {status['next_action']}",
+            "",
+            "Trello credentials are never included in this report.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def save_connection_status(status: dict[str, Any]) -> tuple[Path, Path]:
+    CONNECTION_STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONNECTION_STATUS_PATH.write_text(
+        json.dumps(status, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    CONNECTION_REPORT_PATH.write_text(render_connection_report(status), encoding="utf-8")
+    return CONNECTION_STATUS_PATH, CONNECTION_REPORT_PATH
 
 
 def _canonical_plan_data(plan: dict[str, Any]) -> dict[str, Any]:
@@ -296,6 +469,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("doctor", help="Check local governance without inspecting credentials.")
     sub.add_parser("report", help="Write a local readiness report.")
+    sub.add_parser("connection-check", help="Run a headless read-only check and save secret-free status artifacts.")
     sub.add_parser("snapshot", help="Read the allowlisted board using local environment authorization.")
     plan_parser = sub.add_parser("plan", help="Save a reviewable Trello write plan.")
     plan_parser.add_argument("operation", choices=sorted(ALLOWED_OPERATIONS))
@@ -320,6 +494,24 @@ def main() -> int:
             REPORT_PATH.write_text(render_report(status), encoding="utf-8")
             print(render_report(status))
             return 0
+        if args.command == "connection-check":
+            status = build_connection_status()
+            json_path, report_path = save_connection_status(status)
+            print(
+                json.dumps(
+                    {
+                        "state": status["state"],
+                        "board_accessible": status["board_accessible"],
+                        "browser_opened": False,
+                        "board_write_attempted": False,
+                        "status_json": str(json_path),
+                        "report": str(report_path),
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
+            return 0 if status["state"] == "connected_governed" else 2
         if args.command == "snapshot":
             print(json.dumps(TrelloClient.from_environment().snapshot(), indent=2, ensure_ascii=False))
             return 0

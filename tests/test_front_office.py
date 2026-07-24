@@ -136,10 +136,8 @@ class AdvisorFrontDoor(unittest.TestCase):
             os.environ.pop("ADVISOR_DISABLE_LLM", None)
 
 
-class AnatomyMap(unittest.TestCase):
-    """Canlı Anatomiya — the hub's live flow map. The organs band renders from
-    the registry at runtime; here we pin the map's spine: pane + nav exist and
-    every flow wire connects two nodes that are actually defined."""
+class ObservationMap(unittest.TestCase):
+    """The Hub exposes one Observation view backed by commandcenter /api/flow."""
 
     @classmethod
     def setUpClass(cls):
@@ -147,15 +145,15 @@ class AnatomyMap(unittest.TestCase):
                   encoding="utf-8") as f:
             cls.html = f.read()
 
-    def test_anatomy_pane_and_nav_exist(self):
-        self.assertIn('id="anatomy"', self.html)
-        self.assertIn("Canlı Anatomiya", self.html)
-        self.assertIn("showAnatomy", self.html)
-        self.assertIn("paintAnatomyDots", self.html)
+    def test_observation_nav_and_live_source_exist(self):
+        self.assertIn('data-key="_observation"', self.html)
+        self.assertIn("function showObservation", self.html)
+        self.assertIn("/map?embed=1", self.html)
 
     def test_flow_edges_reference_defined_nodes(self):
-        node_ids = set(re.findall(r"\{id:'(\w+)'", self.html))
-        edges = re.findall(r"\['(\w+)','(\w+)'(?:,'[^']*')?\]", self.html)
+        from gateway import commandcenter
+        node_ids = {node[0] for node in commandcenter._NODES}
+        edges = commandcenter._EDGES
         self.assertGreaterEqual(len(node_ids), 15, "flow xəritəsi kiçilib?")
         self.assertGreaterEqual(len(edges), 15)
         for a, b in edges:
@@ -163,9 +161,11 @@ class AnatomyMap(unittest.TestCase):
             self.assertIn(b, node_ids, f"tel açıq qalıb: {b}")
 
     def test_key_organs_of_the_spine_present(self):
-        for organ in ("Bir Mikrofon", "Növbə", "İcraçı", "Model Qapısı",
-                      "Sənin təsdiqin", "Brain yaddaşı"):
-            self.assertIn(organ, self.html, f"onurğa orqanı itib: {organ}")
+        from gateway import commandcenter
+        labels = {node[1] for node in commandcenter._NODES}
+        for organ in ("One Microphone", "Job Queue", "Gateway Executor",
+                      "Claude Brain / Router", "CrewAI Workforce", "Claude Synthesis"):
+            self.assertIn(organ, labels, f"onurğa orqanı itib: {organ}")
 
 
 class HubApi(unittest.TestCase):

@@ -50,6 +50,17 @@ class BrainEmbeddingProviderTests(unittest.TestCase):
     def test_embeddings_disabled_returns_none(self):
         self.assertIsNone(embeddings.embed("KASKO policy"))
 
+    def test_gemini_is_blocked_without_explicit_external_approval(self):
+        from unittest import mock
+
+        os.environ["BRAIN_EMBEDDINGS"] = "1"
+        os.environ["BRAIN_EMBED_PROVIDER"] = "gemini"
+        os.environ["BRAIN_EMBED_ALLOW_EXTERNAL"] = "0"
+        os.environ["GEMINI_API_KEY"] = "test-key"
+        with mock.patch.object(embeddings, "_embed_gemini") as hosted:
+            self.assertIsNone(embeddings.embed("internal policy", use_cache=False))
+        hosted.assert_not_called()
+
     def test_local_tei_endpoint_parses_and_caches_vector(self):
         os.environ["BRAIN_EMBEDDINGS"] = "1"
         os.environ["BRAIN_EMBED_PROVIDER"] = "tei"

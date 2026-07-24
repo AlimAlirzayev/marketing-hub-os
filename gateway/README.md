@@ -148,11 +148,14 @@ approval code. Deletion and member/visibility changes remain blocked.
 ```powershell
 python -m gateway.trello doctor
 python -m gateway.trello report
+python -m gateway.trello connection-check
 python -m gateway.trello snapshot
 ```
 
 Authorization is a human checkpoint and credentials stay in the local process
-environment or approved secret store. See `docs/TRELLO_WORK_BOARD.md`.
+environment or approved secret store. `connection-check` is fully headless,
+performs no Trello write, and leaves its secret-free status under
+`output/trello/`. See `docs/TRELLO_WORK_BOARD.md`.
 
 ## Use it today (CLI, no setup)
 

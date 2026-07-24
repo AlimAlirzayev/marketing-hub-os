@@ -340,7 +340,12 @@ _SYSTEM = (
     "the top, then deliver the best result under those assumptions. Security is "
     "the highest law: never expose secrets, make payments, perform destructive "
     "changes, or touch private infrastructure without an explicit human-approved "
-    "checkpoint. Output clean Markdown."
+    "checkpoint. For construction work, user-visible delivery is part of the "
+    "result: place recurring capability in its owning Ramin-OS module and unified "
+    "Hub, expose real input/status/result/next action, and validate the journey "
+    "from the user side. If the applicable interface, Hub discovery, or visible proof "
+    "is missing, label the delivery PARTIAL and state the exact blocker; never call "
+    "a hidden backend complete. Output clean Markdown."
 )
 
 # The conversational persona for the DEFAULT path — the "one microphone" voice.
@@ -361,6 +366,11 @@ _CHAT_SYSTEM = (
     "identifiers in English. Security is the highest law: never expose secrets, make "
     "payments, or take irreversible/outward actions without an explicit approved "
     "checkpoint. "
+    "For any construction or improvement, the engine and its operator experience "
+    "are one delivery: use the owning module and the unified Hub, show real inputs, "
+    "truthful progress/errors, the actual result and next action, and validate the "
+    "journey from the user side. If applicable UI, Hub discovery, or visible proof "
+    "is missing, say PARTIAL and name the gap; never call a hidden backend complete. "
     "VOICE: talk like a teammate in one natural conversation, never a ticketing "
     "system. Never show internal job numbers (no \"İş #135\", no invented "
     "\"№451\"), never tell the operator to type \"/approve N\", never narrate "
@@ -430,8 +440,19 @@ _SELF_FACTS = (
     "promoting the good ones into long-term memory, dropping the noise — so learning "
     "compounds without anyone approving a queue by hand. Do NOT propose building a "
     "lesson-review feature; it exists.\n"
-    "- Interfaces: the Telegram bot, the control panel (port 8890) with a live map, and "
-    "Codex — all one shared conversation and memory.\n"
+    "- Builder context bridge (scripts/builder_context.py): every IDE builder "
+    "(Claude Code, Codex, Gemini, OpenCode, Copilot) starts from the same masked "
+    "live state, newest shared decisions, and curated memory indexes. Agent-private "
+    "memory is only a hint; live code and superseding shared decisions win.\n"
+    "- Interfaces: the Ramin-OS Hub (port 8000) is the ONE browser front door. Inside "
+    "it, İş masası embeds the internal panel backend (8890), Müşahidə shows the live "
+    "agent/workflow topology, and Şura runs explicit consultation-only Codex/Claude/"
+    "Gemini sessions with separate member notes and history; it never auto-executes. "
+    "Telegram and Codex remain microphones into the same shared conversation/memory.\n"
+    "- Execution truth: every queued result crosses a strict typed outcome boundary. "
+    "Provider failures are shown as errors and are never learned into memory or skills; "
+    "only successful work is reinforced. Corporate RAG keeps hosted embeddings off by "
+    "default unless explicit external-processing approval is enabled.\n"
     "- Trello work board: gateway/trello.py connects only the allowlisted Xalq Insurance "
     "board RRlLCaSG. It can read snapshots after local authorization; create/move/update/"
     "comment writes require an exact saved-plan approval code, while deletion, membership, "
@@ -1697,12 +1718,19 @@ def execute(job: Job) -> dict:
                 "artifacts": [artifact] + ([bundle] if bundle else [])
                              + extra_artifacts}
     except Exception as e:
+        from .contracts import ExecutionOutcome
         error_msg = str(e)
         if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
             safe_msg = "⚠️ **Sistem Yüklənməsi (Limits):** Google Gemini pulsuz limitlərini keçdiniz. Zəhmət olmasa təxminən 30-40 saniyə gözləyib yenidən cəhd edin."
+            error_code = "provider_quota"
+            retryable = True
         else:
             safe_msg = f"❌ **İcra xətası:** {error_msg}"
-        return {"result": safe_msg, "artifacts": []}
+            error_code = "execution_error"
+            retryable = False
+        return ExecutionOutcome.failed(
+            safe_msg, error_code=error_code, retryable=retryable
+        ).model_dump()
     finally:
         knowledge.set_current_thread(None)
 

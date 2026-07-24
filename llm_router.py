@@ -38,6 +38,21 @@ class RouterError(RuntimeError):
     """Every provider in the tier failed or none was configured."""
 
 
+def _error_code(exc: Exception) -> str:
+    low = str(exc).lower()
+    if any(x in low for x in ("401", "403", "unauthorized", "not logged in", "authentication")):
+        return "auth"
+    if any(x in low for x in ("daily quota", "quota exceeded", "usage limit", "out of credits")):
+        return "quota"
+    if any(x in low for x in ("429", "rate limit", "resource_exhausted")):
+        return "rate_limit"
+    if "timeout" in low or "timed out" in low:
+        return "timeout"
+    if any(x in low for x in ("503", "unavailable", "overloaded")):
+        return "unavailable"
+    return "provider_error"
+
+
 def _load_env() -> None:
     env = REPO / ".env"
     if not env.exists():
@@ -182,8 +197,12 @@ def complete(
                 _log_usage(model, tier, resp, (time.time() - t0) * 1000)
                 return text, model
             errors.append(f"{model}: empty response")
+            _log_attempt(model, tier, "error", (time.time() - t0) * 1000,
+                         "empty_response")
         except Exception as e:  # noqa: BLE001 — fall through to next provider
             errors.append(f"{model}: {str(e)[:120]}")
+            _log_attempt(model, tier, "error", (time.time() - t0) * 1000,
+                         _error_code(e))
             continue
 
     if not tried:
@@ -227,7 +246,7 @@ def _log_usage(model: str, tier: str, resp, latency_ms: float) -> None:
             pass
         rec = {
             "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "model": model, "tier": tier,
+            "model": model, "tier": tier, "status": "success",
             "prompt_tokens": pt, "completion_tokens": ct,
             "cost_usd": round(cost, 6), "latency_ms": round(latency_ms),
         }
@@ -236,6 +255,29 @@ def _log_usage(model: str, tier: str, resp, latency_ms: float) -> None:
             f.write(json.dumps(rec) + "\n")
     except Exception:
         pass  # observability must never break a completion
+
+
+def _log_attempt(model: str, tier: str, status: str, latency_ms: float,
+                 error_code: str | None = None) -> None:
+    """Record provider attempts without prompts, responses, or credentials."""
+    try:
+        rec = {
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "model": model,
+            "tier": tier,
+            "status": status,
+            "latency_ms": round(latency_ms),
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": 0.0,
+        }
+        if error_code:
+            rec["error_code"] = error_code
+        USAGE_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(USAGE_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except Exception:
+        pass
 
 
 def _print_usage() -> int:
