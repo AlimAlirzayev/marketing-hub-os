@@ -94,6 +94,37 @@ ADS_META_MAX_RETRIES=3     # retries per call on throttle/5xx (0 = off)
 ADS_META_CACHE_TTL=300     # seconds to cache Graph responses (0 = off)
 ```
 
+## Google Ads policy audit (read-only)
+
+Google Ads credentials are configured once using `GOOGLE_ADS_SETUP.md`. Then run:
+
+```powershell
+cd ads-studio
+.\.venv\Scripts\python.exe google_ads_policy_audit.py
+```
+
+The tool reads every active ad's serving status and exact Google policy topics,
+then writes `output/google-ads/policy_audit.json`. It performs no edits, appeals,
+enables, budget changes, or other production writes. Fixes and appeals are a
+separate human-approval checkpoint.
+
+### Azerbaijani language-support request
+
+Google Ads Editor and the Google Ads API cannot enable an unsupported language.
+Use the Editor only to export evidence, then generate a redacted official-support
+dossier:
+
+```powershell
+cd ads-studio
+.\.venv\Scripts\python.exe google_ads_az_language_request.py `
+  --editor-csv C:\path\to\editor-export.csv
+```
+
+The output is written to `output/google-ads/az_language_support_request.md`.
+It inventories rows containing Azerbaijani Latin characters and prepares a
+manual Google Support escalation. It never uploads ads, changes targeting,
+submits appeals, or labels Azerbaijani creative as another language.
+
 ### Real invoices (Gmail)
 
 Meta has no paid-invoice API, so receipts come from Gmail. The server reads
