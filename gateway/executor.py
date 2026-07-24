@@ -123,6 +123,25 @@ def _is_radar_pulse(task: str) -> bool:
     return any(cue in low for cue in _RADAR_PULSE_CUES)
 
 
+# Knowledge-graph rail (gateway/knowledge_graph.py): "qraf <mövzu>" / "əlaqələr
+# <mövzu>" returns the CONNECTED memory neighbourhood (GraphRAG retrieval over the
+# system's own decisions/lessons) — distinct from vector RAG's "what is similar".
+# First-word trigger so ordinary chat is never diverted. Deterministic, no tokens.
+_GRAPH_CUES = ("qraf", "əlaqələr", "elaqeler", "bağlantılar", "baglantilar",
+               "/qraf", "/graph")
+
+
+def _is_graph_query(task: str) -> bool:
+    low = (task or "").strip().lower()
+    first = low.split(None, 1)[0] if low else ""
+    return first in _GRAPH_CUES
+
+
+def _graph_topic(task: str) -> str:
+    parts = (task or "").strip().split(None, 1)
+    return parts[1].strip() if len(parts) > 1 else ""
+
+
 # Swipe rail-i (idea-studio/adsworld.py): Ads of the World swipe faylının
 # təzələnməsi. Schedule hər gün çağırır; 7 günlük keş taktı özü qoruyur —
 # fayl təzədirsə skript şəbəkəyə çıxmadan dərhal qayıdır. Deterministik
@@ -324,6 +343,9 @@ def _seo_mission(job: Job, thread: str) -> tuple[str, list[str]]:
 
 def _choose_mode(task: str) -> str:
     low = task.lower()
+    from . import social
+    if social.is_social_url(task):
+        return "social"
     if any(k in low for k in _TOOL_HINTS):
         return "tools"
     if any(k in low for k in _BROWSER_HINTS):
@@ -377,7 +399,7 @@ _CHAT_SYSTEM = (
     "pipeline mechanics (\"növbəyə salındı\", \"build xəttinə verildi\", \"ayrıca "
     "mesajla gələcək\"). Do not pretend you did something you did not — if you "
     "cannot actually create/post/build from here, say so plainly instead of "
-    "inventing a result. If an action needs a go-ahead, ask one plain hə/yox."
+    "inventing a result. Only an OUTWARD or irreversible action (post/pay/send/delete) needs a go-ahead — for those ask one plain hə/yox. For INTERNAL work (analysis, drafting, research, planning), and ALWAYS when the operator gave a direct imperative (\"et\", \"başla\", \"bitir\", \"hamısını et\"), do NOT ask permission — do it, or if you genuinely cannot act from here say so plainly. Never ask hə/yox for something you yourself say needs no approval."
 )
 
 # The chat brain answers from a prompt, NOT from the repo — so without this it has
@@ -399,6 +421,10 @@ _SELF_FACTS = (
     "- Hearing: Azerbaijani voice notes are transcribed by ElevenLabs Scribe (best AZ), "
     "falling back to Groq Whisper then Gemini (gateway/voice.py).\n"
     "- Speaking: a voice turn is answered with an AZ voice note via free Google TTS.\n"
+    "- Telegram control plane: owner-only and fail-closed; long-poll ingress is "
+    "restart-safe and idempotent, Bot API retries honor retry_after, and risky "
+    "actions park for approval. Telegram /setkey and /setfile are permanently "
+    "blocked; secrets are entered only through the local SECURE_KEY command.\n"
     "- Free generative media on the Google AI Studio key: Veo 3.1 (video with audio), "
     "Imagen 4 / Gemini image, and Lyria 3 music — lyria-3-pro-preview can SING, "
     "including Azerbaijani vocals (audio-studio).\n"
@@ -764,6 +790,11 @@ def _execute_direct(task: str) -> tuple[str, str]:
         text = resp.text or "Aletler icra edildi, lakin metn qaytarilmadi."
         return f"agentic-tools:{agent_model}", text
 
+    if mode == "social":
+        from . import social
+        text, label = social.handle(task)
+        return label, text
+
     if mode == "browser":
         agent_model = AGENT_MODEL
         text = agent.run_browser_agent(task, model=agent_model)
@@ -804,7 +835,7 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
                 # identity + long-term memory (thread_id=None -> no turn duplication),
                 # not the raw blackboard turns. Before this the bridge answered from
                 # a 2-line framing alone and drifted off what the system actually is.
-                grounding = knowledge.augment_system(_self_facts() + _BRIDGE_HANDS, task)
+                grounding = knowledge.augment_system(_self_facts() + _BRIDGE_HANDS, task, include_graph=True)
                 primed = f"{grounding}\n\n---\nOPERATORUN MESAJI:\n{task}"
                 text, meta = claude_bridge.ask(primed, thread=thread)
                 return text, f"chat:claude-code (sid={str(meta.get('session_id'))[:8]})"
@@ -826,7 +857,7 @@ def _converse(task: str, thread: str) -> tuple[str, str]:
     # router picks the smart cascade while the call site stays mockable/testable.
     from orchestrator.router import ModelChoice
     choice = ModelChoice(provider="gemini", model="gemini-2.5-pro", reason="chat-smart")
-    sys_prompt = knowledge.augment_system(_CHAT_SYSTEM + _self_facts(), task, thread)
+    sys_prompt = knowledge.augment_system(_CHAT_SYSTEM + _self_facts(), task, thread, include_graph=True)
     text, used = llm.complete(choice, task, system=sys_prompt)
     return capped_note + text, f"chat:{used.provider}:{used.model}"
 
@@ -1410,6 +1441,7 @@ def execute(job: Job) -> dict:
       plain    -> straight LLM completion
     Raises on unrecoverable failure; the worker turns that into a failed job.
     """
+    thread = ""
     try:
         # One microphone: every channel shares ONE conversation thread, so the
         # brain answers with cross-channel history (delivery still uses chat_id).
@@ -1448,6 +1480,15 @@ def execute(job: Job) -> dict:
             artifact = _save_artifact(job.id, text)
             sense.emit("job", f"#{job.id} briefing", {"task": job.task[:80]})
             return {"result": f"_[briefing]_\n\n{text}", "artifacts": [artifact]}
+
+        # Knowledge-graph rail: connected knowledge for a topic, straight from the
+        # graph (no LLM) — grounded, fast, and shows HOW entries connect.
+        if _is_graph_query(job.task):
+            from . import knowledge_graph
+            text = knowledge_graph.graph_recall(_graph_topic(job.task))
+            artifact = _save_artifact(job.id, text, reply=True)
+            sense.emit("job", f"#{job.id} knowledge-graph", {"task": job.task[:80]})
+            return {"result": f"_[knowledge-graph]_\n\n{text}", "artifacts": [artifact]}
 
         # AI Radar rail-i: gündəlik nəbz (yalnız kritik olanda sahibə yazır) və
         # həftəlik dərin brif. Schedule hər gün çağırır; taktı radar özü qoruyur.
@@ -1676,6 +1717,9 @@ def execute(job: Job) -> dict:
             bundle = _bundle_workspace(job.id, ws)
             if bundle:
                 text += f"\n\n📦 İş sahəsi paketi (yüklə): {bundle}"
+        elif mode == "social":
+            from . import social
+            text, label = social.handle(job.task)
         elif mode == "browser":
             agent_model = AGENT_MODEL
             text = agent.run_browser_agent(job.task, model=agent_model)
@@ -1720,12 +1764,38 @@ def execute(job: Job) -> dict:
     except Exception as e:
         from .contracts import ExecutionOutcome
         error_msg = str(e)
+        # A lane that thinks on Gemini (crew/tools/content/research) hit its quota
+        # or errored. The system's promise is that no single provider stopping ever
+        # stops the work, and Claude is the DEFAULT brain — so before surfacing any
+        # failure, fall back to the resilient Claude-first conversational brain
+        # (gateway.brain cascade). This turns "Gemini limit, retry later" into a
+        # real answer, and is why the operator never again sees a provider name as a
+        # dead end. Only if the fallback ALSO produces nothing do we admit failure.
+        sense.emit("llm", f"lane error -> brain fallback: {error_msg[:120]}",
+                   {"job": job.id, "mode": "fallback"})
+        try:
+            text, label = _converse(job.task, thread)
+            if text and text.strip() and not text.startswith("[brain error]"):
+                artifact = _save_artifact(job.id, text, reply=True)
+                return ExecutionOutcome(
+                    result=f"_[{label}]_\n\n{text}",
+                    artifacts=[artifact],
+                    route=label,
+                ).model_dump()
+        except Exception as fb:  # noqa: BLE001 — fallthrough to an honest error
+            sense.emit("llm", f"brain fallback failed: {fb}", {"job": job.id})
         if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-            safe_msg = "⚠️ **Sistem Yüklənməsi (Limits):** Google Gemini pulsuz limitlərini keçdiniz. Zəhmət olmasa təxminən 30-40 saniyə gözləyib yenidən cəhd edin."
+            safe_msg = (
+                "⚠️ Bu tapşırığı indi tamamlaya bilmədim: bütün beyinlər "
+                "müvəqqəti limitdədir. Bir azdan yenə cəhd et."
+            )
             error_code = "provider_quota"
             retryable = True
         else:
-            safe_msg = f"❌ **İcra xətası:** {error_msg}"
+            safe_msg = (
+                "⚠️ Bu tapşırığı indi tamamlaya bilmədim (əsas xətt və fallback "
+                "əlçatmazdır). Bir azdan yenə yaz."
+            )
             error_code = "execution_error"
             retryable = False
         return ExecutionOutcome.failed(

@@ -249,6 +249,18 @@
   "_comment_capabilities": "Port-less organs. THE RULE: if an organ is not visible from the front door, it does not exist (the sonarzum lesson, 2026-07-13 — a whole site-builder rusted unseen because only port-services were registered). Every capability here gets a card in the hub sidebar with HOW to invoke it. kind: slash = Claude Code command, cli = terminal, agent = autonomous gateway tool, extension = browser. home = the top-level dir it lives in (audit_services checks every organ dir is accounted for).",
   "capabilities": [
     {
+      "key": "telegram-control-plane",
+      "name": "Telegram İdarəetmə Pultu",
+      "desc": "Owner-only mobil giriş: restart-safe idempotent iş qəbulu, bounded retry, approval və nəticə çatdırılması",
+      "icon": "✈️",
+      "cat": "İş masası",
+      "home": "gateway",
+      "kind": "agent",
+      "invoke": "Telegram-da owner botuna mətn və ya səs tapşırığı göndər; vəziyyəti Hub → İş masasında izlə",
+      "docs": "gateway/CHANNELS.md",
+      "note": "Long-poll corporate-firewall-safe qalır. /setkey və /setfile tam bağlıdır; secret yalnız lokal SECURE_KEY ilə daxil edilir."
+    },
+    {
       "key": "builder-context",
       "name": "Qurucu Kontekst Körpüsü",
       "desc": "Claude, Codex, Gemini və digər quruculara eyni canlı state, ortaq qərarlar və yaddaş indekslərini verir",

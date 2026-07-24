@@ -47,10 +47,13 @@ _WIN = {
 
 # --- Mac: thin console -> tunnel to the always-on VPS, open the front door --
 def _mac_tunnel(path: str, port: str = HUB_PORT, health: str = "/api/status") -> str:
+    # up(): the tunnel is live iff the front door answers. Test for HTTP 200 — the hub's
+    # /api/status returns {"ads":true,...} with NO "ok":true key, so the old grep for
+    # '"ok":true' never matched, so a 2nd click re-tunneled and collided on the live port.
     return (
         "#!/bin/bash\n"
         f'PORT={port}; URL="http://127.0.0.1:$PORT{path}"\n'
-        f'up(){{ curl -s --max-time 2 "http://127.0.0.1:{port}{health}" | grep -q \'"ok":true\'; }}\n'
+        f'up(){{ [ "$(curl -s -o /dev/null -w \'%{{http_code}}\' --max-time 2 "http://127.0.0.1:{port}{health}")" = "200" ]; }}\n'
         'if ! up; then ssh -f -N -L "$PORT:127.0.0.1:$PORT" -o ExitOnForwardFailure=yes hetzner-agents || { echo "tunel alinmadi"; sleep 3; exit 1; }\n'
         '  for _ in {1..10}; do up && break; sleep 1; done\nfi\n'
         'open -a "Google Chrome" "$URL" 2>/dev/null || open "$URL"\n'

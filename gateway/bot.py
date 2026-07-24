@@ -393,7 +393,7 @@ def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
             synced = keyvault.names()
             lines.append(f"🧰 Seyf: açıq — səyahət edən açarlar: {', '.join(synced) or 'hələ yoxdur'}")
         else:
-            lines.append("🧰 Seyf: bağlı (/setkey KEY_VAULT_SECRET <parol> ilə aç)")
+            lines.append("🧰 Seyf: bağlı — lokal terminalda SECURE_KEY.bat AÇAR_ADI işlət")
         telegram.send_message(chat_id, "Bu maşının açar vəziyyəti (maskalı):\n" + "\n".join(lines))
         return
 

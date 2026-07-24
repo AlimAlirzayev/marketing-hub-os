@@ -25,6 +25,9 @@ bot.py (Telegram)├─> data/jobs.sqlite ─┤   pick LLM tier
 - **No Docker, no langchain/crewai**: light deps only (`google-genai`,
   `requests`, `python-dotenv`) — safe on the locked-down corporate machine.
 - **Telegram = long-poll**: outbound HTTPS only, no open port/webhook/public IP.
+  Processed update IDs and queue ingress keys are durable, so restart/replay
+  cannot create a second agent run. The typed adapter uses an explicit update
+  allowlist, bounded transient retries and Telegram's `retry_after`.
 
 ## Security prime directive
 

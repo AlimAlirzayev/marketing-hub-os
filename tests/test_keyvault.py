@@ -1,8 +1,8 @@
 """Encrypted key vault — keys travel via git ONLY as ciphertext.
 
 Contract under test: roundtrip with the right passphrase, fail-closed with the
-wrong one, machine-identity keys never sync, apply merges into .env without
-touching unrelated lines, and /setkey mails the encrypted key automatically.
+wrong one, machine-identity keys never sync, and apply merges into .env without
+touching unrelated lines. Telegram secret couriers are permanently blocked.
 """
 
 import os

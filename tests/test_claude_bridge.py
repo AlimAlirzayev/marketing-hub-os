@@ -137,5 +137,61 @@ class BrainSelector(unittest.TestCase):
         bridge.assert_not_called()
 
 
+class ModelStepdown(unittest.TestCase):
+    """A credit-gated / gone MODEL must step DOWN the ladder on the SAME account,
+    never be mistaken for an account usage cap — which benched a HEALTHY account and
+    dropped the whole premium brain to the free floor (2026-07-23, account-1 fable
+    'requires usage credits')."""
+
+    def setUp(self):
+        from gateway import claude_bridge
+        self.cb = claude_bridge
+        self._sess = mock.patch.object(
+            claude_bridge, "_SESSION_FILE",
+            Path(tempfile.mkdtemp()) / "s.json")
+        self._sess.start()
+        self.addCleanup(self._sess.stop)
+        self._saved_cd = dict(claude_bridge._model_cooldown)
+        claude_bridge._model_cooldown.clear()
+
+        def _restore():
+            claude_bridge._model_cooldown.clear()
+            claude_bridge._model_cooldown.update(self._saved_cd)
+        self.addCleanup(_restore)
+
+    def _mk(self, result, is_error=False, rc=0):
+        payload = {"type": "result", "is_error": is_error, "result": result,
+                   "session_id": "s", "total_cost_usd": 0.01, "num_turns": 1,
+                   "model": "claude-sonnet-5"}
+        return mock.Mock(returncode=rc, stdout=json.dumps(payload), stderr="")
+
+    def test_credit_gate_is_model_gone_not_a_cap(self):
+        msg = "Fable 5 requires usage credits. /model to switch models."
+        self.assertTrue(self.cb._is_model_gone(msg))
+        self.assertFalse(self.cb._is_limit(msg))
+
+    def test_fable_credit_error_steps_down_to_next_model_same_account(self):
+        with mock.patch.dict(os.environ,
+                             {"CLAUDE_CHAT_LADDER": "claude-fable-5,claude-sonnet-5"}), \
+             mock.patch.object(self.cb.subprocess, "run", side_effect=[
+                 self._mk("Fable 5 requires usage credits. /model to switch models.",
+                          is_error=True),
+                 self._mk("Salam, buradayam."),
+             ]) as run:
+            text, meta = self.cb._run_once("salam", "t-step", None, 30, None)
+        self.assertEqual(text, "Salam, buradayam.")   # sonnet answered
+        self.assertEqual(run.call_count, 2)            # fable failed -> stepped down
+        self.assertIn("claude-fable-5", self.cb._model_cooldown)  # model benched, not account
+
+    def test_default_ladder_reflects_current_tier(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CLAUDE_BRIDGE_MODEL", None)
+            os.environ.pop("CLAUDE_CHAT_LADDER", None)
+            ladder = self.cb._full_ladder()
+        self.assertIn("claude-opus-4-8", ladder)              # strongest tier present
+        self.assertLess(ladder.index("claude-fable-5"),
+                        ladder.index("claude-opus-4-8"))       # fable probes before opus
+
+
 if __name__ == "__main__":
     unittest.main()

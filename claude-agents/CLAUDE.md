@@ -23,11 +23,11 @@ larger Ramin-OS system.
 ## Mandatory user-visible delivery gate
 
 Every construction session and every delegated subagent must follow the
-repository-root `docs/USER_VISIBLE_DELIVERY_STANDARD.md`. Engine, governance, UX/UI, unified
-Hub placement, real result preview, and user-side validation ship as one
-vertical slice. If an applicable interface, Hub path, or visible validation is
-missing, the lead session must report the result as **partial**, never
-complete, and identify the exact blocker or follow-up.
+repository-root `docs/USER_VISIBLE_DELIVERY_STANDARD.md`. Engine, governance,
+UX/UI, unified Hub placement, real result preview, and user-side validation ship
+as one vertical slice. If an applicable interface, Hub path, or visible
+validation is missing, the lead session must report the result as **partial**,
+never complete, and identify the exact blocker or follow-up.
 
 ## Architecture (4 domains, 4 LLMs)
 

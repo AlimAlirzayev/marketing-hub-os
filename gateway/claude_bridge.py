@@ -20,9 +20,13 @@ conversational path here. Requires the `claude` CLI installed AND authenticated
 (subscription login) on whatever machine runs the bot.
 
 SAFETY: runs with permission-mode "default" (headless auto-declines tools that
-need approval → read/answer freely, no unsupervised writes). The queue's outward-
-action checkpoint still applies on top. Power users on a trusted box can widen it
-with CLAUDE_BRIDGE_PERMISSION_MODE=acceptEdits.
+need approval → no unsupervised writes/edits/outward actions). On top of that the
+chat turn is granted a READ/RESEARCH allowlist (Read/Grep/Glob + WebSearch/WebFetch,
+all non-destructive) so it answers like Claude Code in the IDE — grounded in our
+own repo/memory/lab and able to read the operator's links live. Kill switches:
+CLAUDE_BRIDGE_RESEARCH=0 (research surface), CLAUDE_BRIDGE_HANDS=0 (studio/summon
+door). The queue's outward-action checkpoint still applies on top. Power users on a
+trusted box can widen writes with CLAUDE_BRIDGE_PERMISSION_MODE=acceptEdits.
 """
 
 from __future__ import annotations
@@ -114,12 +118,18 @@ def _cooldown_until(msg: str) -> float:
 # the id no longer exists. Distinct from _is_limit (a per-account usage cap) —
 # gone means step DOWN the model ladder; capped means rotate the account.
 _MODEL_GONE_CUES = ("usage credits are required", "out of usage credits",
+                    "requires usage credits", "requires credits",
                     "no longer available", "not available", "model not found",
                     "does not exist", "invalid model", "unknown model")
 
-# Chat prefers Fable (fast + cheap so it never eats the Opus cap the builders
-# need), then degrades. A dead rung is skipped for a while, then re-probed — so a
-# restored Fable is picked up automatically without restarting anything.
+# The chat model ladder MIRRORS the current Claude Code tier and auto-adapts: it
+# tries Fable first (fast/cheap probe), then the strongest brain (Opus 4.8), then
+# Sonnet, then Haiku — stepping down by ITSELF the moment a rung is capped, gone, or
+# credit-gated (exactly "Fable runs out -> switch to Opus on its own"). A dead rung
+# is skipped for a while then re-probed, so a funded Fable — or a model Anthropic
+# renames/retires — is absorbed with no restart. Override the whole tier without a
+# deploy via CLAUDE_CHAT_LADDER; pin one model via CLAUDE_BRIDGE_MODEL. So the lineup
+# is never hardcoded-and-forgotten: it degrades gracefully and is data-tunable.
 _MODEL_RETRY_S = int(os.getenv("CLAUDE_MODEL_RETRY_MIN", "30")) * 60
 _model_cooldown: dict[str, float] = {}
 
@@ -134,7 +144,7 @@ def _full_ladder() -> list[str]:
     if pin:  # an explicit pin forces a single model, no laddering
         return [pin]
     raw = os.getenv("CLAUDE_CHAT_LADDER",
-                    "claude-fable-5,claude-sonnet-5,claude-sonnet-4-6,claude-haiku-4-5-20251001")
+                    "claude-fable-5,claude-opus-4-8,claude-sonnet-5,claude-haiku-4-5-20251001")
     return [m.strip() for m in raw.split(",") if m.strip()]
 
 
@@ -150,10 +160,54 @@ def _chat_ladder() -> list[str]:
 def _mark_model_gone(model: str) -> None:
     _model_cooldown[model] = time.time() + _MODEL_RETRY_S
 
+
+# ── The mic brain's tool surface (safety by permission model, not prompt-shackle).
+# READ/RESEARCH — the non-destructive tools that turn the mic brain from a guesser
+# into "Claude Code in the IDE" for ANSWERING: read our OWN repo + memory + lab to
+# ground in what THIS system knows, and reach the live web to verify facts and to
+# READ THE LINKS the operator sends (his recurring ask). All read-only — they can
+# never write, delete, or act outward, so widening here buys ANSWER QUALITY, not
+# risk: the envelope is unchanged (permission-mode "default" still auto-declines
+# every write/edit/outward tool). A fetched page could carry a prompt injection, but
+# a chat turn holds NO destructive hands, so the worst case is a wrong text reply to
+# the owner-only operator — self-correcting. Kill switch: CLAUDE_BRIDGE_RESEARCH=0.
+_RESEARCH_TOOLS = ("Read", "Grep", "Glob", "WebSearch", "WebFetch")
+# SERVICE HANDS — the chat turn may USE the live studios through exactly one governed
+# door (`python -m gateway.studio_api`: registered studios only, 127.0.0.1 only,
+# risky POSTs blocked, responses token-scrubbed) and enqueue heavy work via
+# gateway.summon ("the model is the router", 2026-07-20). Compound shell is
+# permission-checked per segment, so the prefix cannot be chained past. Kill switch:
+# CLAUDE_BRIDGE_HANDS=0.
+_HANDS_TOOLS = ("Bash(python3 -m gateway.studio_api:*)",
+                "Bash(python -m gateway.studio_api:*)",
+                "Bash(python3 -m gateway.summon:*)",
+                "Bash(python -m gateway.summon:*)")
+
+
+def _allowed_tools(hands: bool, research: bool) -> list[str]:
+    """Compose the chat turn's --allowedTools from the two governed surfaces, each
+    independently kill-switchable. An empty list means the flag is dropped entirely
+    and permission-mode 'default' alone governs every tool (read-only tools still
+    work; everything needing approval auto-declines)."""
+    tools: list[str] = []
+    if research:
+        tools += list(_RESEARCH_TOOLS)
+    if hands:
+        tools += list(_HANDS_TOOLS)
+    return tools
+
+
 _FRAMING = (
     "You are answering the operator through a microphone (Telegram/panel/CLI), "
     "not the terminal. Reply in the operator's language (Azerbaijani), concise and "
-    "direct — no preamble. Do not make outward/irreversible changes. "
+    "direct — no preamble. "
+    "TOOLS — you are not a guesser: you HAVE real read/research tools, use them "
+    "instead of hedging. Read/Grep our own repo, memory and lab to ground answers "
+    "in what THIS system already knows; WebSearch and WebFetch to check current "
+    "facts and to OPEN and read any link the operator sends, then evaluate it — "
+    "never tell him you cannot open a link or that your knowledge is dated. Prefer "
+    "a grounded, checked answer over a hedge. Do not make outward/irreversible "
+    "changes (post/pay/send/delete) without a plain go-ahead. "
     "ROUTING: you are the router. If — and only if — the operator asks for a "
     "HEAVY multi-studio marketing deliverable (campaign strategy, full report, "
     "budget analysis, competitor research), do not grind it inline: run "
@@ -193,16 +247,36 @@ def is_available() -> bool:
     return False
 
 
+def _primary_index(accts: list[dict]) -> int | None:
+    """The operator's DEFAULT account (alim.alirzayev) — always tried first when it
+    isn't resting, so the system stays on his primary Claude subscription instead of
+    drifting onto whichever account answered last. Marked by "primary": true in
+    claude_accounts.json, or by name via CLAUDE_PRIMARY_ACCOUNT."""
+    want = (os.getenv("CLAUDE_PRIMARY_ACCOUNT") or "").strip().lower()
+    for i, a in enumerate(accts):
+        if a.get("primary") or (want and a.get("name", "").strip().lower() == want):
+            return i
+    return None
+
+
 def _account_order() -> list[tuple[int, dict]]:
-    """Accounts to try this turn, best first: the persisted 'active' one, then
-    the rest, skipping any still cooling down after hitting its cap."""
+    """Accounts to try this turn, best first: the operator's PRIMARY account, then
+    the persisted 'active' one, then the rest — skipping any still cooling down after
+    hitting its cap. Primary-first means we always return to his default subscription
+    once its cap resets, rather than drifting onto a secondary account."""
     data = _load_accounts()
     accts = data.get("accounts", [])
     if not accts:
         return []
     now = time.time()
     active = data.get("active", 0)
-    order = list(range(active, len(accts))) + list(range(0, active))
+    primary = _primary_index(accts)
+    seq = ([primary] if primary is not None else []) \
+        + list(range(active, len(accts))) + list(range(0, active))
+    order: list[int] = []
+    for i in seq:
+        if i not in order:
+            order.append(i)
     ready = [(i, accts[i]) for i in order if accts[i].get("cooldown_until", 0) <= now]
     # if ALL are cooling down, still try the soonest-to-reset (better than nothing)
     return ready or [(order[0], accts[order[0]])]
@@ -236,19 +310,13 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
     to resume a stale session — both are retried once (the retry drops --resume),
     so a blip doesn't needlessly bounce the turn to the free brain."""
     perm = os.getenv("CLAUDE_BRIDGE_PERMISSION_MODE", "default")
-    # SERVICE HANDS: the chat turn may USE the live studios through exactly one
-    # governed door — `python -m gateway.studio_api` (registered studios only,
-    # 127.0.0.1 only, risky POSTs blocked, responses token-scrubbed). Under
-    # permission-mode "default" every other tool still auto-declines; compound
-    # shell commands are permission-checked per segment, so the prefix cannot be
-    # chained past. Kill switch: CLAUDE_BRIDGE_HANDS=0.
+    # The mic brain's governed tool surface (defined at module scope): read/research
+    # by default (ground answers + read the operator's links) plus the studio/summon
+    # hands. Each independently kill-switchable; permission-mode "default" still
+    # auto-declines every write/edit/outward tool regardless.
     hands = os.getenv("CLAUDE_BRIDGE_HANDS", "1").strip().lower() not in ("0", "off", "false")
-    _HANDS_TOOLS = ("Bash(python3 -m gateway.studio_api:*)",
-                    "Bash(python -m gateway.studio_api:*)",
-                    # async crew summon — "the model is the router" (2026-07-20):
-                    # the brain enqueues heavy work instead of grinding inline
-                    "Bash(python3 -m gateway.summon:*)",
-                    "Bash(python -m gateway.summon:*)")
+    research = os.getenv("CLAUDE_BRIDGE_RESEARCH", "1").strip().lower() not in ("0", "off", "false")
+    allowed = _allowed_tools(hands, research)
     env = os.environ.copy()
     # The child claude -p session inherits this repo's SessionStart/SessionEnd
     # hooks (sync, capture, pulse). A headless brain turn must not fire them:
@@ -271,8 +339,8 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
         for attempt in range(2):
             cmd = ["claude", "-p", "--output-format", "json",
                    "--permission-mode", perm, "--model", model]
-            if hands:
-                cmd += ["--allowedTools", ",".join(_HANDS_TOOLS)]
+            if allowed:
+                cmd += ["--allowedTools", ",".join(allowed)]
             # The FIRST attempt of EVERY rung resumes the thread; only a retry
             # (attempt 1, after a failure on the same rung) starts fresh. It used
             # to be rung 0 only — but with a credit-gated model on top (fable),
@@ -290,11 +358,17 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
             out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
             if proc.returncode != 0:
                 last = err or out or "empty output"
-                if _is_limit(last):
-                    raise RuntimeError(f"claude -p capped: {last[:200]}")  # rotate account
+                # A credit-gated / gone MODEL steps DOWN the ladder; only a real
+                # account cap rotates accounts. Check model-gone FIRST: a 429 that
+                # says "requires usage credits" is fable needing credits (step down
+                # to sonnet on the SAME account), not this account being capped —
+                # misreading it benched a HEALTHY account and dropped the whole
+                # premium brain to the free floor (2026-07-23).
                 if _is_model_gone(last):
                     _mark_model_gone(model)
                     break  # step down to the next model rung
+                if _is_limit(last):
+                    raise RuntimeError(f"claude -p capped: {last[:200]}")  # rotate account
                 continue  # transient / bad-session -> retry fresh
             try:
                 data = json.loads(out)
@@ -305,11 +379,13 @@ def _run_once(prompt: str, thread: str, cwd: Path | None, timeout: int | None,
             if data.get("is_error") or not text:
                 detail = text or str(data)[:200]
                 last = detail
-                if _is_limit(detail):
-                    raise RuntimeError(f"claude -p capped: {detail[:200]}")
+                # model-gone before cap (see the returncode branch above): a
+                # credit-gated model steps down on the same account, not a cap.
                 if _is_model_gone(detail):
                     _mark_model_gone(model)
                     break  # step down
+                if _is_limit(detail):
+                    raise RuntimeError(f"claude -p capped: {detail[:200]}")
                 raise RuntimeError(f"claude -p error: {detail[:200]}")
             new_sid = data.get("session_id")
             if new_sid:
@@ -375,10 +451,10 @@ def _run_stateless(prompt: str, timeout: int | None, token: str | None) -> tuple
         out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
         if proc.returncode != 0:
             msg = err or out or "empty output"
+            if _is_model_gone(msg):  # credit-gated/gone model -> step down, not a cap
+                _mark_model_gone(model); last = msg; continue  # next rung
             if _is_limit(msg):
                 raise RuntimeError(f"claude -p capped: {msg[:200]}")  # rotate account
-            if _is_model_gone(msg):
-                _mark_model_gone(model); last = msg; continue  # next rung
             raise RuntimeError(f"claude -p failed: {msg[:200]}")
         try:
             data = json.loads(out)
@@ -387,10 +463,10 @@ def _run_stateless(prompt: str, timeout: int | None, token: str | None) -> tuple
         text = (data.get("result") or "").strip()
         if data.get("is_error") or not text:
             detail = text or str(data)[:200]
+            if _is_model_gone(detail):  # step down (same account), not a cap
+                _mark_model_gone(model); last = detail; continue
             if _is_limit(detail):
                 raise RuntimeError(f"claude -p capped: {detail[:200]}")
-            if _is_model_gone(detail):
-                _mark_model_gone(model); last = detail; continue
             raise RuntimeError(f"claude -p error: {detail[:200]}")
         return text, "claude-code/" + str(data.get("model") or model)
     raise RuntimeError(f"claude -p: all model rungs unavailable: {last[:150]}")

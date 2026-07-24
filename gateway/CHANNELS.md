@@ -15,7 +15,18 @@ delivery ◄── worker._notify(job, text)   # dispatch by job.source
 ## Live channels
 | Channel | Intake | Delivery | Status |
 |---|---|---|---|
-| **Telegram** | `gateway/bot.py` (long-poll) | `gateway/telegram.send_message` | ✅ live (`TELEGRAM_BOT_TOKEN` set) |
+| **Telegram** | `gateway/bot.py` (restart-safe long-poll) | `gateway/telegram` typed adapter | ✅ owner-only, idempotent, bounded retry |
+
+Telegram persists handled `update_id` values in the durable queue database and
+binds queued work to a unique ingress key. A restart or Telegram replay therefore
+returns the original job instead of running the same request twice. The adapter
+subscribes only to `message` and `edited_message`, honors Bot API
+`parameters.retry_after`, retries transient network/5xx failures within a bounded
+budget, and exposes secret-free transport health through the existing Hub pulse.
+
+Secrets never enter this channel. `/setkey` and `/setfile` are permanently
+fail-closed; use `SECURE_KEY.bat KEY_NAME` (or
+`python scripts/secure_key.py KEY_NAME`) on the local host.
 | **CLI** | `gateway/submit.py` | DB read (`submit --status`) | ✅ live |
 | **Schedule** | `gateway/scheduler.py` (cron) | inherits the task's own `chat_id` | ✅ live |
 

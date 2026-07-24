@@ -78,6 +78,33 @@ class Failover(unittest.TestCase):
         self.assertEqual({s["name"] for s in st}, {"A", "B"})
         self.assertNotIn("token", json.dumps(st))
 
+    def test_primary_account_is_tried_first(self):
+        # Even though A is the persisted 'active', the operator's flagged primary (B)
+        # is tried first — the system stays on his default subscription.
+        data = json.loads(cb._ACCOUNTS_FILE.read_text())
+        data["accounts"][1]["primary"] = True
+        data["active"] = 0
+        cb._ACCOUNTS_FILE.write_text(json.dumps(data))
+        order = cb._account_order()
+        self.assertEqual(order[0][1]["name"], "B")
+
+    def test_resting_primary_falls_through_to_others(self):
+        # A capped primary is skipped (its cap will reset; meanwhile answer on B).
+        data = json.loads(cb._ACCOUNTS_FILE.read_text())
+        data["accounts"][0]["primary"] = True
+        data["accounts"][0]["cooldown_until"] = time.time() + 9999
+        cb._ACCOUNTS_FILE.write_text(json.dumps(data))
+        order = cb._account_order()
+        self.assertEqual(order[0][1]["name"], "B")
+
+    def test_primary_by_env_name(self):
+        import os
+        data = json.loads(cb._ACCOUNTS_FILE.read_text())
+        cb._ACCOUNTS_FILE.write_text(json.dumps(data))
+        with patch.dict(os.environ, {"CLAUDE_PRIMARY_ACCOUNT": "B"}):
+            order = cb._account_order()
+        self.assertEqual(order[0][1]["name"], "B")
+
 
 if __name__ == "__main__":
     unittest.main()
