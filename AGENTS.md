@@ -37,6 +37,9 @@ python scripts/system_context.py
   tokens, cookies, or credentials.
 - `services.json` is the single source of truth for ports, services, and hub
   visibility.
+- A build is not complete until its useful result is visible and operable from
+  the user side. Follow `docs/USER_VISIBLE_DELIVERY_STANDARD.md` for every new
+  capability, invention, workflow, report, dashboard, and material improvement.
 - Do not create disconnected side tools when an existing Ramin-OS module can be
   reinforced.
 - Do not undo work done by another agent unless you understand why it exists and
@@ -66,6 +69,51 @@ python scripts/system_context.py
 6. Capture reusable lessons through the Brain workflow when the lesson should
    survive the current session.
 
+## User-Visible Delivery Gate
+
+Every construction session owns the user experience as well as the engine. UI
+is a parallel delivery lane, not a later cleanup task.
+
+1. Before building, identify the operator journey: where the capability belongs
+   in the existing Hub/module, how the user starts it, what progress is shown,
+   where the result appears, and what the next valid action is.
+2. When parallel agents or a specialist team are available, assign an explicit
+   product/UX/frontend lane alongside backend, integration, security, and test
+   work. The lanes review one another and converge on one integrated product.
+3. Extend the owning module and the unified Hub information architecture. Do
+   not create an isolated dashboard, hidden script, mystery port, or second
+   front door merely because it is faster.
+4. The user-facing surface must expose real inputs, honest status/progress,
+   useful errors, the actual result or artifact preview, relevant history, and
+   the next valid action. Never substitute demo numbers or a log dump for the
+   real operator experience; label unavailable data and provide a real input or
+   connection path.
+5. Match the shared visual language and interaction patterns. Check responsive
+   layout, clear Azerbaijani operator copy where appropriate, accessibility,
+   empty/loading/error/success states, and safe confirmation steps for risky
+   actions.
+6. Validate the complete journey from the user side, not only through unit
+   tests or API calls. Start or safely restart the relevant local service, use
+   the interface with representative input, and verify that the visible result
+   matches the underlying output.
+7. At handoff, open the finished surface or artifact for the operator whenever
+   the environment permits. Otherwise provide a verified exact Hub path/local
+   URL plus a screenshot or preview. State what was built, where it lives, how
+   to use it, what was actually tested, and any remaining boundary.
+
+Pure infrastructure, security, or maintenance work does not need a new screen,
+but its operator-relevant state and effect must be visible in an existing Hub
+health, audit, activity, settings, or owning-module surface. Research-only work
+must land in the relevant visible report/library workflow when the result is
+meant for recurring use.
+
+If the interface, Hub placement, discoverability, or user-side validation is
+missing, report the work as **partial**, never **complete**. A backend-only
+delivery is allowed only when the user explicitly scopes the task that way or a
+documented blocker makes the UI impossible; record the UI follow-up and blocker
+before ending the session. The full acceptance checklist is in
+`docs/USER_VISIBLE_DELIVERY_STANDARD.md`.
+
 ## Checks (how to know the system is green)
 
 ```powershell
@@ -91,6 +139,9 @@ Baseline: 6 suites, 504 tests green, ~30s.
 ## Current Strategic Direction
 
 - The hub and `services.json` are the operational front door.
+- Product capabilities ship as one vertical slice: engine + governance +
+  unified UX/UI + Hub discovery + user-side proof. Hidden capability is
+  unfinished capability.
 - The gateway and AI Council are the autonomous execution layer.
 - The Brain is institutional memory.
 - Agent Radar is the governance layer for outside agents and future workflows.
