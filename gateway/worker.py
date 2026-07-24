@@ -11,6 +11,7 @@ Run it (keep this process alive; this is the "background" in background agent):
 from __future__ import annotations
 
 import re
+import threading
 import time
 import traceback
 from pathlib import Path
@@ -51,6 +52,10 @@ def _notify(job: queue.Job, text: str) -> bool:
 
 def _progress(job: queue.Job, text: str, *, buttons=None) -> None:
     """Best-effort edit of the one durable Telegram progress card."""
+    try:
+        queue.set_progress(job.id, text)
+    except Exception:
+        pass
     if not (
         job.source == "telegram"
         and job.chat_id
@@ -67,6 +72,67 @@ def _progress(job: queue.Job, text: str, *, buttons=None) -> None:
         )
     except Exception as exc:
         print(f"[worker] progress edit failed for job {job.id}: {exc}")
+
+
+def _cancel_buttons(job_id: int):
+    return [[("✕ Dayandır", f"job:cancel:{job_id}")]]
+
+
+class _TelegramProgressRelay:
+    """Debounce executor events into one quiet Telegram progress card."""
+
+    def __init__(self, job: queue.Job, interval: float = 2.5):
+        self.job = job
+        self.interval = interval
+        self._pending: str | None = None
+        self._last_edit = 0.0
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._unsubscribe = None
+        self._thread: threading.Thread | None = None
+
+    def _on_event(self, event: dict) -> None:
+        data = event.get("data") or {}
+        if event.get("kind") != "progress" or str(data.get("job")) != str(self.job.id):
+            return
+        summary = str(event.get("summary") or "").strip()
+        if summary:
+            with self._lock:
+                self._pending = summary
+
+    def _run(self) -> None:
+        while not self._stop.wait(0.25):
+            with self._lock:
+                pending = self._pending
+            if not pending or time.time() - self._last_edit < self.interval:
+                continue
+            current = queue.get(self.job.id)
+            if current and current.cancel_requested:
+                with self._lock:
+                    self._pending = None
+                continue
+            _progress(self.job, pending, buttons=_cancel_buttons(self.job.id))
+            self._last_edit = time.time()
+            with self._lock:
+                if self._pending == pending:
+                    self._pending = None
+
+    def start(self) -> None:
+        self._unsubscribe = sense.subscribe(self._on_event)
+        self._thread = threading.Thread(
+            target=self._run,
+            name=f"telegram-progress-{self.job.id}",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def close(self) -> None:
+        if self._unsubscribe:
+            self._unsubscribe()
+            self._unsubscribe = None
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=1.0)
 
 
 def _close_progress(job: queue.Job, delivered: bool) -> None:
@@ -120,19 +186,52 @@ def _deliver_files(job: queue.Job, artifacts: list[str] | None) -> None:
 
 def run_once() -> bool:
     """Process one job if available. Returns True if a job was handled."""
+    expired = queue.expire_approvals()
+    for expired_id in expired:
+        expired_job = queue.get(expired_id)
+        if expired_job:
+            _progress(
+                expired_job,
+                "⌛ Təsdiq müddəti bitdi — əməliyyat icra olunmadı.",
+            )
     job = queue.claim_next()
     if job is None:
-        return False
+        return bool(expired)
 
     print(f"[worker] running job {job.id} ({job.source}): {job.task[:80]!r}")
-    _progress(job, "⚙️ İcra başladı — agent planlayır və alətləri işə salır.")
+    _progress(
+        job,
+        "⚙️ İcra başladı — agent planlayır və alətləri işə salır.",
+        buttons=_cancel_buttons(job.id),
+    )
     if job.source == "telegram" and job.chat_id and telegram.is_configured():
         try:  # "typing..." while the job runs — the chat feels alive, not queued
             telegram.send_chat_action(job.chat_id, "typing")
         except Exception:
             pass
+    relay = _TelegramProgressRelay(job)
+    relay.start()
     try:
         out = ExecutionOutcome.model_validate(execute(job))
+        queue.cancellation_checkpoint(job.id)
+    except queue.JobCancelled:
+        relay.close()
+        queue.mark_cancelled(job.id)
+        _progress(job, "✕ Dayandırıldı — növbəti təhlükəsiz checkpoint-də icra kəsildi.")
+        sense.emit("job", f"#{job.id} cancelled ({job.source})")
+        return True
+    except Exception as exc:
+        relay.close()
+        err = f"{exc}\n{traceback.format_exc()}"
+        queue.fail(job.id, err)
+        print(f"[worker] job {job.id} FAILED: {exc}")
+        sense.emit("job", f"#{job.id} FAILED ({job.source})", {"error": str(exc)[:120]})
+        delivered = _notify(job, f"⚠️ İş #{job.id} alınmadı: {exc}")
+        _close_progress(job, delivered)
+        return True
+    else:
+        relay.close()
+    try:
         if out.status == "failure":
             queue.fail(job.id, out.result)
             print(f"[worker] job {job.id} FAILED ({out.error_code})")
@@ -147,7 +246,9 @@ def run_once() -> bool:
         # of completing. The operator decides via /approve or /reject (Telegram
         # or the control panel); approval re-queues it with approved=1.
         if out.needs_approval:
-            queue.park_for_approval(job.id, "outward_action checkpoint")
+            if not queue.park_for_approval(job.id, "outward_action checkpoint"):
+                queue.cancellation_checkpoint(job.id)
+                raise RuntimeError("job could not enter approval checkpoint")
             print(f"[worker] job {job.id} parked for operator approval")
             buttons = [[
                 ("✅ Təsdiqlə", f"job:approve:{job.id}"),
@@ -158,13 +259,15 @@ def run_once() -> bool:
                     job,
                     "🛡️ Təsdiq lazımdır\n\n"
                     + out.result[:3400]
-                    + f"\n\nƏl ilə seçim: /approve {job.id} və ya /reject {job.id}",
+                    + f"\n\n30 dəqiqə ərzində seçin. Əl ilə: /approve {job.id} və ya /reject {job.id}",
                     buttons=buttons,
                 )
             else:
                 _notify(job, out.result)
             return True
-        queue.complete(job.id, out.result, out.artifacts)
+        if not queue.complete(job.id, out.result, out.artifacts):
+            queue.cancellation_checkpoint(job.id)
+            raise RuntimeError("job could not complete from running state")
         print(f"[worker] job {job.id} done -> {out.artifacts}")
         sense.emit("job", f"#{job.id} done ({job.source})", {"task": job.task[:80]})
         # The stored result keeps its `_[label]_` tag (the panel renders it as a
@@ -218,6 +321,10 @@ def run_once() -> bool:
                 print(f"[worker] job {job.id} -> learned skill '{slug}'")
         except Exception as exc:
             print(f"[worker] skill learn skipped for job {job.id}: {exc}")
+    except queue.JobCancelled:
+        queue.mark_cancelled(job.id)
+        _progress(job, "✕ Dayandırıldı — növbəti təhlükəsiz checkpoint-də icra kəsildi.")
+        sense.emit("job", f"#{job.id} cancelled ({job.source})")
     except Exception as exc:
         err = f"{exc}\n{traceback.format_exc()}"
         queue.fail(job.id, err)

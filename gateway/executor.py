@@ -20,7 +20,7 @@ import subprocess
 from pathlib import Path
 
 from ._bootstrap import load_env
-from . import agent, knowledge, llm, mic, security, sense, skills
+from . import agent, knowledge, llm, mic, queue, security, sense, skills
 from .queue import Job
 from .studio_api import call_studio_api, list_studios, generate_media
 from orchestrator.router import classify, route
@@ -426,7 +426,12 @@ _SELF_FACTS = (
     "actions park for approval. Long work uses one editable progress card and "
     "owner-bound native approve/reject buttons with slash-command fallbacks; "
     "queued work can be cancelled, but running work is never falsely labelled "
-    "cancelled. The self-healing gateway.supervisor is the always-on daemon. "
+    "cancelled: it stops at a governed cooperative checkpoint. Typed real "
+    "executor stages are debounced into the same card; approvals expire after "
+    "30 minutes, and poison updates are safely reviewable in Workdesk without "
+    "raw Telegram payload retention. The self-healing gateway.supervisor is the "
+    "always-on daemon and Windows current-user logon starts it through the exact "
+    "Ramin-OS-Supervisor scheduled task. "
     "Telegram /setkey and /setfile are permanently "
     "blocked; secrets are entered only through the local SECURE_KEY command.\n"
     "- Free generative media on the Google AI Studio key: Veo 3.1 (video with audio), "
@@ -1261,6 +1266,12 @@ def _plan_and_run(job, thread: str):
     results = []
     context = ""
     for i, step in enumerate(steps, 1):
+        queue.cancellation_checkpoint(job.id)
+        sense.emit(
+            "progress",
+            f"🧭 Plan icra olunur — addım {i}/{len(steps)}: {step['lane']}",
+            {"job": job.id, "stage": "plan", "step": i, "total": len(steps)},
+        )
         try:
             out = _run_step(step["lane"], step["goal"], context, thread)
         except Exception as exc:  # noqa: BLE001 — one bad step must not sink the chain
@@ -1277,6 +1288,12 @@ def _plan_and_run(job, thread: str):
         "Addımların texniki adlarını sadalama; sadəcə yekun, hazır nəticəni təhvil ver."
     )
     try:
+        queue.cancellation_checkpoint(job.id)
+        sense.emit(
+            "progress",
+            "🧩 Addımlar bir yekun nəticədə birləşdirilir.",
+            {"job": job.id, "stage": "synthesis"},
+        )
         final, _l = _converse(synth, thread)
     except Exception:  # noqa: BLE001 — synthesis is a bonus; the steps already ran
         final = digest
@@ -1451,6 +1468,12 @@ def execute(job: Job) -> dict:
         # brain answers with cross-channel history (delivery still uses chat_id).
         thread = mic.thread_for(job)
         knowledge.set_current_thread(thread)
+        queue.cancellation_checkpoint(job.id)
+        sense.emit(
+            "progress",
+            "🧠 Tapşırıq, yaddaş və təhlükəsizlik qaydaları yoxlanılır.",
+            {"job": job.id, "stage": "preflight"},
+        )
         decision = security.evaluate_task(job.task)
         security.audit_event(
             "job_preflight",
@@ -1606,7 +1629,14 @@ def execute(job: Job) -> dict:
         if _wants_crew(job.task) or (
             _is_heavy_operational(job.task) and job.source in ("telegram", "cli")
         ):
+            queue.cancellation_checkpoint(job.id)
+            sense.emit(
+                "progress",
+                "👥 Studiya komandası işi bölüşdürür və icra edir.",
+                {"job": job.id, "stage": "crew"},
+            )
             crew_text = _run_crew(job.task, thread)
+            queue.cancellation_checkpoint(job.id)
             if crew_text:
                 artifact = _save_artifact(job.id, crew_text)
                 sense.emit("llm", "crew", {"job": job.id, "mode": "crew"})
@@ -1617,6 +1647,11 @@ def execute(job: Job) -> dict:
         # lanes in sequence. Runs AFTER the checkpoint above, so it only researches
         # and drafts. A non-multi-step task returns None here and falls through.
         if _wants_plan(job.task):
+            sense.emit(
+                "progress",
+                "🗺️ Çoxaddımlı icra planı hazırlanır.",
+                {"job": job.id, "stage": "planning"},
+            )
             planned = _plan_and_run(job, thread)
             if planned is not None:
                 text, label = planned
@@ -1625,6 +1660,12 @@ def execute(job: Job) -> dict:
                 return {"result": f"_[{label}]_\n\n{text}", "artifacts": [artifact]}
 
         if _council_should_run(job.task):
+            queue.cancellation_checkpoint(job.id)
+            sense.emit(
+                "progress",
+                "⚖️ Məsləhət dəmir yolu dəlilləri müqayisə edir.",
+                {"job": job.id, "stage": "consultation"},
+            )
             from . import council
             label, text = council.run(job.task, _execute_after_council)
             artifact = _save_artifact(job.id, text)
@@ -1632,6 +1673,19 @@ def execute(job: Job) -> dict:
             return {"result": f"_[{label}]_\n\n{text}", "artifacts": [artifact]}
 
         mode = _choose_mode(job.task)
+        mode_progress = {
+            "tools": "🛠️ İş sahəsi və icra alətləri hazırlanır.",
+            "social": "🔎 Sosial mənbə oxunur və təhlil edilir.",
+            "browser": "🌐 Brauzer mənbələri açır və faktları yoxlayır.",
+            "research": "🔍 Canlı mənbələr üzrə araşdırma aparılır.",
+            "plain": "✍️ Yaddaş və canlı kontekst əsasında cavab hazırlanır.",
+        }
+        queue.cancellation_checkpoint(job.id)
+        sense.emit(
+            "progress",
+            mode_progress.get(mode, "⚙️ Uyğun icra dəmir yolu işləyir."),
+            {"job": job.id, "stage": mode},
+        )
         bundle = None  # workspace zip, set in tools mode; delivered as a file
         extra_artifacts: list[str] = []  # e.g. the content lane's post JSON
 
@@ -1664,6 +1718,7 @@ def execute(job: Job) -> dict:
             producer = None  # which builder made the result -> who gets fix rounds
             try:
                 resp = chat.send_message(job.task)
+                queue.cancellation_checkpoint(job.id)
                 text = resp.text or "Alətlər icra edildi, lakin mətn qaytarılmadı."
                 producer = "gemini"
             except Exception as loop_exc:
@@ -1676,7 +1731,14 @@ def execute(job: Job) -> dict:
                 for name, fn in (("codex", lambda: _codex_agent(job.task, ws)),
                                  ("claude", lambda: claude_bridge.build(job.task, ws))):
                     try:
+                        queue.cancellation_checkpoint(job.id)
+                        sense.emit(
+                            "progress",
+                            f"🧰 {name.title()} qurucu işi davam etdirir.",
+                            {"job": job.id, "stage": "builder", "builder": name},
+                        )
                         text = fn()
+                        queue.cancellation_checkpoint(job.id)
                         label = f"agentic-tools:{name}"
                         producer = name
                         break
@@ -1698,6 +1760,12 @@ def execute(job: Job) -> dict:
             for round_no in range(1, _VERIFY_ROUNDS + 1):
                 if not problems or producer is None:
                     break
+                queue.cancellation_checkpoint(job.id)
+                sense.emit(
+                    "progress",
+                    f"🧪 Yoxlama və düzəliş mərhələsi {round_no}/{_VERIFY_ROUNDS}.",
+                    {"job": job.id, "stage": "verification", "round": round_no},
+                )
                 feedback = _VERIFY_FEEDBACK.format(
                     problems="\n".join(f"- {p}" for p in problems))
                 try:
@@ -1758,6 +1826,12 @@ def execute(job: Job) -> dict:
                 text, label = _converse(job.task, thread)
 
         sense.emit("llm", label, {"job": job.id, "mode": mode})
+        queue.cancellation_checkpoint(job.id)
+        sense.emit(
+            "progress",
+            "📦 Nəticə yoxlanılır və çatdırılma üçün hazırlanır.",
+            {"job": job.id, "stage": "delivery"},
+        )
         # A plain conversational turn is a chat message, not a work product.
         # ("router:" is the same converse path under its older label.)
         artifact = _save_artifact(
@@ -1765,8 +1839,11 @@ def execute(job: Job) -> dict:
         return {"result": f"_[{label}]_\n\n{text}",
                 "artifacts": [artifact] + ([bundle] if bundle else [])
                              + extra_artifacts}
+    except queue.JobCancelled:
+        raise
     except Exception as e:
         from .contracts import ExecutionOutcome
+        queue.cancellation_checkpoint(job.id)
         error_msg = str(e)
         # A lane that thinks on Gemini (crew/tools/content/research) hit its quota
         # or errored. The system's promise is that no single provider stopping ever

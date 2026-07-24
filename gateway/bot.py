@@ -25,7 +25,7 @@ from pathlib import Path
 import requests
 
 from ._bootstrap import load_env
-from . import engine_sync, keyvault, mic, queue, sense, telegram, voice
+from . import engine_sync, keyvault, mic, queue, security, sense, telegram, voice
 
 load_env()
 
@@ -236,6 +236,22 @@ def _extract_task(msg: dict) -> tuple[str | None, bool]:
     return None, False
 
 
+def _dead_letter_task(msg: dict | None) -> tuple[str | None, str | None]:
+    """Return a redacted replay envelope, never raw Telegram update JSON."""
+    if not msg:
+        return None, None
+    chat_id = str((msg.get("chat") or {}).get("id") or "") or None
+    if not chat_id or not _is_owner(chat_id) or msg.get("document"):
+        return chat_id, None
+    text = str(msg.get("text") or "").strip()
+    if not text or text.split(maxsplit=1)[0].casefold() in ("/setkey", "/setfile"):
+        return chat_id, None
+    safe = security.redact(text)
+    if "[REDACTED]" in safe:
+        return chat_id, None
+    return chat_id, safe[:12_000]
+
+
 def _status_buttons(job_id: int, *, approval: bool = False):
     if approval:
         return [[
@@ -284,6 +300,7 @@ def _handle_callback(callback: dict) -> None:
         return
 
     action, job_id = parts[1], int(parts[2])
+    queue.expire_approvals()
     job = queue.get(job_id)
     if (
         not job
@@ -291,6 +308,15 @@ def _handle_callback(callback: dict) -> None:
         or job.telegram_status_message_id != message.get("message_id")
     ):
         telegram.answer_callback(callback_id, "Bu idarəetmə kartı uyğun gəlmir.")
+        return
+    if action in ("approve", "reject") and job.status != "awaiting_approval":
+        text = (
+            "⌛ Təsdiq müddəti bitib — əməliyyat icra olunmadı."
+            if job.status == "cancelled" and job.error == "approval expired"
+            else "Bu qərar artıq verilib."
+        )
+        telegram.answer_callback(callback_id, text)
+        _edit_job_status(job_id, text)
         return
 
     if action == "approve":
@@ -306,11 +332,17 @@ def _handle_callback(callback: dict) -> None:
             if ok else "Bu qərar artıq verilib və ya təsdiq gözləmir."
         )
     elif action == "cancel":
-        ok = queue.cancel(job_id)
-        text = (
-            "✕ Ləğv edildi — iş icraya başlamadı."
-            if ok else "İş artıq başlayıb və təhlükəsiz şəkildə buradan dayandırıla bilmir."
-        )
+        outcome = queue.request_cancel(job_id)
+        ok = outcome in ("cancelled", "requested")
+        if outcome == "cancelled":
+            text = "✕ Ləğv edildi — iş icraya başlamadı."
+        elif outcome == "requested":
+            text = (
+                "⏹ Dayandırma istəyi qəbul edildi — cari təhlükəsiz mərhələ "
+                "bitən kimi icra kəsiləcək."
+            )
+        else:
+            text = "İş artıq tamamlanıb və ya bu kart etibarlı deyil."
     else:
         telegram.answer_callback(callback_id, "Naməlum qərar.")
         return
@@ -530,6 +562,7 @@ def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
             telegram.send_message(chat_id, "Not authorized for ops commands.")
             return
         job_id = int(parts[1])
+        queue.expire_approvals()
         if parts[0] == "/approve":
             ok = queue.approve(job_id)
             telegram.send_message(
@@ -545,20 +578,29 @@ def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
                 else f"Job #{job_id} təsdiq gözləmir (artıq həll olunub və ya yoxdur).",
             )
         else:
-            ok = queue.cancel(job_id)
+            outcome = queue.request_cancel(job_id)
+            ok = outcome in ("cancelled", "requested")
             telegram.send_message(
                 chat_id,
-                f"✕ Job #{job_id} ləğv edildi." if ok
-                else f"Job #{job_id} artıq başlayıb və buradan təhlükəsiz dayandırıla bilmir.",
+                f"✕ Job #{job_id} ləğv edildi."
+                if outcome == "cancelled"
+                else f"⏹ Job #{job_id} təhlükəsiz checkpoint-də dayandırılacaq."
+                if outcome == "requested"
+                else f"Job #{job_id} artıq tamamlanıb və ya yoxdur.",
             )
         if ok:
-            _edit_job_status(
-                job_id,
+            status_text = (
                 "✅ Təsdiqləndi — icraya qaytarıldı."
                 if parts[0] == "/approve"
                 else "🚫 İmtina edildi — əməliyyat icra olunmayacaq."
                 if parts[0] == "/reject"
-                else "✕ Ləğv edildi — iş icraya başlamadı.",
+                else "⏹ Dayandırma istəyi qəbul edildi — təhlükəsiz checkpoint gözlənilir."
+                if outcome == "requested"
+                else "✕ Ləğv edildi — iş icraya başlamadı."
+            )
+            _edit_job_status(
+                job_id,
+                status_text,
             )
         return
 
@@ -670,6 +712,15 @@ def main() -> None:
                         {"error": exc.__class__.__name__},
                     )
                     if attempts >= 3:
+                        dead_chat, dead_task = _dead_letter_task(msg)
+                        queue.quarantine_ingress(
+                            "telegram",
+                            update_id,
+                            chat_id=dead_chat,
+                            task=dead_task,
+                            attempts=attempts,
+                            error=exc.__class__.__name__,
+                        )
                         queue.mark_ingress_processed("telegram", update_id)
                         offset = update_id + 1
                         owner = _owner_id()
@@ -679,7 +730,8 @@ def main() -> None:
                                     owner,
                                     f"⚠️ Telegram update {update_id} 3 dəfə emal olunmadı "
                                     "və təkrar dövrə salınmamaq üçün karantinə alındı. "
-                                    "Detallar maskalı sistem jurnalındadır.",
+                                    "Workdesk → Mühərrik bölməsində maskalı detalı "
+                                    "görə, təhlükəsizdirsə yenidən icraya verə bilərsiniz.",
                                 )
                             except Exception:
                                 pass

@@ -29,7 +29,10 @@ bot.py (Telegram)├─> data/jobs.sqlite ─┤   pick LLM tier
   cannot create a second agent run. The typed adapter uses an explicit update
   allowlist, bounded transient retries and Telegram's `retry_after`. Long work
   uses one editable progress card; approval becomes owner-bound native buttons,
-  with slash-command fallbacks. The existing `gateway.supervisor` is the
+  with slash-command fallbacks and a 30-minute expiry. Typed executor stages are
+  debounced into that card, running work supports checkpoint-based cooperative
+  cancellation, and poison updates are reviewable in Workdesk without retaining
+  raw Telegram payloads. The existing `gateway.supervisor` is the
   self-healing daemon that keeps bot, worker, scheduler and health loops alive.
 
 ## Security prime directive
@@ -190,8 +193,15 @@ Results are also saved to `output/jobs/job-<id>.md`.
    ```
    `START_MARKETING_OS.ps1` starts this daemon automatically and its singleton
    lock prevents duplicate Telegram pollers on the same machine.
-4. Message your bot any task. Long work gets a live status card, then the
-   finished result replaces that temporary progress flow in the chat.
+   To keep it alive across Windows logon/reboot, install the current-user task:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\supervisor_task.ps1 -Action Install
+   powershell -ExecutionPolicy Bypass -File scripts\supervisor_task.ps1 -Action Status
+   ```
+   Removal is explicit and recoverable with `-Action Uninstall`.
+4. Message your bot any task. Long work gets a live status card with real
+   planner/research/builder/verification stages and a safe stop control. The
+   final result replaces that temporary progress flow in the chat.
 
 ## LLM config
 

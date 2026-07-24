@@ -22,6 +22,7 @@ import json
 import os
 import re
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -93,18 +94,47 @@ def system_card() -> str:
 
 # --- event bus (blinking lights) ------------------------------------------
 
+_SUBSCRIBERS: dict[int, object] = {}
+_SUBSCRIBERS_LOCK = threading.Lock()
+_NEXT_SUBSCRIBER = 0
+
+
+def subscribe(callback):
+    """Subscribe to in-process events and return an idempotent unsubscribe."""
+    global _NEXT_SUBSCRIBER
+    with _SUBSCRIBERS_LOCK:
+        _NEXT_SUBSCRIBER += 1
+        token = _NEXT_SUBSCRIBER
+        _SUBSCRIBERS[token] = callback
+
+    def unsubscribe() -> None:
+        with _SUBSCRIBERS_LOCK:
+            _SUBSCRIBERS.pop(token, None)
+
+    return unsubscribe
+
 def emit(kind: str, summary: str, data: dict | None = None) -> None:
     """Append one redacted event. Never raises — a sensor must not break a caller."""
+    record = {"ts": time.time(), "kind": kind, "summary": _redact(summary)}
+    if data:
+        record["data"] = {k: _redact(v) for k, v in data.items()}
     try:
         path = _events_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        record = {"ts": time.time(), "kind": kind, "summary": _redact(summary)}
-        if data:
-            record["data"] = {k: _redact(v) for k, v in data.items()}
         with path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception:
-        return
+        pass
+    try:
+        with _SUBSCRIBERS_LOCK:
+            callbacks = list(_SUBSCRIBERS.values())
+        for callback in callbacks:
+            try:
+                callback(record)
+            except Exception:
+                continue
+    except Exception:
+        pass
 
 
 def recent(n: int = 20, kind: str | None = None) -> list[dict]:
@@ -250,8 +280,17 @@ def _queue_state() -> dict:
     try:
         from . import queue
         counts: dict[str, int] = {}
-        for st in ("queued", "running", "done", "error", "awaiting_approval", "rejected"):
+        for st in (
+            "queued",
+            "running",
+            "done",
+            "error",
+            "awaiting_approval",
+            "rejected",
+            "cancelled",
+        ):
             counts[st] = len(queue.list_jobs(status=st, limit=10_000))
+        counts["telegram_dead_letters"] = len(queue.list_dead_letters(limit=10_000))
         return counts
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)[:80]}

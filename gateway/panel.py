@@ -173,6 +173,10 @@ def _job_dict(j: queue.Job, preview: int = 400) -> dict:
         "task": j.task,
         "result_preview": (j.result or "")[:preview],
         "error": (j.error or "")[:200],
+        "progress_stage": j.progress_stage,
+        "progress_updated_at": j.progress_updated_at,
+        "cancel_requested": j.cancel_requested,
+        "approval_expires_at": j.approval_expires_at,
         "created_at": j.created_at, "finished_at": j.finished_at,
     }
 
@@ -228,6 +232,40 @@ def reject(job_id: int) -> JSONResponse:
     ok = queue.reject(job_id)
     if ok:
         sense.emit("job", f"#{job_id} rejected (panel)")
+    return JSONResponse({"ok": ok})
+
+
+@app.post("/api/jobs/{job_id}/cancel")
+def cancel(job_id: int) -> JSONResponse:
+    outcome = queue.request_cancel(job_id)
+    if outcome in ("cancelled", "requested"):
+        sense.emit("job", f"#{job_id} cancel {outcome} (panel)")
+    return JSONResponse({"ok": outcome != "unavailable", "outcome": outcome})
+
+
+@app.get("/api/telegram/dead-letters")
+def telegram_dead_letters(limit: int = 30) -> JSONResponse:
+    rows = queue.list_dead_letters(limit=limit)
+    return JSONResponse({"items": rows, "count": len(rows)})
+
+
+@app.post("/api/telegram/dead-letters/{event_id}/retry")
+def retry_telegram_dead_letter(event_id: int) -> JSONResponse:
+    job_id = queue.resubmit_dead_letter("telegram", event_id)
+    if job_id is not None:
+        sense.emit(
+            "telegram",
+            f"dead-letter update {event_id} resubmitted",
+            {"job": job_id},
+        )
+    return JSONResponse({"ok": job_id is not None, "job_id": job_id})
+
+
+@app.post("/api/telegram/dead-letters/{event_id}/dismiss")
+def dismiss_telegram_dead_letter(event_id: int) -> JSONResponse:
+    ok = queue.dismiss_dead_letter("telegram", event_id)
+    if ok:
+        sense.emit("telegram", f"dead-letter update {event_id} dismissed")
     return JSONResponse({"ok": ok})
 
 
@@ -735,7 +773,7 @@ tbody tr:last-child td{border-bottom:0}
 .st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .st.done{background:var(--ok-soft);color:var(--ok)}
 .st.queued,.st.running{background:var(--acc-soft);color:var(--acc)}
-.st.error,.st.rejected{background:var(--bad-soft);color:var(--bad)}
+.st.error,.st.rejected,.st.cancelled{background:var(--bad-soft);color:var(--bad)}
 .st.awaiting_approval{background:var(--warn-soft);color:var(--warn)}
 details summary{cursor:pointer;color:var(--acc);font-size:12.5px;font-weight:600}
 pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);margin-top:7px;max-height:300px;
@@ -918,6 +956,11 @@ body.embedded .page{min-height:calc(100vh - 92px)}
     <tbody id="jobs"></tbody></table>
     </div>
   </section>
+  <section class="card pad" id="deadLettersWrap">
+    <h3>Telegram karantini
+      <span class="lnk" style="cursor:default;color:var(--mut)">raw mesaj saxlanmır · redaktə olunmuş replay</span></h3>
+    <div id="deadLetters" class="muted"></div>
+  </section>
   <section class="card pad">
     <h3>Son hadisələr</h3>
     <div id="events" class="muted">yüklənir…</div>
@@ -982,7 +1025,7 @@ function ago(ts){
   return Math.floor(s/86400)+" gün əvvəl";
 }
 const ST_AZ={queued:"növbədə",running:"işləyir",done:"hazır",error:"xəta",
-  awaiting_approval:"təsdiq gözləyir",rejected:"imtina"};
+  awaiting_approval:"təsdiq gözləyir",rejected:"imtina",cancelled:"ləğv edildi"};
 const KIND_AZ={site:"sayt",image:"şəkil",report:"hesabat",video:"video",audio:"audio",
   bundle:"paket",pdf:"pdf",file:"fayl"};
 function _gicon(k){
@@ -1127,29 +1170,44 @@ async function refresh(){
       !tg.configured?"bağlı":tg.polling_healthy===false?"polling dayanıb":
         tg.polling_healthy===null?"başlayır":"canlı",
       tg.last_error?("xəta: "+tg.last_error):
-        (tg.mode||"long_poll")+" · retry "+(tg.max_attempts??"–"))+
+        (tg.mode||"long_poll")+" · retry "+(tg.max_attempts??"–")+
+        ` · karantin ${q.telegram_dead_letters??0}`)+
     tile("","Açarlar", `${envOk}/${envAll}`,"canlı .env refleksi")+
     tile("","Yaddaş", (p.memory&&p.memory.turns)??"–","dialoq dövrləri")+
     tile("","Cədvəllər",(p.schedules&&p.schedules.enabled)??"–","aktiv plan");
   renderToday();
 
   const jobs=await j("/api/jobs?limit=25");
-  $("jobs").innerHTML=jobs.map(x=>`<tr>
+  $("jobs").innerHTML=jobs.map(x=>{
+    const active=x.status==="queued"||x.status==="running";
+    const ctl=active?` <button class="btn danger" style="padding:4px 8px" onclick="decide(${x.id},'cancel')">dayandır</button>`:"";
+    const progress=x.progress_stage?`<div class="muted">${esc(x.progress_stage)}</div>`:"";
+    return `<tr>
     <td class="mono">${x.id}</td>
     <td><span class="st ${x.status}">${ST_AZ[x.status]||x.status}</span></td>
     <td class="muted">${esc(x.source)}</td>
     <td title="${esc(x.task)}">${esc(x.task.slice(0,90))}</td>
     <td class="muted" style="white-space:nowrap">${ago(x.created_at)||"—"}</td>
-    <td>${x.result_preview?`<details><summary>bax</summary><pre>${esc(x.result_preview)}</pre></details>`:`<span class="muted">${esc(x.error||"—")}</span>`}</td>
-  </tr>`).join("")||`<tr><td colspan="6" class="muted">hələ iş yoxdur</td></tr>`;
+    <td>${progress}${x.result_preview?`<details><summary>bax</summary><pre>${esc(x.result_preview)}</pre></details>`:`<span class="muted">${esc(x.error||"—")}</span>`}${ctl}</td>
+  </tr>`}).join("")||`<tr><td colspan="6" class="muted">hələ iş yoxdur</td></tr>`;
 
   const parked=jobs.filter(x=>x.status==="awaiting_approval");
   $("approvalsWrap").style.display=parked.length?"block":"none";
   $("approvals").innerHTML=parked.map(x=>`<div class="approval">
-     <div class="t"><b>#${x.id}</b> — ${esc(x.task)}</div>
+     <div class="t"><b>#${x.id}</b> — ${esc(x.task)}
+       <div class="muted">müddət: ${x.approval_expires_at?new Date(x.approval_expires_at*1000).toLocaleTimeString("az",{hour:"2-digit",minute:"2-digit"}):"məhdudiyyətsiz"}</div></div>
      <button class="btn good" onclick="decide(${x.id},'approve')">✓ Təsdiqlə</button>
      <button class="btn danger" onclick="decide(${x.id},'reject')">✕ İmtina</button>
    </div>`).join("");
+
+  const dead=await j("/api/telegram/dead-letters?limit=20");
+  $("deadLetters").innerHTML=(dead.items||[]).map(x=>`<div class="approval">
+    <div class="t"><b>update ${x.event_id}</b> · ${x.attempts} cəhd
+      <div>${x.task?esc(x.task.slice(0,160)):"Replay bağlıdır: təhlükəsiz task saxlanmayıb."}</div>
+      <div class="muted">${esc(x.last_error||"naməlum xəta")} · ${ago(x.quarantined_at)}</div></div>
+    ${x.task?`<button class="btn good" onclick="deadLetterAction(${x.event_id},'retry')">↻ Yenidən icra</button>`:""}
+    <button class="btn danger" onclick="deadLetterAction(${x.event_id},'dismiss')">Bağla</button>
+  </div>`).join("")||`<div class="muted">Karantində mesaj yoxdur ✓</div>`;
 
   const a=await j("/api/advisor");
   const finds=(a.findings||[]);
@@ -1174,8 +1232,17 @@ async function refresh(){
 }
 
 async function decide(id,action){
-  await j(`/api/jobs/${id}/${action}`,{method:"POST"});
-  toast(action==="approve"?`✓ #${id} təsdiqləndi`:`✕ #${id} imtina edildi`,action!=="approve");
+  const r=await j(`/api/jobs/${id}/${action}`,{method:"POST"});
+  const msg=action==="approve"?`✓ #${id} təsdiqləndi`:
+    action==="cancel"?(r.outcome==="requested"?`⏹ #${id} checkpoint-də dayanacaq`:`✕ #${id} ləğv edildi`):
+    `✕ #${id} imtina edildi`;
+  toast(msg,action==="reject");
+  refresh();
+}
+
+async function deadLetterAction(id,action){
+  const r=await j(`/api/telegram/dead-letters/${id}/${action}`,{method:"POST"});
+  toast(r.ok?(action==="retry"?`↻ update ${id} yenidən növbəyə verildi`:`update ${id} bağlandı`):"Əməliyyat alınmadı",!r.ok);
   refresh();
 }
 
@@ -1226,7 +1293,7 @@ async function watchJob(id){
     await new Promise(r=>setTimeout(r,2500));
     try{
       const d=await j(`/api/jobs/${id}`);
-      if(d.status==="done"||d.status==="error"||d.status==="awaiting_approval"||d.status==="rejected"){
+      if(d.status==="done"||d.status==="error"||d.status==="awaiting_approval"||d.status==="rejected"||d.status==="cancelled"){
         _watchJob=null;
         _lastFailure=d.status==="error"?(d.error||"Tapşırıq tamamlanmadı."):null;
         await loadChat(); refresh(); loadDeliverables(); return;

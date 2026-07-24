@@ -251,14 +251,14 @@
     {
       "key": "telegram-control-plane",
       "name": "Telegram İdarəetmə Pultu",
-      "desc": "Owner-only mobil agent daemonı: canlı progress, native təsdiq, restart-safe iş qəbulu və nəticə çatdırılması",
+      "desc": "Owner-only mobil agent daemonı: real icra progress-i, cooperative stop, vaxtlı native təsdiq və restart-safe iş qəbulu",
       "icon": "✈️",
       "cat": "İş masası",
       "home": "gateway",
       "kind": "agent",
       "invoke": "Telegram-da owner botuna mətn və ya səs tapşırığı göndər; vəziyyəti Hub → İş masasında izlə",
       "docs": "gateway/CHANNELS.md",
-      "note": "OpenClaw-un güclü daemon/progress UX-i Ramin-OS governance ilə birləşdirilib. Native düymələr yalnız owner və uyğun iş kartı üçün işləyir; /setkey və /setfile tam bağlıdır."
+      "note": "OpenClaw-un daemon/progress UX-i Ramin-OS governance ilə gücləndirilib: Windows logon autostart, 2.5s debounced real mərhələlər, 30 dəq approval expiry, raw payload-sız Workdesk karantini. /setkey və /setfile tam bağlıdır."
     },
     {
       "key": "builder-context",

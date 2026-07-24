@@ -7,8 +7,13 @@ opened with `_[chat:router:...]_`).
 """
 
 import unittest
+import time
+import tempfile
+from pathlib import Path
+from unittest import mock
 
-from gateway.worker import _split_source_tag
+from gateway.queue import Job
+from gateway.worker import _TelegramProgressRelay, _split_source_tag
 
 
 class SplitSourceTag(unittest.TestCase):
@@ -34,6 +39,60 @@ class SplitSourceTag(unittest.TestCase):
         label, clean = _split_source_tag(text)
         self.assertIsNone(label)
         self.assertEqual(clean, text)
+
+
+class ProgressRelay(unittest.TestCase):
+    def test_job_scoped_events_are_debounced_into_one_card(self):
+        job = Job(
+            id=9,
+            source="telegram",
+            chat_id="42",
+            task="iş",
+            status="running",
+            result=None,
+            error=None,
+            artifacts=[],
+            created_at=1.0,
+            started_at=2.0,
+            finished_at=None,
+            telegram_status_message_id=77,
+        )
+        relay = _TelegramProgressRelay(job, interval=0.01)
+        with mock.patch("gateway.worker._progress") as progress:
+            relay.start()
+            from gateway import sense
+            sense.emit("progress", "birinci", {"job": 8})
+            sense.emit("progress", "ikinci", {"job": 9})
+            time.sleep(0.35)
+            relay.close()
+        progress.assert_called_once()
+        self.assertEqual(progress.call_args.args[1], "ikinci")
+
+    def test_worker_commits_cancel_at_executor_checkpoint(self):
+        from gateway import queue, worker
+
+        saved = queue._DB_PATH
+        queue._DB_PATH = Path(tempfile.mkdtemp()) / "jobs.sqlite"
+        try:
+            job_id = queue.submit("uzun iş", source="telegram", chat_id="42")
+
+            def execute_with_checkpoint(job):
+                from gateway import sense
+                sense.emit("progress", "araşdırılır", {"job": job.id})
+                self.assertEqual(queue.request_cancel(job.id), "requested")
+                queue.cancellation_checkpoint(job.id)
+
+            with mock.patch.object(worker, "execute", side_effect=execute_with_checkpoint), \
+                 mock.patch.object(worker.telegram, "is_configured", return_value=False):
+                self.assertTrue(worker.run_once())
+
+            self.assertEqual(queue.get(job_id).status, "cancelled")
+            self.assertEqual(
+                queue.get(job_id).progress_stage,
+                "✕ Dayandırıldı — növbəti təhlükəsiz checkpoint-də icra kəsildi.",
+            )
+        finally:
+            queue._DB_PATH = saved
 
 
 if __name__ == "__main__":

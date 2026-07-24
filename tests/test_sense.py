@@ -42,6 +42,18 @@ class EventBus(unittest.TestCase):
         finally:
             os.environ["SYSTEM_EVENTS_PATH"] = os.path.join(self._dir, "ev.jsonl")
 
+    def test_subscriber_receives_redacted_event_and_unsubscribes(self):
+        seen = []
+        unsubscribe = self.sense.subscribe(seen.append)
+        self.sense.emit("progress", "token=verysecretvalue", {"job": 7})
+        unsubscribe()
+        self.sense.emit("progress", "second", {"job": 7})
+
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0]["kind"], "progress")
+        self.assertEqual(seen[0]["data"]["job"], "7")
+        self.assertNotIn("verysecretvalue", seen[0]["summary"])
+
 
 class EnvReflex(unittest.TestCase):
     """The exact fix for the 'is the token set?' stale-memory mistake."""

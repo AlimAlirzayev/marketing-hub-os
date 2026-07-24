@@ -238,18 +238,19 @@ class NativeTelegramControls(unittest.TestCase):
         job_id = self.queue.submit("long task", source="telegram", chat_id="42")
         self.queue.set_telegram_status_message(job_id, 99)
         self.bot._handle_callback(self._callback("cancel", job_id))
-        self.assertEqual(self.queue.get(job_id).status, "rejected")
+        self.assertEqual(self.queue.get(job_id).status, "cancelled")
         self.assertIn("Ləğv edildi", self.answers[-1])
         self.assertIn("Ləğv edildi", self.edits[-1])
 
-    def test_running_job_is_not_falsely_cancelled(self):
+    def test_running_job_gets_cooperative_cancel_request(self):
         job_id = self.queue.submit("long task", source="telegram", chat_id="42")
         self.queue.set_telegram_status_message(job_id, 99)
         self.queue.claim_next()
         self.bot._handle_callback(self._callback("cancel", job_id))
         self.assertEqual(self.queue.get(job_id).status, "running")
-        self.assertIn("dayandırıla bilmir", self.answers[-1])
-        self.assertEqual(self.edits, [])
+        self.assertTrue(self.queue.get(job_id).cancel_requested)
+        self.assertIn("Dayandırma istəyi", self.answers[-1])
+        self.assertIn("mərhələ", self.edits[-1])
 
     def test_non_owner_callback_cannot_decide(self):
         job_id = self.queue.submit("long task", source="telegram", chat_id="42")

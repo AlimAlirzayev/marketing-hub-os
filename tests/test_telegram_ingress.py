@@ -68,6 +68,52 @@ def test_channel_health_is_shared_through_sqlite(isolated_queue):
     assert health["last_error"] is None
 
 
+def test_running_cancel_is_cooperative_and_committed_at_checkpoint(isolated_queue):
+    job_id = isolated_queue.submit("uzun iş", source="telegram", chat_id="42")
+    isolated_queue.claim_next()
+
+    assert isolated_queue.request_cancel(job_id) == "requested"
+    assert isolated_queue.get(job_id).status == "running"
+    assert isolated_queue.get(job_id).cancel_requested is True
+    assert isolated_queue.complete(job_id, "gecikmiş nəticə") is False
+    with pytest.raises(isolated_queue.JobCancelled):
+        isolated_queue.cancellation_checkpoint(job_id)
+
+    assert isolated_queue.mark_cancelled(job_id) is True
+    assert isolated_queue.get(job_id).status == "cancelled"
+
+
+def test_approval_expires_and_cannot_be_approved(isolated_queue):
+    job_id = isolated_queue.submit("paylaş", source="telegram", chat_id="42")
+    isolated_queue.claim_next()
+    isolated_queue.park_for_approval(job_id, ttl_seconds=60)
+    expires = isolated_queue.get(job_id).approval_expires_at
+
+    assert isolated_queue.expire_approvals(now=expires + 1) == [job_id]
+    assert isolated_queue.approve(job_id) is False
+    assert isolated_queue.get(job_id).status == "cancelled"
+    assert isolated_queue.get(job_id).error == "approval expired"
+
+
+def test_dead_letter_replay_is_atomic_and_exactly_once(isolated_queue):
+    isolated_queue.quarantine_ingress(
+        "telegram",
+        700,
+        chat_id="42",
+        task="hesabatı yenidən hazırla",
+        attempts=3,
+        error="ValueError",
+    )
+    rows = isolated_queue.list_dead_letters()
+    assert len(rows) == 1
+    assert rows[0]["task"] == "hesabatı yenidən hazırla"
+
+    job_id = isolated_queue.resubmit_dead_letter("telegram", 700)
+    assert job_id is not None
+    assert isolated_queue.get(job_id).task == "hesabatı yenidən hazırla"
+    assert isolated_queue.resubmit_dead_letter("telegram", 700) is None
+
+
 def test_existing_jobs_database_migrates_without_data_loss(monkeypatch, tmp_path):
     old_db = tmp_path / "old-jobs.sqlite"
     with sqlite3.connect(old_db) as conn:

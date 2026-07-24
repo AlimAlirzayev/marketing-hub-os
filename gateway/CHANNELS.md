@@ -32,13 +32,33 @@ Telegram `message_id` with the job, edits it when execution starts, and removes
 it after the final answer arrives. Risky actions turn that same card into native
 `Təsdiqlə / İmtina` buttons; `/approve N` and `/reject N` remain deterministic
 fallbacks. `Ləğv et` only cancels queued/parked work. A running synchronous tool
-call is never falsely labelled cancelled.
+call receives a durable cooperative-cancel request and stops at the next
+governed checkpoint; it is never falsely labelled cancelled while still active.
+
+Executor progress is a typed in-process event stream, not model-generated
+chatter. Job-scoped stages (preflight, live research, browser, Crew, planner
+steps, builder fallback, verification and delivery) are debounced into the same
+Telegram card at most once per 2.5 seconds. The current stage is also persisted
+on the job for Workdesk.
+
+Approvals expire after 30 minutes. The worker closes expired cards without
+executing the action. Poison Telegram updates enter a durable Workdesk
+dead-letter view after three attempts. Raw Telegram JSON is never retained:
+only chat id, redacted replay-safe task text, masked error class and attempt
+metadata are stored. A Workdesk retry is atomic and exactly-once; sensitive or
+non-replayable events can only be dismissed.
 
 This deliberately adopts the strongest OpenClaw Telegram UX patterns—always-on
 gateway, progress drafts, native approvals, durable ingress and dead-letter-like
 quarantine—without importing OpenClaw's broader plugin/runtime trust surface.
 The Ramin-OS supervisor remains the one daemon, and Claude router → summon →
 production CrewAI remains the execution authority.
+
+On Windows, `scripts/supervisor_task.ps1` installs one current-user, at-logon
+`Ramin-OS-Supervisor` task. It uses the repo virtualenv and working directory,
+retries a failed start three times, and remains protected by the supervisor's
+localhost singleton lock. `Status` is read-only and `Uninstall` removes only
+that exact task.
 
 ### Live benchmark evidence (2026-07-24)
 

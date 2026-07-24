@@ -253,6 +253,37 @@ class PanelApi(_IsolatedJobsDB):
         snap = json.loads(panel.pulse().body)
         self.assertIn("queue", snap)
 
+    def test_panel_can_request_running_cancel(self):
+        import json
+        from gateway import panel
+
+        jid = self.queue.submit("uzun iş", source="panel")
+        self.queue.claim_next()
+        result = json.loads(panel.cancel(jid).body)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["outcome"], "requested")
+        self.assertTrue(self.queue.get(jid).cancel_requested)
+
+    def test_dead_letter_is_visible_and_replayable(self):
+        import json
+        from gateway import panel
+
+        self.queue.quarantine_ingress(
+            "telegram",
+            88,
+            chat_id="42",
+            task="təhlükəsiz task",
+            attempts=3,
+            error="ValueError",
+        )
+        listed = json.loads(panel.telegram_dead_letters().body)
+        self.assertEqual(listed["count"], 1)
+
+        retried = json.loads(panel.retry_telegram_dead_letter(88).body)
+        self.assertTrue(retried["ok"])
+        self.assertEqual(self.queue.get(retried["job_id"]).task, "təhlükəsiz task")
+
 
 if __name__ == "__main__":
     unittest.main()

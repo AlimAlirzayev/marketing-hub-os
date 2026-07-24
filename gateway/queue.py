@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS jobs (
     artifacts   TEXT    NOT NULL DEFAULT '[]',  -- JSON list of file paths
     approved    INTEGER NOT NULL DEFAULT 0,     -- operator approved a risky action
     telegram_status_message_id INTEGER,         -- editable progress/approval card
+    cancel_requested INTEGER NOT NULL DEFAULT 0,
+    approval_expires_at REAL,
+    progress_stage TEXT,
+    progress_updated_at REAL,
     created_at  REAL    NOT NULL,
     started_at  REAL,
     finished_at REAL
@@ -59,6 +63,19 @@ CREATE TABLE IF NOT EXISTS channel_health (
     last_error             TEXT,
     updated_at             REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ingress_dead_letters (
+    source          TEXT NOT NULL,
+    event_id        INTEGER NOT NULL,
+    chat_id         TEXT,
+    task            TEXT,
+    attempts        INTEGER NOT NULL,
+    last_error      TEXT,
+    quarantined_at  REAL NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'quarantined',
+    resolved_at     REAL,
+    resubmitted_job_id INTEGER,
+    PRIMARY KEY (source, event_id)
+);
 """
 
 # Pre-approval databases lack the column; add it in place (SQLite has no
@@ -67,6 +84,10 @@ _MIGRATIONS = (
     "ALTER TABLE jobs ADD COLUMN approved INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE jobs ADD COLUMN ingress_key TEXT",
     "ALTER TABLE jobs ADD COLUMN telegram_status_message_id INTEGER",
+    "ALTER TABLE jobs ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE jobs ADD COLUMN approval_expires_at REAL",
+    "ALTER TABLE jobs ADD COLUMN progress_stage TEXT",
+    "ALTER TABLE jobs ADD COLUMN progress_updated_at REAL",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_ingress_key "
     "ON jobs(ingress_key) WHERE ingress_key IS NOT NULL",
 )
@@ -88,6 +109,10 @@ class Job:
     approved: bool = False
     ingress_key: str | None = None
     telegram_status_message_id: int | None = None
+    cancel_requested: bool = False
+    approval_expires_at: float | None = None
+    progress_stage: str | None = None
+    progress_updated_at: float | None = None
 
     @classmethod
     def _from_row(cls, row: sqlite3.Row) -> "Job":
@@ -109,6 +134,24 @@ class Job:
                 int(row["telegram_status_message_id"])
                 if "telegram_status_message_id" in row.keys()
                 and row["telegram_status_message_id"] is not None
+                else None
+            ),
+            cancel_requested=bool(
+                row["cancel_requested"] if "cancel_requested" in row.keys() else 0
+            ),
+            approval_expires_at=(
+                float(row["approval_expires_at"])
+                if "approval_expires_at" in row.keys()
+                and row["approval_expires_at"] is not None
+                else None
+            ),
+            progress_stage=(
+                row["progress_stage"] if "progress_stage" in row.keys() else None
+            ),
+            progress_updated_at=(
+                float(row["progress_updated_at"])
+                if "progress_updated_at" in row.keys()
+                and row["progress_updated_at"] is not None
                 else None
             ),
         )
@@ -288,11 +331,22 @@ def recover_stale_running() -> list[int]:
     hang in that state forever and its requester would never get an answer."""
     init_db()
     with _connect() as conn:
-        rows = conn.execute("SELECT id FROM jobs WHERE status='running'").fetchall()
-        ids = [int(r["id"]) for r in rows]
+        rows = conn.execute(
+            "SELECT id,cancel_requested FROM jobs WHERE status='running'"
+        ).fetchall()
+        ids = [int(r["id"]) for r in rows if not bool(r["cancel_requested"])]
+        cancelled = [int(r["id"]) for r in rows if bool(r["cancel_requested"])]
         if ids:
             conn.execute(
-                "UPDATE jobs SET status='queued', started_at=NULL WHERE status='running'"
+                "UPDATE jobs SET status='queued', started_at=NULL WHERE status='running' "
+                "AND cancel_requested=0"
+            )
+        if cancelled:
+            marks = ",".join("?" for _ in cancelled)
+            conn.execute(
+                f"UPDATE jobs SET status='cancelled', error='cancelled by owner', "
+                f"finished_at=? WHERE id IN ({marks})",
+                (time.time(), *cancelled),
             )
         return ids
 
@@ -324,7 +378,7 @@ def complete(job_id: int, result: str, artifacts: list[str] | None = None) -> bo
     with _connect() as conn:
         cur = conn.execute(
             "UPDATE jobs SET status='done', result=?, error=NULL, artifacts=?, finished_at=? "
-            "WHERE id=? AND status='running'",
+            "WHERE id=? AND status='running' AND cancel_requested=0",
             (result, json.dumps(artifacts or []), time.time(), job_id),
         )
         return cur.rowcount > 0
@@ -342,24 +396,34 @@ def fail(job_id: int, error: str) -> bool:
 
 # --- the human checkpoint (risky actions pause here, never auto-run) -------
 
-def park_for_approval(job_id: int, reason: str = "") -> None:
+def park_for_approval(
+    job_id: int,
+    reason: str = "",
+    *,
+    ttl_seconds: int = 1800,
+) -> bool:
     """Move a running job to 'awaiting_approval'. The operator decides its fate
     (approve/reject); until then no executor will touch it."""
     with _connect() as conn:
-        conn.execute(
-            "UPDATE jobs SET status='awaiting_approval', error=? WHERE id=?",
-            (reason or None, job_id),
+        cur = conn.execute(
+            "UPDATE jobs SET status='awaiting_approval', error=?, "
+            "approval_expires_at=? WHERE id=? AND status IN ('queued','running') "
+            "AND cancel_requested=0",
+            (reason or None, time.time() + max(60, int(ttl_seconds)), job_id),
         )
+        return cur.rowcount > 0
 
 
 def approve(job_id: int) -> bool:
     """Operator approved a parked risky job: mark approved and re-queue it.
     Returns False if the job wasn't awaiting approval (already decided/gone)."""
     with _connect() as conn:
+        now = time.time()
         cur = conn.execute(
-            "UPDATE jobs SET status='queued', approved=1, error=NULL, started_at=NULL "
-            "WHERE id=? AND status='awaiting_approval'",
-            (job_id,),
+            "UPDATE jobs SET status='queued', approved=1, error=NULL, started_at=NULL, "
+            "approval_expires_at=NULL WHERE id=? AND status='awaiting_approval' "
+            "AND (approval_expires_at IS NULL OR approval_expires_at>=?)",
+            (job_id, now),
         )
         return cur.rowcount > 0
 
@@ -368,7 +432,7 @@ def reject(job_id: int) -> bool:
     """Operator rejected a parked risky job: close it without executing."""
     with _connect() as conn:
         cur = conn.execute(
-            "UPDATE jobs SET status='rejected', finished_at=? "
+            "UPDATE jobs SET status='rejected', approval_expires_at=NULL, finished_at=? "
             "WHERE id=? AND status='awaiting_approval'",
             (time.time(), job_id),
         )
@@ -376,16 +440,194 @@ def reject(job_id: int) -> bool:
 
 
 def cancel(job_id: int) -> bool:
-    """Cancel work only while it is safely stoppable.
+    """Compatibility boolean for callers that only cancel stoppable work."""
+    return request_cancel(job_id) == "cancelled"
 
-    Running tool calls are deliberately untouched: the UI must never claim an
-    action stopped while the synchronous executor is still completing it.
+
+def request_cancel(job_id: int) -> str:
+    """Cancel now or request cooperative cancellation of a running job.
+
+    Returns ``cancelled`` for work stopped before execution, ``requested`` when
+    a running job will stop at its next safe checkpoint, or ``unavailable`` for
+    terminal/missing work.
     """
     with _connect() as conn:
+        conn.isolation_level = None
+        conn.execute("BEGIN IMMEDIATE;")
+        row = conn.execute(
+            "SELECT status FROM jobs WHERE id=?",
+            (int(job_id),),
+        ).fetchone()
+        if row is None:
+            conn.execute("COMMIT;")
+            return "unavailable"
+        if row["status"] in ("queued", "awaiting_approval"):
+            conn.execute(
+                "UPDATE jobs SET status='cancelled', cancel_requested=1, "
+                "approval_expires_at=NULL, error='cancelled by owner', finished_at=? "
+                "WHERE id=?",
+                (time.time(), int(job_id)),
+            )
+            conn.execute("COMMIT;")
+            return "cancelled"
+        if row["status"] == "running":
+            conn.execute(
+                "UPDATE jobs SET cancel_requested=1, error='cancellation requested' "
+                "WHERE id=? AND status='running'",
+                (int(job_id),),
+            )
+            conn.execute("COMMIT;")
+            return "requested"
+        conn.execute("COMMIT;")
+        return "unavailable"
+
+
+class JobCancelled(RuntimeError):
+    """Raised only at a governed cooperative cancellation checkpoint."""
+
+
+def cancellation_checkpoint(job_id: int) -> None:
+    """Raise when the owner requested cancellation of this running job."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT cancel_requested FROM jobs WHERE id=? AND status='running'",
+            (int(job_id),),
+        ).fetchone()
+    if row and bool(row["cancel_requested"]):
+        raise JobCancelled(f"job #{job_id} cancelled by owner")
+
+
+def mark_cancelled(job_id: int) -> bool:
+    """Commit a running job's cooperative cancellation."""
+    with _connect() as conn:
         cur = conn.execute(
-            "UPDATE jobs SET status='rejected', error='cancelled by owner', finished_at=? "
-            "WHERE id=? AND status IN ('queued', 'awaiting_approval')",
-            (time.time(), job_id),
+            "UPDATE jobs SET status='cancelled', error='cancelled by owner', "
+            "finished_at=? WHERE id=? AND status='running' AND cancel_requested=1",
+            (time.time(), int(job_id)),
+        )
+        return cur.rowcount > 0
+
+
+def expire_approvals(now: float | None = None) -> list[int]:
+    """Expire stale human checkpoints and return affected job ids."""
+    cutoff = time.time() if now is None else float(now)
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id FROM jobs WHERE status='awaiting_approval' "
+            "AND approval_expires_at IS NOT NULL AND approval_expires_at<?",
+            (cutoff,),
+        ).fetchall()
+        ids = [int(row["id"]) for row in rows]
+        if ids:
+            marks = ",".join("?" for _ in ids)
+            conn.execute(
+                f"UPDATE jobs SET status='cancelled', error='approval expired', "
+                f"finished_at=?, approval_expires_at=NULL WHERE id IN ({marks})",
+                (cutoff, *ids),
+            )
+        return ids
+
+
+def set_progress(job_id: int, stage: str) -> bool:
+    """Persist a short operator-facing stage for Telegram and Workdesk."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE jobs SET progress_stage=?, progress_updated_at=? WHERE id=?",
+            (str(stage)[:240], time.time(), int(job_id)),
+        )
+        return cur.rowcount > 0
+
+
+def quarantine_ingress(
+    source: str,
+    event_id: int,
+    *,
+    chat_id: str | None,
+    task: str | None,
+    attempts: int,
+    error: str,
+) -> None:
+    """Retain a redacted, re-playable task envelope without raw Telegram JSON."""
+    init_db()
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO ingress_dead_letters "
+            "(source,event_id,chat_id,task,attempts,last_error,quarantined_at,status) "
+            "VALUES (?,?,?,?,?,?,?,'quarantined') "
+            "ON CONFLICT(source,event_id) DO UPDATE SET attempts=excluded.attempts, "
+            "last_error=excluded.last_error, quarantined_at=excluded.quarantined_at, "
+            "task=excluded.task, chat_id=excluded.chat_id, status='quarantined', "
+            "resolved_at=NULL, resubmitted_job_id=NULL",
+            (
+                source,
+                int(event_id),
+                chat_id,
+                task,
+                int(attempts),
+                str(error)[:240],
+                time.time(),
+            ),
+        )
+
+
+def list_dead_letters(
+    *,
+    source: str = "telegram",
+    status: str = "quarantined",
+    limit: int = 50,
+) -> list[dict]:
+    init_db()
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM ingress_dead_letters WHERE source=? AND status=? "
+            "ORDER BY quarantined_at DESC LIMIT ?",
+            (source, status, max(1, min(int(limit), 200))),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def resubmit_dead_letter(source: str, event_id: int) -> int | None:
+    """Atomically resubmit one safe retained task exactly once."""
+    init_db()
+    with _connect() as conn:
+        conn.isolation_level = None
+        conn.execute("BEGIN IMMEDIATE;")
+        row = conn.execute(
+            "SELECT * FROM ingress_dead_letters WHERE source=? AND event_id=? "
+            "AND status='quarantined'",
+            (source, int(event_id)),
+        ).fetchone()
+        if row is None or not row["task"]:
+            conn.execute("COMMIT;")
+            return None
+        cur = conn.execute(
+            "INSERT INTO jobs (source,chat_id,ingress_key,task,created_at) "
+            "VALUES (?,?,?,?,?)",
+            (
+                source,
+                row["chat_id"],
+                f"dead-letter:{source}:{int(event_id)}",
+                row["task"],
+                time.time(),
+            ),
+        )
+        job_id = int(cur.lastrowid)
+        conn.execute(
+            "UPDATE ingress_dead_letters SET status='resubmitted', resolved_at=?, "
+            "resubmitted_job_id=? WHERE source=? AND event_id=?",
+            (time.time(), job_id, source, int(event_id)),
+        )
+        conn.execute("COMMIT;")
+        return job_id
+
+
+def dismiss_dead_letter(source: str, event_id: int) -> bool:
+    """Close a quarantined event without executing it."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE ingress_dead_letters SET status='dismissed', resolved_at=? "
+            "WHERE source=? AND event_id=? AND status='quarantined'",
+            (time.time(), source, int(event_id)),
         )
         return cur.rowcount > 0
 
