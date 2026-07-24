@@ -156,9 +156,23 @@ def snapshot(root: str, profile: str, dest: str) -> str:
         p = os.path.join(src_profile, name)
         if os.path.exists(p):
             shutil.copy2(p, os.path.join(dest, "Default", name))
+    def _copy_available(src: str, dst: str) -> str:
+        """Copy one live-profile file, skipping only files Chrome keeps locked."""
+        try:
+            return shutil.copy2(src, dst)
+        except OSError:
+            return dst
+
     for name in _SESSION_DIRS:
         p = os.path.join(src_profile, name)
         if os.path.isdir(p):
+            ignore = None
+            if name == "Network":
+                # Cookies is copied separately above. Copying the same live DB
+                # through copytree raises WinError 32 while Chrome is open and
+                # used to abort the entire otherwise-usable session snapshot.
+                ignore = shutil.ignore_patterns("Cookies", "Cookies-*")
             shutil.copytree(p, os.path.join(dest, "Default", name),
-                            dirs_exist_ok=True)
+                            dirs_exist_ok=True, ignore=ignore,
+                            copy_function=_copy_available)
     return dest

@@ -307,3 +307,44 @@ Run it on demand, or schedule it monthly via the autonomous layer.
 ---
 
 _Verified: 2026-06-12. Stale after 2026-07-12 — run `/scout`._
+
+
+---
+
+## 📡 Radar qeydi — 2026-07-21
+
+📡 AI RADAR — həftəlik brif (2026-07-21)
+Siqnal: 54 mənbə qeydi | Həzm: groq/llama-3.3-70b-versatile
+
+• thinkingmachines/Inkling — Bu, şəkil və mətni mətnə çevirmək üçün nəzərdə tutulmuş bir modeldir. 
+  Bizə: Marketinq materiallarını avtomatik yaradılmasında faydalı ola bilər.
+  Pulsuz yol: var
+  Orqan: social-studio (şəkil/post)
+
+• prism-ml/Ternary-Bonsai-27B-gguf — Bu, mətn generasiyası üçün nəzərdə tutulmuş bir modeldir. 
+  Bizə: Məzmun yaradılmasında, xüsusilə də uzun mətnlərin generasiyasında faydalı ola bilər.
+  Pulsuz yol: yoxlamaq lazımdır
+  Orqan: copy-studio (mətn səsi)
+
+• baidu/Unlimited-OCR — Bu, şəkillərdən mətni çıxarmaq üçün nəzərdə tutulmuş bir modeldir. 
+  Bizə: Marketinq materiallarında şəkillərdən mətni avtomatik çıxarmaqda faydalı ola bilər.
+  Pulsuz yol: yox
+  Orqan: social-studio (şəkil/post)
+
+• zai-org/GLM-5.2 — Bu, mətn generasiyası üçün nəzərdə tutulmuş bir modeldir. 
+  Bizə: Məzmun yaradılmasında, xüsusilə də uzun mətnlərin generasiyasında faydalı ola bilər.
+  Pulsuz yol: yoxlamaq lazımdır
+  Orqan: copy-studio (mətn səsi)
+
+• empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF — Bu, şəkil və mətni mətnə çevirmək üçün nəzərdə tutulmuş bir modeldir. 
+  Bizə: Marketinq materiallarını avtomatik yaradılmasında faydalı ola bilər.
+  Pulsuz yol: yox
+  Orqan: social-studio (şəkil/post)
+
+• yuwen-cool/yuwen-publish-precheck — Bu, məzmunu öncədən yoxlamaq üçün nəzərdə tutulmuş bir alətdir. 
+  Bizə: Marketinq materiallarını yayımlamadan əvvəl yoxlamaqda faydalı ola bilər.
+  Pulsuz yol: yox
+  Orqan: social-studio (şəkil/post)
+
+TƏKLİF: 
+Yeni modul olaraq, marketinq məzmununun avtomatik generasiyası üçün bir agent yaradılmalıdır. Bu agent, mövcud modelləri birləşdirərək, şəkillər, mətnlər və səslər üçün məzmun generasiyasını avtomatik olaraq həyata keçirə bilər.

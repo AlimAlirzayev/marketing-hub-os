@@ -136,6 +136,7 @@ output/social/
 *.bak3.*
 data/postpull_state.json
 data/last_sync.json
+data/builder_context.md
 data/skills/
 data/watchdog_state.json
 data/logs/watchdog-*.log

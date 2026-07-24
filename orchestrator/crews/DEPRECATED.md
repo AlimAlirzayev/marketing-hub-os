@@ -1,4 +1,4 @@
-# DEPRECATED — use `gateway/council.py`
+# DEPRECATED — do not revive these skeletons
 
 These CrewAI crews are **unwired skeletons** and are superseded by the live
 multi-agent layer.
@@ -10,16 +10,19 @@ multi-agent layer.
   locked-down corporate machine (the whole gateway avoids langchain/crewai).
 - They duplicate, less capably, what already works.
 
-## What replaces it — `gateway/council.py`
-A zero-budget, **subscriber-CLI AI Council**:
-- consults **Codex + Claude Code + Gemini CLI** in parallel (no API keys),
-- synthesizes one decision (Codex as chair),
-- executes via the gateway, with `gateway/security.py` governance.
+## What replaces it
 
-Toggle with `AI_COUNCIL_ENABLED` (on by default). This is the production
-multi-agent path; it is wired into `gateway/executor.py`.
+The current production operational workforce is
+`gateway/studio_crew.py`: an isolated CrewAI hierarchy over the live studios.
+The Claude conversational brain acts as model-as-router and calls
+`gateway/summon.py`, which enters the explicit `/crew` rail asynchronously;
+Claude then synthesizes the worker output for the operator.
+
+`gateway/council.py` still exists only as an explicit legacy subscriber-CLI
+consultation rail. It must not be treated as the current default workforce or
+enabled in place of the Crew/manager architecture.
 
 ## Status
-Files are **kept, not deleted** (they belong to earlier work and may seed a
-CrewAI-free, council-pattern reimplementation later). Importing `orchestrator.crews`
-emits a `DeprecationWarning`. Do not build new work on them — extend the council.
+Files are **kept, not deleted** for history. Importing `orchestrator.crews`
+emits a `DeprecationWarning`. Do not build new work on them; reinforce the
+production `gateway/studio_crew.py` and model-as-router/summon path.

@@ -27,6 +27,7 @@ CAPABILITY_PATHS = [
     ("Security Guard", "gateway/security.py", "Blocks secrets, destructive actions, payments, unsafe URLs, and unknown scripts."),
     ("Autonomous gateway", "gateway", "Queue, worker, executor, browser tools, AI Council, Telegram delivery path."),
     ("Knowledge Core", "brain", "Recall and reflect loop with optional private TEI/OpenAI-compatible embeddings."),
+    ("Builder Context Bridge", "scripts/builder_context.py", "Common cold-start card for Codex, Claude Code, Gemini, OpenCode, Copilot, and future governed builders."),
     ("Bilik Bazası (RAG)", "gateway/rag_server.py", "Corporate knowledge base service: vector search plus source-grounded free-first answers."),
     ("Daily briefing", "scripts/daily_briefing.py", "Executive CX + Meta + GA4 briefing; served at ads-studio /briefing."),
     ("Agent Radar", "gateway/agent_radar.py", "Agent governance, sandbox scoring, and automatic Marketing OS scan."),

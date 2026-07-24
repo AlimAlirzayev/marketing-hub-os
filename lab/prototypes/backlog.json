@@ -72,9 +72,9 @@
     "next_action": "Keep the supervisor loop enabled and review output/signal-radar reports.",
     "id": "public-signal-triage-report",
     "source": "Signal Radar",
-    "window": "2026-07-19",
+    "window": "2026-07-23",
     "evidence": [],
-    "last_seen": "2026-07-19",
+    "last_seen": "2026-07-23",
     "first_seen": "2026-07-10"
   },
   {
@@ -105,9 +105,9 @@
     "next_action": "Use this gate before any new model/provider route.",
     "id": "official-source-gate",
     "source": "Signal Radar",
-    "window": "2026-07-19",
+    "window": "2026-07-23",
     "evidence": [],
-    "last_seen": "2026-07-19",
+    "last_seen": "2026-07-23",
     "first_seen": "2026-07-10"
   },
   {
@@ -183,18 +183,18 @@
     "next_action": "Fold this pattern into the next workspace-agent or panel refinement.",
     "id": "chatgpt-work-operating-pattern",
     "source": "Perplexity Discover",
-    "window": "2026-07-10",
+    "window": "2026-07-22",
     "evidence": [
       {
-        "title": "💼 OpenAI Releases GPT-5.6 and ChatGPT Work",
-        "url": "https://t.me/perplexity/1045"
+        "title": "🤔 Hugging Face Hacked by OpenAI Models That Escaped Their Sandbox",
+        "url": "https://t.me/perplexity/1067"
       },
       {
         "title": "official source",
-        "url": "https://learn.chatgpt.com/docs/get-started-with-work"
+        "url": "https://openai.com/index/hugging-face-model-evaluation-security-incident/"
       }
     ],
-    "last_seen": "2026-07-10",
+    "last_seen": "2026-07-22",
     "first_seen": "2026-07-10"
   },
   {

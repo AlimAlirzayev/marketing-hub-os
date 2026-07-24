@@ -8,8 +8,86 @@
     "approval_required": "Any customer-facing, public, paid, destructive, or credentialed action needs human approval.",
     "blocked": "Not allowed for autonomous execution."
   },
-  "agents": [
-    {
+    "agents": [
+      {
+        "id": "google_ads_policy_audit",
+        "name": "Google Ads Policy Audit",
+        "owner": "Ramin-OS Ads Studio",
+        "status": "approved_read_only",
+        "permissions": ["read_only", "approval_required"],
+        "allowed_inputs": [
+          "allowlisted Xalq Sigorta Google Ads account metadata",
+          "campaign and ad identifiers",
+          "ad serving and review statuses",
+          "policy topic labels",
+          "ad destination URLs"
+        ],
+        "blocked_inputs": [
+          "credential values",
+          "tokens",
+          "cookies",
+          "payment data",
+          "customer or claims data"
+        ],
+        "allowed_outputs": [
+          "local Google Ads policy audit reports",
+          "policy-specific remediation plans",
+          "masked account identifiers"
+        ],
+        "blocked_actions": [
+          "print or log credentials",
+          "edit ads or assets without approval",
+          "submit appeals without approval",
+          "enable campaigns",
+          "change budgets or bidding",
+          "create or remove campaigns",
+          "access non-allowlisted accounts"
+        ],
+        "required_controls": [
+          "Default operation is read-only and writes only a local report.",
+          "Every live mutation or appeal requires a reviewable exact plan and human approval.",
+          "Appeals must be targeted and must not be repeated while a prior review is pending."
+        ]
+      },
+      {
+        "id": "google_ads_az_language_request",
+        "name": "Google Ads Azerbaijani Language Request Builder",
+        "owner": "Ramin-OS Ads Studio",
+        "status": "approved_read_only",
+        "permissions": ["read_only", "draft_only", "approval_required"],
+        "allowed_inputs": [
+          "owner-reviewed Google Ads Editor CSV or TSV exports",
+          "campaign and ad-group names",
+          "ad and asset text",
+          "public official Google Ads documentation"
+        ],
+        "blocked_inputs": [
+          "credentials",
+          "tokens",
+          "cookies",
+          "payment data",
+          "customer or claims data"
+        ],
+        "allowed_outputs": [
+          "redacted Azerbaijani-language inventory",
+          "draft official Google Support escalation dossier",
+          "manual operator checklist"
+        ],
+        "blocked_actions": [
+          "mislabel Azerbaijani as another language",
+          "use homoglyphs or cloaking",
+          "bypass or evade policy enforcement",
+          "upload or post Editor changes",
+          "submit support cases or appeals",
+          "change campaign targeting"
+        ],
+        "required_controls": [
+          "Treat character detection as a review heuristic, not a final language classifier.",
+          "Redact customer identifiers from generated dossiers.",
+          "Require owner review before attaching an Editor export or submitting the dossier to Google."
+        ]
+      },
+      {
       "id": "google_media_canvas",
       "name": "Google Media Canvas Handoff",
       "owner": "Ramin-OS Social Studio",
@@ -383,6 +461,50 @@
       ]
     },
     {
+      "id": "builder_context_bridge",
+      "name": "Builder Context Bridge",
+      "owner": "Ramin-OS Brain",
+      "status": "approved_private_local",
+      "permissions": ["read_only", "sandbox"],
+      "allowed_inputs": [
+        "masked gateway live-state pulse",
+        "memory/decisions.jsonl shared decisions",
+        "Claude Code curated project memory index",
+        "Codex curated memory summary",
+        "repository instruction and context paths"
+      ],
+      "blocked_inputs": [
+        ".env content",
+        "credential values",
+        "tokens",
+        "cookies",
+        "raw agent transcripts",
+        "customer data",
+        "claims data",
+        "policy data",
+        "payment data"
+      ],
+      "allowed_outputs": [
+        "machine-local data/builder_context.md",
+        "session-start context printed to the local builder"
+      ],
+      "blocked_actions": [
+        "edit or merge agent-owned memory stores",
+        "publish memory excerpts",
+        "sync private memory through Git",
+        "print or log credentials",
+        "write production data",
+        "send messages"
+      ],
+      "required_controls": [
+        "Current code, services.json, live state, and superseding shared decisions always outrank agent-memory hints.",
+        "Read only curated memory indexes; never read raw transcripts or credential stores.",
+        "Redact common secret shapes before writing or printing the local context card.",
+        "Keep the generated context card machine-local and git-ignored.",
+        "Durable cross-builder decisions continue through the existing Brain workflow and memory/decisions.jsonl."
+      ]
+    },
+    {
       "id": "brand_dossier",
       "name": "Brand Dossier Engine",
       "owner": "Ramin-OS",
@@ -500,8 +622,24 @@
       ]
     },
     {
-      "id": "ai_council_executor",
-      "name": "AI Council Executor",
+      "id": "corporate_rag",
+      "name": "Corporate Knowledge RAG",
+      "owner": "Ramin-OS Brain",
+      "status": "approved_private_local",
+      "permissions": ["read_only", "sandbox", "approval_required"],
+      "allowed_inputs": ["approved corporate documents", "operator questions", "public documentation"],
+      "blocked_inputs": ["secrets", "credential values", "payment data", "unapproved customer, claim, or policy records"],
+      "allowed_outputs": ["grounded answers", "source references", "local retrieval indexes", "availability diagnostics"],
+      "blocked_actions": ["send internal text to hosted embeddings by default", "index .env or credential stores", "invent retrieved evidence", "write production data"],
+      "required_controls": [
+        "Use private local embeddings by default.",
+        "Hosted embedding requires explicit BRAIN_EMBED_ALLOW_EXTERNAL=1 approval and approved non-sensitive input.",
+        "If no approved embedding provider is available, fail visibly instead of silently exporting content or fabricating retrieval."
+      ]
+    },
+    {
+      "id": "operational_crew_executor",
+      "name": "Operational Crew Executor",
       "owner": "Ramin-OS",
       "status": "approval_gated",
       "permissions": ["read_only", "sandbox", "approval_required"],
@@ -509,7 +647,10 @@
       "blocked_inputs": ["secrets", "credentials", "private keys"],
       "allowed_outputs": ["plans", "code changes", "reports", "sandbox artifacts"],
       "blocked_actions": ["destructive changes", "payments", "secret exposure", "unapproved production writes"],
-      "required_controls": ["Gateway Security Guard pre-flight must pass before execution."]
+      "required_controls": [
+        "Gateway Security Guard pre-flight must pass before execution.",
+        "Operational work follows Claude model-as-router through gateway.summon and gateway.studio_crew; legacy gateway.council is consultation-only."
+      ]
     }
   ]
 }

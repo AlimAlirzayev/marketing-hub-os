@@ -29,5 +29,5 @@
 **Next action:** Fold this pattern into the next workspace-agent or panel refinement.
 
 **Evidence:**
-- [💼 OpenAI Releases GPT-5.6 and ChatGPT Work](https://t.me/perplexity/1045)
-- [official source](https://learn.chatgpt.com/docs/get-started-with-work)
+- [🤔 Hugging Face Hacked by OpenAI Models That Escaped Their Sandbox](https://t.me/perplexity/1067)
+- [official source](https://openai.com/index/hugging-face-model-evaluation-security-incident/)

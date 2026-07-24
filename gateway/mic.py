@@ -39,6 +39,33 @@ def speak(text: str, *, source: str, chat_id: str | None = None) -> int:
     return job_id
 
 
+def speak_once(
+    text: str,
+    *,
+    source: str,
+    chat_id: str | None,
+    ingress_key: str,
+) -> tuple[int, bool]:
+    """Take the mic once for a durable external event.
+
+    Telegram can replay an update after a process crash. Its event identity is
+    carried into the queue so that replay returns the original job rather than
+    executing the same user request twice.
+    """
+    text = (text or "").strip()
+    job_id, created = queue.submit_once(
+        text,
+        source=source,
+        chat_id=chat_id,
+        ingress_key=ingress_key,
+    )
+    if created:
+        sense.emit("mic", f"{source} took the mic -> job #{job_id}", {"task": text[:80]})
+    else:
+        sense.emit("telegram", f"duplicate ingress ignored -> job #{job_id}")
+    return job_id, created
+
+
 def thread_for(job) -> str:
     """The conversation thread a job belongs to — always the single mic thread,
     so every channel shares one memory (delivery still uses job.chat_id)."""

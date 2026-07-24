@@ -1,9 +1,11 @@
 # Xalq Insurance Digital OS - Orchestrator
 
-> **Note (2026-06-24):** `router.py` is live (used by `gateway/executor.py`). The
-> **`crews/` CrewAI skeletons are DEPRECATED** — the live multi-agent layer is
-> `gateway/council.py` (a zero-budget subscriber-CLI council). See
-> [`crews/DEPRECATED.md`](crews/DEPRECATED.md). Don't build new work on the crews.
+> **Current note (2026-07-21):** `router.py` remains live. The old
+> `orchestrator/crews/` skeletons are still deprecated, but production CrewAI now
+> lives in `gateway/studio_crew.py`, reached through the Claude model-as-router
+> and `gateway/summon.py`. `gateway/council.py` is legacy explicit-only
+> consultation, not the current operational workforce. See the newest shared
+> decisions and `docs/ORCHESTRATION.md` before changing any of these rails.
 
 The Python control layer that routes tasks across the 4-LLM hybrid (Claude,
 Gemini, Groq, Ollama) via `router.py`.

@@ -1,6 +1,6 @@
 # RAMIN OS System Context
 
-Generated UTC: 2026-07-16T10:44:38Z
+Generated UTC: 2026-07-24T06:30:15Z
 
 ## Mission
 
@@ -36,7 +36,7 @@ a disconnected side project.
 | seo | SEO Studiyası | 8860 | Kontent | uvicorn | seo.server:app | /api/health |
 | media_studio | Media Studio | 8870 | Kontent | uvicorn | media_studio.server:app | /api/health |
 | certcoach | Sertifikat Mentoru | 8880 | Təlim | uvicorn | certification_coach.server:app | /api/health |
-| panel | İdarəetmə Mərkəzi | 8890 | İş masası | uvicorn | gateway.panel:app | /api/health |
+| panel | İş masası | 8890 | İş masası | uvicorn | gateway.panel:app | /api/health |
 | rag | Bilik Bazası | 8895 | İş masası | uvicorn | gateway.rag_server:app | /api/health |
 | mediagen | Media Generatoru | 8765 | Kontent | uvicorn | mediagen.server:app | /api/health |
 
@@ -50,6 +50,7 @@ a disconnected side project.
 | Security Guard | `gateway/security.py` | yes | Blocks secrets, destructive actions, payments, unsafe URLs, and unknown scripts. |
 | Autonomous gateway | `gateway` | yes | Queue, worker, executor, browser tools, AI Council, Telegram delivery path. |
 | Knowledge Core | `brain` | yes | Recall and reflect loop with optional private TEI/OpenAI-compatible embeddings. |
+| Builder Context Bridge | `scripts/builder_context.py` | yes | Common cold-start card for Codex, Claude Code, Gemini, OpenCode, Copilot, and future governed builders. |
 | Bilik Bazası (RAG) | `gateway/rag_server.py` | yes | Corporate knowledge base service: vector search plus source-grounded free-first answers. |
 | Daily briefing | `scripts/daily_briefing.py` | yes | Executive CX + Meta + GA4 briefing; served at ads-studio /briefing. |
 | Agent Radar | `gateway/agent_radar.py` | yes | Agent governance, sandbox scoring, and automatic Marketing OS scan. |

@@ -5,6 +5,19 @@ system. It exists to remove one specific confusion: *which agent talks to whom,
 from where, who gets which task, and how the result comes back.* If you only read
 one file to understand "how the agents work together," read this one.
 
+> **Current authority (supersedes older Council descriptions below):** Since
+> 2026-07-20, the production operational path is the Claude conversational brain
+> acting as the model-as-router. For heavy multi-studio work it calls
+> `gateway.summon`, which asynchronously enters the explicit `/crew` rail and
+> runs the isolated production CrewAI workforce in `gateway/studio_crew.py`.
+> Studio workers gather live data and Claude synthesizes the operator-facing
+> result. `gateway/council.py` remains an explicit-only legacy subscriber-CLI
+> consultation tool; it is not the default manager or operational workforce and
+> must not be re-enabled or substituted when the operator means the current
+> Crew/manager architecture. `orchestrator/crews/` remains obsolete skeleton
+> code. The newest `memory/decisions.jsonl` entries and live executor code win
+> over stale prose elsewhere in this document.
+
 It does not introduce new machinery. It draws the machinery we already have
 (`gateway`, `orchestrator`, `brain`, the CLIs) as one map, and states the rules
 that decide where a task goes.
@@ -61,6 +74,13 @@ itself. They are the "developers."
 | **OpenCode** | free Gemini 2.5-flash (1M ctx) | Bulk builder / refactors / scaffolds / model A-B | 80% free | Token-heavy grunt work, offline (Ollama), model tests |
 | **Codex CLI** | subscriber CLI | Repo-discipline engineer | subscription (no API $) | Implementation discipline, repo-wide edits |
 
+These harnesses share a cold-start blackboard through
+`scripts/builder_context.py`. After the engine pull, it combines masked live
+state, the newest shared decisions, and curated Claude/Codex memory indexes into
+the machine-local `data/builder_context.md`. Claude receives it through its
+SessionStart hook; other builders run the same command from `AGENTS.md`.
+Agent-private memory remains a hint, never a competing authority.
+
 > **Why OpenCode runs on Gemini, not Groq:** OpenCode sends ~42k tokens of system
 > prompt + AGENTS.md per turn. Groq free tier caps at 12k tokens/minute → rejected.
 > Gemini free (1M context) handles it. Groq stays for single-shot `llm_router`
@@ -103,11 +123,15 @@ AZ paylaş/göndər/yayımla/zəng). An unapproved outward job **parks** as
 `approved=1`, which passes the checkpoint. Drafting ("3 post ideyası yaz") never
 parks; only acting does.
 
-**The operator's screen** is `gateway/panel.py` — **İdarəetmə Mərkəzi** (port
-8890, registered in `services.json`, embedded in the hub): live pulse, advisor
-findings, job queue + result previews, pending approvals with Approve/Reject,
-task submission into the queue, one-click engine sync. Renders with zero LLM
-tokens — it only reads the gateway's own state.
+**The operator's screen** is the Ramin-OS Hub (port 8000), the sole advertised
+front door. `gateway/panel.py` remains the registered internal backend on port
+8890 and renders inside the Hub as **İş masası**: shared conversation, job/result
+previews, approvals, finance, trends and engine state. `gateway.commandcenter`
+feeds the Hub's **Müşahidə** view through `/api/flow`; legacy `/map` remains only
+for backward compatibility. The Hub's **Şura** view uses
+`gateway/council_workspace.py` to collect independent CLI opinions and synthesize
+them without calling the legacy auto-execution path. Consultation and execution
+are separate operator decisions.
 
 ---
 
@@ -122,8 +146,22 @@ automatic fallback, and one usage ledger.
 - **Tiers:** `cheap` (default, bulk) vs `smart` (harder reasoning, still free-first).
 - **Grounding exception:** web-search/grounded calls stay Gemini-direct in
   `gateway/llm.py` (LiteLLM can't pass Google grounding through cleanly).
-- **Observability:** every call is appended to `data/logs/llm_usage.jsonl`
-  (`python llm_router.py --usage` for the daily ledger).
+- **Observability:** every successful call and every failed provider attempt is
+  appended to `data/logs/llm_usage.jsonl` with model/tier/status, safe error
+  taxonomy and latency (never prompts, responses or secrets).
+
+The worker boundary validates every executor return through the strict Pydantic
+`gateway.contracts.ExecutionOutcome` contract (`success | partial | failure |
+needs_approval`, extra fields forbidden). A provider failure is therefore an
+`error` job, is shown honestly in İş masası, and is excluded from conversation
+memory, reflection and skill reinforcement. Queue completion/failure is
+compare-and-set from `running`, preventing a late worker from overwriting a
+terminal state.
+
+Corporate RAG is deliberately local/private by default. Hosted Gemini embeddings
+are blocked unless `BRAIN_EMBED_ALLOW_EXTERNAL=1` is explicitly approved; absent
+an approved embedding provider the UI/API reports the capability unavailable
+instead of silently exporting internal text or pretending retrieval succeeded.
 
 Already wired through the router — verified 2026-06-25, **every plain text
 completion in the system**: `gateway/llm.py`, `gateway/executor.py` (default +
@@ -145,10 +183,22 @@ router is text-completion only and pushing these through it would lose capabilit
 
 ---
 
-## 3. The AI Council — plan / build / review as one synchronous round
+## 3. Current manager/Crew authority and the separate consultation surface
 
-`gateway/council.py` is our realized "multi-agent orchestrator" (what Grok called
-Planner/Executor/Reviewer). It already does the hard part:
+The operational workforce is `Claude brain/model-as-router → gateway.summon →
+explicit /crew → gateway.studio_crew (production CrewAI) → live studios →
+Claude synthesis`. This is the only current manager/Crew route. It passes work
+to the existing studios and returns one synthesized result through the normal
+job, approval, artifact and memory rails.
+
+`gateway/council_workspace.py` powers the Hub's visual Şura as a
+**consultation-only** workspace: independent Codex, Claude and Gemini notes,
+per-member readiness/failure truth, history, then an optional synthesis. It does
+not execute the proposed work. `gateway/council.py` is the older explicit-only
+subscriber-CLI consultation rail; it is not the operational manager, is never
+auto-enabled, and must not replace or reconfigure the current Crew path.
+
+The consultation sequence is:
 
 1. **Consult (parallel):** Codex, Claude Code, and Gemini CLI each return an
    independent note on the task — intent, plan, risks, next action. Each runs in
@@ -157,7 +207,8 @@ Planner/Executor/Reviewer). It already does the hard part:
 2. **Synthesize (chair):** one CLI (Codex → Claude → Gemini fallback) merges the
    notes into one decision + execution plan + next action, grounded only in the
    notes and real workspace files (no invented data).
-3. **Execute:** the normal `gateway.executor` performs the final task.
+3. **Decide:** the operator may separately send an accepted direction into the
+   normal mic/router/Crew execution path.
 
 > **Council quality = model *diversity*, not member count.** The three voices are
 > three distinct model families (Codex/GPT, Claude, Gemini) so they catch
@@ -172,9 +223,8 @@ Planner/Executor/Reviewer). It already does the hard part:
 Auth discipline: council members use **subscriber CLIs / free keys**, never
 silent API billing. `_base_env()` strips paid API keys before each member runs.
 
-This is why we do **not** build a second parallel orchestrator: the council *is*
-the orchestrator. New agents join it as members, per `AGENTS.md` ("do not create
-disconnected side tools when an existing module can be reinforced").
+This separation prevents advice from silently becoming an action and prevents a
+legacy consultation file from being mistaken for the live manager architecture.
 
 ---
 
@@ -185,7 +235,7 @@ disconnected side tools when an existing module can be reinforced").
 | Design / architecture / risky / final review | **Claude Code** (you, 20%) | Best reasoning; human checkpoint |
 | Bulk edits, scaffolds, refactors, model A-B, offline | **OpenCode** (free) | Cheap tokens, model freedom |
 | Repo-wide implementation discipline | **Codex CLI** | Strong executor in this workspace |
-| "Which is the strongest answer?" hard call | **Council** (`consult` + synth) | Many models > one |
+| "Which is the strongest answer?" hard call | **Visual Şura** (`council_workspace`, consult + synth) | Diverse advice, no auto-execution |
 | A queued autonomous job (Telegram/hub/schedule) | **gateway.executor** | Background, no human |
 | Any raw model completion inside code | **`llm_router.complete()`** | Free-first + fallback + log |
 | AZ price / image / video / audio / publish | the owning **studio** first | Reach for our own tools, not generic calls |
@@ -207,7 +257,7 @@ the free model inside it.
 | Institutional memory (lessons) | `brain/` markdown | persistent, recalled before each job (per-machine) |
 | **Shared memory (travels via git)** | `memory/` + `shared_memory.py` | the L4 blackboard read first by every session/channel/machine |
 | Pending lessons to review | brain reflect → review queue | until accepted |
-| Council runtime notes | temp runtime dir | ephemeral |
+| Visual Şura consultation notes | council workspace history | persistent consultation record |
 | Live system snapshot | `python scripts/system_context.py` | regenerated on shape change |
 
 **The learning loop is mandatory:** before a job, `brain` *recalls* relevant past
@@ -245,7 +295,7 @@ layer (multi-channel control center + shared memory) builds on. Deps:
 > **Control plane** = the coding agents you drive (Claude = 20% hard, OpenCode =
 > 80% free, Codex = discipline). **Runtime plane** = the gateway that runs queued
 > tasks by itself. **Both** call models only through `llm_router` (free-first +
-> fallback + log). Hard calls go to the **Council**. Results land in
+> fallback + log). Hard calls may go to the consultation-only **Visual Şura**. Results land in
 > `output/jobs`, lessons land in `brain`. No tool spends money without us choosing
 > the premium plane on purpose.
 

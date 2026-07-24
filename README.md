@@ -51,9 +51,18 @@ See [brain/README.md](brain/README.md). Toggles: `BRAIN_RECALL`, `BRAIN_REFLECT`
 Ramin-OS changes quickly, so every agent should start from the same live map:
 
 - `AGENTS.md` is the operating charter for Codex, Claude Code, and other agents.
+- `docs/USER_VISIBLE_DELIVERY_STANDARD.md` is the mandatory product handoff gate:
+  every useful capability must join the unified Hub experience and be proven
+  from the user side before it is called complete.
 - `CLAUDE.md` is the root Claude Code entry point.
 - `docs/RAMIN_OS_CONTEXT.md` is the generated current-state brief.
 - `services.json` remains the source of truth for service ports and launch data.
+
+The operator uses one browser entry point: the Hub on port `8000`. Its built-in
+sections include **İş masası** (conversation, approvals, results), **Müşahidə**
+(live agent/workflow topology), and **Şura** (consultation-only multi-LLM review).
+Port `8890` and `/map` remain internal/backward-compatible implementation routes,
+not separate products or new front doors.
 
 Refresh the context after any meaningful system-shape change:
 

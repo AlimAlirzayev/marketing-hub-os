@@ -17,7 +17,6 @@ Long-polling = outbound HTTPS only, so no port/webhook/public IP is needed.
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
 import time
@@ -32,17 +31,6 @@ load_env()
 
 _ROOT = Path(__file__).resolve().parent.parent
 _SYNC = _ROOT / "scripts" / "sync_engine.py"
-_ENV_PATH = _ROOT / ".env"
-_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,64}$")
-
-# Secure FILE courier. /setkey carries a single KEY=value line; some secrets are
-# whole files (e.g. ~/.codex/auth.json — multi-line JSON, past the 4096-char
-# Telegram message cap). The owner attaches the file with caption "/setfile NAME";
-# we stage the raw bytes here, locked and OFF git (data/ is git-ignored), for a
-# machine that pulls it (e.g. the Mac fetches over SSH, installs, then wipes the
-# staged copy). Same trust model as /setkey: owner is the courier, we never send.
-_COURIER_DIR = _ROOT / "data" / "couriered"
-_COURIER_MAX_BYTES = 256 * 1024
 
 _WHISPER_URL = os.getenv(
     "WHISPER_URL", "http://127.0.0.1:8787/v1/audio/transcriptions"
@@ -65,8 +53,8 @@ _HELP = (
     "  /reject N   - reject a parked risky job (owner only)\n"
     "  /danis TEXT - speak TEXT in the owner's own cloned voice (owner only)\n"
     "  /update     - pull the latest engine from GitHub (owner only)\n"
-    "  /setkey - disabled by default; use local SECURE_KEY (owner only)\n"
-    "  /setfile N  - attach a file with this caption to courier it in (owner only)\n"
+    "  /setkey     - blocked; secrets are local-terminal only\n"
+    "  /setfile    - blocked; secret files never cross Telegram\n"
     "  /keys       - masked status of critical keys (owner only)\n"
     "  /help       - this message"
 )
@@ -113,32 +101,6 @@ def _run_sync() -> str:
         return "sync timed out reaching GitHub — try again shortly."
     except Exception as exc:  # never crash the bot on an ops command
         return f"sync could not run: {exc.__class__.__name__}"
-
-
-def _set_env_key(key: str, value: str, env_path: Path | None = None) -> bool:
-    """Write/update one KEY=value line in this machine's .env and the live
-    process env. The value is handed to us BY the owner (we never read a key out
-    of an .env and never send one anywhere) — this is the receiving end of the
-    'keys never travel via git; the owner is the courier' rule (docs/SYNC.md).
-    Returns True if an existing line was updated, False if appended."""
-    path = Path(env_path or _ENV_PATH)
-    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
-    prefix = f"{key}="
-    replaced = False
-    for i, line in enumerate(lines):
-        if line.strip().startswith(prefix):
-            lines[i] = f"{key}={value}"
-            replaced = True
-            break
-    if not replaced:
-        lines.append(f"{key}={value}")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    os.environ[key] = value  # take effect in this process immediately
-    return replaced
-
-
-def _mask(value: str) -> str:
-    return f"len={len(value)}, …{value[-4:]}" if len(value) >= 8 else f"len={len(value)}"
 
 
 # --- voice -> text (Gemini first, local whisper fallback) -------------------
@@ -195,52 +157,26 @@ def _transcribe(file_id: str) -> str | None:
         return None
 
 
-def _handle_couriered_file(chat_id: int, msg: dict, doc: dict) -> None:
-    """Stage an owner-couriered file (caption '/setfile NAME'), locked and off git.
+def _block_telegram_secret(chat_id: int, msg: dict, command: str) -> None:
+    """Fail closed when a secret is pasted or attached in Telegram.
 
-    Owner-only is already enforced by the caller. The carrying message is deleted
-    best-effort so the secret does not linger in the chat, exactly like /setkey.
+    Deleting the carrier is only damage reduction: Telegram has already
+    transported it. Nothing is downloaded, parsed, staged, written to .env or
+    stored in the vault.
     """
-    caption = (msg.get("caption") or "").strip()
-    pieces = caption.split()
-    if len(pieces) < 2 or pieces[0] != "/setfile" or not _KEY_RE.match(pieces[1]):
-        telegram.send_message(
-            chat_id,
-            "📎 Faylı təhlükəsiz keçirmək üçün onu başlıqla (caption) göndər:\n"
-            "  /setfile AD\n"
-            "Məs.: auth.json faylını əlavə et, başlığa yaz: /setfile CODEX_AUTH\n"
-            "(Ad BÖYÜK_HƏRF_VƏ_ALT_XƏTT formatında olmalıdır.)",
-        )
-        return
-    name = pieces[1]
-    size = int(doc.get("file_size") or 0)
-    if size and size > _COURIER_MAX_BYTES:
-        telegram.send_message(
-            chat_id, f"Fayl çox böyükdür ({size} bayt, limit {_COURIER_MAX_BYTES}).")
-        return
-    data = telegram.download_file_by_id(doc["file_id"])
-    if not data:
-        telegram.send_message(chat_id, "Faylı yükləyə bilmədim — bir də göndər.")
-        return
-    if len(data) > _COURIER_MAX_BYTES:
-        telegram.send_message(chat_id, "Fayl çox böyükdür — imtina etdim.")
-        return
-    _COURIER_DIR.mkdir(parents=True, exist_ok=True)
-    dest = _COURIER_DIR / name
-    dest.write_bytes(data)
     try:
-        os.chmod(dest, 0o600)
-    except OSError:
-        pass
-    try:  # scrub the carrying message from chat history, best-effort
         telegram.delete_message(chat_id, msg["message_id"])
     except Exception:
         pass
-    sense.emit("credential", f"couriered file {name} staged ({len(data)} bytes, masked)")
+    sense.emit("security", f"blocked Telegram secret courier ({command})")
     telegram.send_message(
         chat_id,
-        f"📎 Fayl alındı: {name} ({len(data)} bayt) — kilidli saxlandı, daşıyıcı mesaj silindi.\n"
-        f"İndi onu təyinatına çəkib quraşdırmaq olar.",
+        "🔒 Telegram ilə açar və auth faylı qəbulu tam bağlıdır. "
+        "Məzmun endirilmədi və saxlanmadı; daşıyıcı mesajı silməyə çalışdım.\n\n"
+        "Açar üçün bu maşının terminalında işlət:\n"
+        "  SECURE_KEY.bat AÇAR_ADI\n"
+        "və ya:\n"
+        "  python scripts/secure_key.py AÇAR_ADI",
     )
 
 
@@ -299,7 +235,7 @@ def _extract_task(msg: dict) -> tuple[str | None, bool]:
     return None, False
 
 
-def _handle_message(msg: dict) -> None:
+def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
     chat_id = msg["chat"]["id"]
 
     # ---- inbound hard shell: owner-only, fail-closed --------------------
@@ -337,12 +273,20 @@ def _handle_message(msg: dict) -> None:
             pass
         return
 
-    # Secure file courier: an owner-attached document with a "/setfile NAME"
-    # caption is staged, not treated as a task. Sits ahead of task extraction
-    # because a document has no task text and would otherwise be rejected.
+    # Secret-bearing files never cross Telegram. Ordinary document understanding
+    # is a separate future capability and must not silently become a credential
+    # courier.
     doc = msg.get("document")
     if doc and doc.get("file_id"):
-        _handle_couriered_file(chat_id, msg, doc)
+        caption = (msg.get("caption") or "").strip()
+        if caption.split(maxsplit=1)[0].casefold() == "/setfile" if caption else False:
+            _block_telegram_secret(chat_id, msg, "/setfile")
+        else:
+            telegram.send_message(
+                chat_id,
+                "📎 Sənəd qəbulu hələ agent tapşırığına qoşulmayıb. "
+                "Secret/auth faylıdırsa Telegram-a göndərmə; lokal terminal yolundan istifadə et.",
+            )
         return
 
     task, was_voice = _extract_task(msg)
@@ -400,69 +344,10 @@ def _handle_message(msg: dict) -> None:
         threading.Thread(target=_render_house_voice, args=(chat_id, say), daemon=True).start()
         return
 
-    # Key courier receiving end: the OWNER hands this machine a new API key so
-    # both friend-systems stay equally capable. Keys never travel via git; this
-    # is the only sanctioned inbound path. The carrying message is deleted from
-    # the chat and only a masked confirmation is ever echoed.
+    # A secret has already crossed Telegram before deletion can run, therefore
+    # this path is permanently fail-closed (no break-glass environment flag).
     if text.split()[0] == "/setkey":
-        if not _is_owner(chat_id):
-            telegram.send_message(chat_id, "Not authorized for ops commands.")
-            return
-        if os.getenv("ALLOW_TELEGRAM_SETKEY", "0").casefold() not in {"1", "true", "yes", "on"}:
-            try:
-                telegram.delete_message(chat_id, msg["message_id"])
-            except Exception:
-                pass
-            telegram.send_message(
-                chat_id,
-                "🔒 Telegram ilə açar qəbulu təhlükəsizlik üçün bağlıdır. "
-                "Açarı serverin öz terminalında SECURE_KEY / scripts/secure_key.py ilə daxil et. "
-                "Mesajı çatdan silməyə çalışdım.",
-            )
-            return
-        pieces = text.split(None, 2)
-        if len(pieces) < 3 or not _KEY_RE.match(pieces[1]):
-            telegram.send_message(
-                chat_id,
-                "İstifadə: /setkey AÇAR_ADI dəyər\nMəs.: /setkey RAPIDAPI_KEY abc123…\n"
-                "(Açar adı BÖYÜK_HƏRF_VƏ_ALT_XƏTT formatında olmalıdır.)",
-            )
-            return
-        key, value = pieces[1], pieces[2].strip()
-        replaced = _set_env_key(key, value)
-        try:  # scrub the secret out of the chat history, best-effort
-            telegram.delete_message(chat_id, msg["message_id"])
-        except Exception:
-            pass
-        sense.emit("credential", f"{key} set via /setkey (masked)")
-        verb = "yeniləndi" if replaced else "əlavə olundu"
-
-        # Auto-travel: encrypt the key into the vault and mail it, so the other
-        # friend applies it on its next sync — no human courier needed anymore.
-        if key == "KEY_VAULT_SECRET":
-            travel = ("🔓 Seyf AÇILDI. Bundan sonra hər /setkey açarı şifrəli seyfə "
-                      "yazılıb avtomatik o biri sistemə də gedəcək.\n"
-                      "Eyni parolu o biri sistemin botunda da bir dəfə /setkey et.")
-        elif not keyvault.syncable(key):
-            travel = "ℹ️ Bu açar maşına-özəldir — səyahət etmir (bilərəkdən)."
-        elif not keyvault.enabled():
-            travel = ("⚠️ Seyf bağlıdır — açar YALNIZ bu maşına yazıldı.\n"
-                      "Avtomatik səyahət üçün bir dəfə: /setkey KEY_VAULT_SECRET <parol>")
-        elif keyvault.put(key, value):
-            travel = ("📮 Şifrəli seyfə yazıldı və poçta göndərildi — o biri dost "
-                      "növbəti sync-də özü götürəcək."
-                      if keyvault.commit_and_push()
-                      else "📦 Şifrəli seyfə yazıldı; push alınmadı — növbəti sync-də gedəcək.")
-        else:
-            travel = "⚠️ Seyfə yazıla bilmədi — açar yalnız bu maşındadır."
-
-        telegram.send_message(
-            chat_id,
-            f"🔐 {key} bu maşının .env faylına {verb} ({_mask(value)}).\n"
-            f"{travel}\n"
-            "Açarı daşıyan mesajını çatdan sildim. İşləyən proseslər tam götürsün "
-            "deyə lazım olsa restart et.",
-        )
+        _block_telegram_secret(chat_id, msg, "/setkey")
         return
 
     # The "getdim, amma arxayınam" command: one message from the phone answers
@@ -582,7 +467,17 @@ def _handle_message(msg: dict) -> None:
     except Exception as exc:  # freshness is best-effort, never block a task on it
         print(f"[bot] pre-task sync skipped: {exc}")
 
-    job_id = mic.speak(text, source="telegram", chat_id=str(chat_id))
+    if ingress_key:
+        job_id, created = mic.speak_once(
+            text,
+            source="telegram",
+            chat_id=str(chat_id),
+            ingress_key=ingress_key,
+        )
+        if not created:
+            return
+    else:
+        job_id = mic.speak(text, source="telegram", chat_id=str(chat_id))
     if was_voice:
         # remember this turn came in by voice, so the worker answers by voice too
         voice.mark_voice_job(job_id)
