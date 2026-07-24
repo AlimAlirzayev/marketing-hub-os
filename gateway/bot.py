@@ -279,7 +279,7 @@ def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
     doc = msg.get("document")
     if doc and doc.get("file_id"):
         caption = (msg.get("caption") or "").strip()
-        if caption.split(maxsplit=1)[0].casefold() == "/setfile" if caption else False:
+        if caption and caption.split(maxsplit=1)[0].casefold() == "/setfile":
             _block_telegram_secret(chat_id, msg, "/setfile")
         else:
             telegram.send_message(
@@ -528,17 +528,47 @@ def main() -> None:
     queue.init_db()
     print("[bot] started. Long-polling for messages... (Ctrl+C to stop)")
     _announce_online()
-    offset = None
+    last_update = queue.last_ingress_event("telegram")
+    offset = last_update + 1 if last_update is not None else None
     conflicts = 0
     while True:
         try:
             updates = telegram.get_updates(offset=offset)
             conflicts = 0
             for upd in updates:
-                offset = upd["update_id"] + 1
+                update_id = int(upd["update_id"])
+                if queue.ingress_processed("telegram", update_id):
+                    offset = update_id + 1
+                    continue
                 msg = upd.get("message") or upd.get("edited_message")
-                if msg:
-                    _handle_message(msg)
+                try:
+                    if msg:
+                        _handle_message(msg, ingress_key=f"telegram:{update_id}")
+                    queue.mark_ingress_processed("telegram", update_id)
+                    offset = update_id + 1
+                except Exception as exc:
+                    attempts = queue.record_ingress_failure("telegram", update_id, str(exc))
+                    sense.emit(
+                        "telegram",
+                        f"update {update_id} failed ({attempts}/3)",
+                        {"error": exc.__class__.__name__},
+                    )
+                    if attempts >= 3:
+                        queue.mark_ingress_processed("telegram", update_id)
+                        offset = update_id + 1
+                        owner = _owner_id()
+                        if owner:
+                            try:
+                                telegram.send_message(
+                                    owner,
+                                    f"⚠️ Telegram update {update_id} 3 dəfə emal olunmadı "
+                                    "və təkrar dövrə salınmamaq üçün karantinə alındı. "
+                                    "Detallar maskalı sistem jurnalındadır.",
+                                )
+                            except Exception:
+                                pass
+                    else:
+                        raise
         except KeyboardInterrupt:
             print("\n[bot] stopped.")
             break

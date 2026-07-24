@@ -101,49 +101,5 @@ class ApplyToEnv(_VaultSandbox):
             self.assertEqual(self.kv.apply_to_env(), [])
 
 
-class SetkeyMailsTheVault(_VaultSandbox):
-    """The bot side: /setkey should encrypt + push automatically."""
-
-    def setUp(self):
-        super().setUp()
-        from gateway import bot
-        self.bot = bot
-        d = Path(tempfile.mkdtemp())
-        self.sent: list[str] = []
-        more = [
-            mock.patch.object(bot, "_ENV_PATH", d / ".env"),
-            mock.patch.object(bot.telegram, "send_message",
-                              side_effect=lambda c, t: self.sent.append(t)),
-            mock.patch.object(bot.telegram, "delete_message"),
-            mock.patch.object(bot.sense, "emit"),
-            mock.patch.object(self.kv, "commit_and_push", return_value=True),
-            mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "42", "ALLOW_TELEGRAM_SETKEY": "1"}),
-        ]
-        for p in more:
-            p.start()
-        self.addCleanup(lambda: [p.stop() for p in more])
-
-    def _msg(self, text):
-        return {"chat": {"id": 42}, "text": text, "message_id": 7}
-
-    def test_synced_key_lands_in_vault_and_gets_pushed(self):
-        self.bot._handle_message(self._msg("/setkey RAPIDAPI_KEY topsecret99"))
-        self.assertEqual(self.kv.load()["RAPIDAPI_KEY"]["v"], "topsecret99")
-        self.kv.commit_and_push.assert_called_once()
-        self.assertTrue(any("poçta göndərildi" in r for r in self.sent))
-        for r in self.sent:
-            self.assertNotIn("topsecret99", r)
-
-    def test_master_pass_unlocks_but_never_travels(self):
-        self.bot._handle_message(self._msg("/setkey KEY_VAULT_SECRET new-master"))
-        self.assertNotIn("KEY_VAULT_SECRET", self.kv.load())
-        self.assertTrue(any("Seyf AÇILDI" in r for r in self.sent))
-
-    def test_locked_vault_warns_key_stays_local(self):
-        with mock.patch.dict(os.environ, {"KEY_VAULT_SECRET": ""}):
-            self.bot._handle_message(self._msg("/setkey SOME_KEY val123"))
-        self.assertTrue(any("Seyf bağlıdır" in r for r in self.sent))
-
-
 if __name__ == "__main__":
     unittest.main()

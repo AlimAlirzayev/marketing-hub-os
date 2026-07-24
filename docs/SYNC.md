@@ -71,8 +71,8 @@ and write a machine-private receipt under `data/private_context/`.
 
 The vault master is stored with Windows CurrentUser DPAPI or in a Unix user-only
 `0600` file outside the repository. Legacy `KEY_VAULT_SECRET` values are migrated
-out of `.env` automatically. Telegram `/setkey` is disabled by default; it is a
-break-glass compatibility path only (`ALLOW_TELEGRAM_SETKEY=1`).
+out of `.env` automatically. Telegram `/setkey` and `/setfile` are permanently
+blocked; secrets are entered only through the local hidden-prompt command.
 
 Plaintext keys never touch git (`.env` stays ignored). But keys still flow
 between the friends automatically, the way SOPS/git-crypt do it: as ciphertext.

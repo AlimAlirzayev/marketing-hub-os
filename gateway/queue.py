@@ -178,10 +178,6 @@ def mark_ingress_processed(source: str, event_id: int) -> None:
             "VALUES (?,?,?)",
             (source, int(event_id), time.time()),
         )
-        conn.execute(
-            "DELETE FROM ingress_failures WHERE source=? AND event_id=?",
-            (source, int(event_id)),
-        )
 
 
 def record_ingress_failure(source: str, event_id: int, error: str) -> int:

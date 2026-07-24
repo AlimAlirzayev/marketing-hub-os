@@ -12,9 +12,10 @@ a secret. Whoever can read the repo sees only an opaque blob.
                        set ONCE per machine (same value on both). Never stored
                        in the vault, never committed, never echoed.
 
-Bootstrap = one owner action per machine:  /setkey KEY_VAULT_SECRET <passphrase>
-After that, every /setkey travels automatically: the value is encrypted into the
-vault, pushed, and the other friend applies it to its own .env on the next sync.
+Bootstrap and rotation happen only in the local hidden-prompt flow:
+`SECURE_KEY.bat KEY_NAME` or `python scripts/secure_key.py KEY_NAME`. Telegram
+secret couriers are permanently blocked. The value is encrypted into the vault,
+pushed, and the other friend applies it to its own environment on the next sync.
 
 Machine-identity keys never travel (each friend has its OWN Telegram bot and the
 master passphrase is per-machine by definition) — see _NEVER_SYNC.
@@ -39,7 +40,7 @@ ROOT = Path(__file__).resolve().parent.parent
 VAULT_PATH = ROOT / "secrets" / "keys.vault"
 ENV_PATH = ROOT / ".env"
 
-# Keys that are intrinsically per-machine and must NOT be shared, even by /setkey.
+# Keys that are intrinsically per-machine and must NOT be shared by the vault.
 # The master passphrase can never live inside the thing it encrypts; each friend
 # runs its own Telegram bot; the owner-chat pairing stays local too.
 _NEVER_SYNC = {"KEY_VAULT_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_OWNER_CHAT_ID"}

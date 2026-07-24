@@ -67,4 +67,4 @@ def test_status_reports_needs_token_with_an_actionable_next_step(monkeypatch):
     meta = rows["meta"]
     assert meta["state"] == "needs-token"
     assert meta["has_token"] is False
-    assert "/setkey META_ADS_TOKEN" in meta["next_step"]
+    assert "SECURE_KEY.bat META_ADS_TOKEN" in meta["next_step"]

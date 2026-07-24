@@ -17,8 +17,8 @@ campaigns (create/update/delete/pause/resume/budget/bid/publish) are classified 
 are REFUSED unless the caller passes approved=True — which only the human-checkpoint path
 (Telegram /approve, panel approval) is allowed to do. Reads are free.
 
-Tokens never live in git: put them in .env via the existing owner-only Telegram
-`/setkey META_ADS_TOKEN <token>` flow.
+Tokens never enter Telegram or chat history. Use the local hidden-prompt command
+`SECURE_KEY.bat META_ADS_TOKEN` (or `python scripts/secure_key.py META_ADS_TOKEN`).
 
 CLI:
     python3 -m gateway.ad_mcp status              # readiness of every connector
@@ -126,8 +126,10 @@ def status(platform: str | None = None) -> list[dict[str, Any]]:
         row["has_token"] = bool(tok)
         if not tok:
             row["state"] = "needs-token"
-            row["next_step"] = (f"owner mints it: {cfg['token_how']}, then Telegram: "
-                                f"/setkey {cfg['token_env']} <token>")
+            row["next_step"] = (
+                f"owner mints it: {cfg['token_how']}, then on the local host: "
+                f"SECURE_KEY.bat {cfg['token_env']}"
+            )
             out.append(row)
             continue
         try:

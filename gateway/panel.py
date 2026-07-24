@@ -1114,7 +1114,7 @@ async function refresh(){
   try{p=await j("/api/pulse");$("liveDot").classList.remove("err");$("liveTxt").textContent="canlı";}
   catch(e){$("liveDot").classList.add("err");$("liveTxt").textContent="əlaqə yoxdur";return;}
   _pulse=p;
-  const q=p.queue||{}, llm=p.llm||{}, env=p.env||{};
+  const q=p.queue||{}, llm=p.llm||{}, env=p.env||{}, tg=p.telegram||{};
   const envOk=Object.values(env).filter(v=>String(v).startsWith("SET")).length;
   const envAll=Object.keys(env).length;
   $("git").innerHTML=`git: <b>${esc(p.git&&p.git.head||"?")}</b>${p.git&&p.git.dirty?" · dirty":""}`;
@@ -1123,6 +1123,10 @@ async function refresh(){
     tile("","Növbədə", q.queued??"–","işləyir: "+(q.running??0))+
     tile("","Hazır", q.done??"–","xəta: "+(q.error??0))+
     tile((q.awaiting_approval||0)>0?"warn":"","Təsdiq gözləyir", q.awaiting_approval??0,"riskli əməllər")+
+    tile(tg.last_error?"bad":(tg.configured?"ok":"warn"),"Telegram",
+      tg.configured?"hazır":"bağlı",
+      tg.last_error?("xəta: "+tg.last_error):
+        (tg.mode||"long_poll")+" · retry "+(tg.max_attempts??"–"))+
     tile("","Açarlar", `${envOk}/${envAll}`,"canlı .env refleksi")+
     tile("","Yaddaş", (p.memory&&p.memory.turns)??"–","dialoq dövrləri")+
     tile("","Cədvəllər",(p.schedules&&p.schedules.enabled)??"–","aktiv plan");

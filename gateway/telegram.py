@@ -8,6 +8,8 @@ firewall and on any host. That property is the whole reason we chose it.
 from __future__ import annotations
 
 import os
+import time
+from typing import Any
 
 import requests
 
@@ -18,6 +20,17 @@ load_env()
 _API = "https://api.telegram.org/bot{token}/{method}"
 _FILE_API = "https://api.telegram.org/file/bot{token}/{path}"
 _TIMEOUT = 60  # long-poll holds the connection open up to this long
+_MAX_ATTEMPTS = 4
+_ALLOWED_UPDATES = ["message", "edited_message"]
+_SESSION = requests.Session()
+_SESSION.headers.update({"User-Agent": "Ramin-OS-Telegram/1"})
+_HEALTH: dict[str, Any] = {
+    "last_ok_at": None,
+    "last_error_at": None,
+    "last_error": None,
+    "last_retry_after": None,
+    "retries": 0,
+}
 
 
 def _token() -> str | None:
@@ -29,23 +42,153 @@ def is_configured() -> bool:
     return _token() is not None
 
 
-class ConflictError(RuntimeError):
+class TelegramError(RuntimeError):
+    """Base transport error with a safe, secret-free description."""
+
+
+class AuthenticationError(TelegramError):
+    """Telegram rejected the bot identity (401)."""
+
+
+class ForbiddenError(TelegramError):
+    """The bot cannot access the target chat/action (403)."""
+
+
+class RateLimitError(TelegramError):
+    """Telegram asked the caller to wait before retrying."""
+
+    def __init__(self, retry_after: int):
+        self.retry_after = max(1, int(retry_after))
+        super().__init__(f"Telegram rate limited; retry after {self.retry_after}s")
+
+
+class TransientError(TelegramError):
+    """Retry budget was exhausted for a network or Telegram 5xx failure."""
+
+
+class ConflictError(TelegramError):
     """Telegram 409: ANOTHER process is long-polling this same bot token.
     Almost always means both friend-systems are running a bot with one shared
     token — each machine must have its OWN bot (@BotFather), which is exactly
     why TELEGRAM_BOT_TOKEN is excluded from key syncing."""
 
 
-def _call(method: str, **params):
+def _safe_description(payload: dict | None, status: int) -> str:
+    description = str((payload or {}).get("description") or "").strip()
+    return description[:240] or f"Telegram HTTP {status}"
+
+
+def _retry_after(payload: dict | None, response) -> int:
+    value = ((payload or {}).get("parameters") or {}).get("retry_after")
+    if value is None:
+        value = getattr(response, "headers", {}).get("Retry-After", 1)
+    try:
+        return max(1, int(value))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _rewind_files(files: dict | None) -> None:
+    for value in (files or {}).values():
+        candidate = value[1] if isinstance(value, tuple) and len(value) > 1 else value
+        if hasattr(candidate, "seek"):
+            candidate.seek(0)
+
+
+def _request(
+    method: str,
+    *,
+    json_params: dict | None = None,
+    data: dict | None = None,
+    files: dict | None = None,
+    http_timeout: int | None = None,
+):
     tok = _token()
     if not tok:
         raise RuntimeError("TELEGRAM_BOT_TOKEN not set")
     url = _API.format(token=tok, method=method)
-    resp = requests.post(url, json=params, timeout=_TIMEOUT + 10)
-    if resp.status_code == 409:
-        raise ConflictError("another poller is using this bot token")
-    resp.raise_for_status()
-    return resp.json()
+    timeout = http_timeout or _TIMEOUT + 10
+    last_error: Exception | None = None
+
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            _rewind_files(files)
+            resp = _SESSION.post(
+                url,
+                json=json_params,
+                data=data,
+                files=files,
+                timeout=timeout,
+            )
+            try:
+                payload = resp.json()
+            except (ValueError, TypeError):
+                payload = {}
+            code = int(payload.get("error_code") or resp.status_code)
+            ok = bool(payload.get("ok", 200 <= resp.status_code < 300))
+
+            if code == 409:
+                raise ConflictError("another poller is using this bot token")
+            if code == 401:
+                raise AuthenticationError("Telegram rejected the bot token")
+            if code == 403:
+                raise ForbiddenError(_safe_description(payload, code))
+            if code == 429:
+                wait = _retry_after(payload, resp)
+                _HEALTH["last_retry_after"] = wait
+                if attempt < _MAX_ATTEMPTS:
+                    _HEALTH["retries"] += 1
+                    time.sleep(min(wait, 60))
+                    continue
+                raise RateLimitError(wait)
+            if code >= 500:
+                raise requests.exceptions.HTTPError(_safe_description(payload, code))
+            if not ok:
+                raise TelegramError(_safe_description(payload, code))
+
+            resp.raise_for_status()
+            _HEALTH["last_ok_at"] = time.time()
+            _HEALTH["last_error"] = None
+            return payload
+        except (ConflictError, AuthenticationError, ForbiddenError, RateLimitError, TelegramError):
+            raise
+        except (requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.HTTPError) as exc:
+            last_error = exc
+            if attempt < _MAX_ATTEMPTS:
+                _HEALTH["retries"] += 1
+                time.sleep(min(2 ** (attempt - 1), 8))
+                continue
+            break
+
+    _HEALTH["last_error_at"] = time.time()
+    _HEALTH["last_error"] = (last_error or RuntimeError("unknown")).__class__.__name__
+    raise TransientError(
+        f"Telegram transport failed after {_MAX_ATTEMPTS} attempts "
+        f"({_HEALTH['last_error']})"
+    ) from last_error
+
+
+def _call(method: str, **params):
+    """Typed JSON Bot API call with bounded retry and 429 compliance."""
+    poll_timeout = int(params.get("timeout") or 0)
+    return _request(
+        method,
+        json_params=params,
+        http_timeout=max(_TIMEOUT + 10, poll_timeout + 10),
+    )
+
+
+def status() -> dict[str, Any]:
+    """Secret-free transport state for the existing Hub/pulse surface."""
+    return {
+        "configured": is_configured(),
+        "mode": "long_poll",
+        "allowed_updates": list(_ALLOWED_UPDATES),
+        "max_attempts": _MAX_ATTEMPTS,
+        **_HEALTH,
+    }
 
 
 def send_message(chat_id: str | int, text: str) -> None:
@@ -80,8 +223,12 @@ def send_document(chat_id: str | int, file_path: str, caption: str = "") -> None
     if caption:
         data["caption"] = caption[:1024]
     with open(file_path, "rb") as fh:
-        resp = requests.post(url, data=data, files={"document": fh}, timeout=180)
-    resp.raise_for_status()
+        _request(
+            "sendDocument",
+            data=data,
+            files={"document": fh},
+            http_timeout=180,
+        )
 
 
 def send_voice(chat_id: str | int, audio: bytes, *, caption: str = "") -> None:
@@ -98,14 +245,23 @@ def send_voice(chat_id: str | int, audio: bytes, *, caption: str = "") -> None:
     data = {"chat_id": str(chat_id)}
     if caption:
         data["caption"] = caption[:1024]
-    url = _API.format(token=tok, method=method)
-    resp = requests.post(url, data=data, files={field: (fname, audio, mime)}, timeout=120)
-    resp.raise_for_status()
+    _request(
+        method,
+        data=data,
+        files={field: (fname, audio, mime)},
+        http_timeout=120,
+    )
 
 
 def get_updates(offset: int | None = None) -> list[dict]:
     """Long-poll for new updates. Returns the raw 'result' list."""
-    data = _call("getUpdates", offset=offset, timeout=_TIMEOUT)
+    params: dict[str, Any] = {
+        "timeout": _TIMEOUT,
+        "allowed_updates": _ALLOWED_UPDATES,
+    }
+    if offset is not None:
+        params["offset"] = offset
+    data = _call("getUpdates", **params)
     return data.get("result", [])
 
 

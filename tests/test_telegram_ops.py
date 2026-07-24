@@ -37,7 +37,8 @@ class ConflictDetection(unittest.TestCase):
     def test_409_raises_conflict_error(self):
         from gateway import telegram
         resp = mock.Mock(status_code=409)
-        with mock.patch.object(telegram.requests, "post", return_value=resp), \
+        resp.json.return_value = {"ok": False, "error_code": 409}
+        with mock.patch.object(telegram._SESSION, "post", return_value=resp), \
              mock.patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "x"}):
             with self.assertRaises(telegram.ConflictError):
                 telegram._call("getUpdates")
@@ -46,9 +47,37 @@ class ConflictDetection(unittest.TestCase):
         from gateway import telegram
         resp = mock.Mock(status_code=200)
         resp.json.return_value = {"ok": True, "result": []}
-        with mock.patch.object(telegram.requests, "post", return_value=resp), \
+        with mock.patch.object(telegram._SESSION, "post", return_value=resp), \
              mock.patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "x"}):
             self.assertEqual(telegram._call("getUpdates")["result"], [])
+
+    def test_429_honors_retry_after_then_succeeds(self):
+        from gateway import telegram
+        limited = mock.Mock(status_code=429, headers={})
+        limited.json.return_value = {
+            "ok": False,
+            "error_code": 429,
+            "parameters": {"retry_after": 7},
+        }
+        ok = mock.Mock(status_code=200)
+        ok.json.return_value = {"ok": True, "result": []}
+        with mock.patch.object(
+            telegram._SESSION, "post", side_effect=[limited, ok]
+        ), mock.patch.object(telegram.time, "sleep") as sleep, mock.patch.dict(
+            os.environ, {"TELEGRAM_BOT_TOKEN": "x"}
+        ):
+            self.assertEqual(telegram._call("getUpdates")["result"], [])
+        sleep.assert_called_once_with(7)
+
+    def test_get_updates_has_explicit_allowlist(self):
+        from gateway import telegram
+        with mock.patch.object(
+            telegram, "_call", return_value={"ok": True, "result": []}
+        ) as call:
+            telegram.get_updates(offset=10)
+        params = call.call_args.kwargs
+        self.assertEqual(params["offset"], 10)
+        self.assertEqual(params["allowed_updates"], ["message", "edited_message"])
 
 
 class StatusCommand(unittest.TestCase):

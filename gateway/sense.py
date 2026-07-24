@@ -346,10 +346,16 @@ def _git_state() -> dict:
 
 def snapshot() -> dict:
     """One live read of the system's current body-state. Every section guarded."""
+    try:
+        from . import telegram
+        telegram_state = telegram.status()
+    except Exception as exc:  # noqa: BLE001
+        telegram_state = {"configured": False, "error": exc.__class__.__name__}
     snap = {
         "ts": time.time(),
         "env": env_status(),
         "queue": _queue_state(),
+        "telegram": telegram_state,
         "memory": _memory_state(),
         "schedules": _schedules_state(),
         "llm": _llm_state(),
@@ -369,6 +375,7 @@ def pulse() -> str:
         lamp = "🟢" if v.startswith("SET") else ("⚪" if v == "EMPTY" else "🔴")
         lines.append(f"  {lamp} {k:26} {v}")
     lines.append(f"QUEUE:     {s['queue']}")
+    lines.append(f"TELEGRAM:  {s['telegram']}")
     lines.append(f"MEMORY:    {s['memory']}")
     lines.append(f"SCHEDULES: {s['schedules']}")
     lines.append(f"LLM(bugün):{s['llm']}")

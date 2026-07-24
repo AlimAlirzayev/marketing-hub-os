@@ -162,6 +162,6 @@ argument, URL, log, or tracked file. Success requires encrypted-vault commit,
 push, and upstream verification. Receiving twins re-apply the vault on every
 sync and record only key names plus a vault digest in a private receipt.
 
-Telegram `/setkey` is disabled by default and is not the normal secret path.
-Enabling `ALLOW_TELEGRAM_SETKEY=1` is break-glass only because deletion from
+Telegram `/setkey` and `/setfile` are permanently blocked and have no environment
+override. Deletion from
 chat history is best-effort and cannot prove removal from every provider log.
