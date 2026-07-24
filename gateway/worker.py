@@ -38,13 +38,53 @@ def _split_source_tag(result: str) -> tuple[str | None, str]:
     return m.group(1), result[m.end():]
 
 
-def _notify(job: queue.Job, text: str) -> None:
+def _notify(job: queue.Job, text: str) -> bool:
     """Deliver the result back to its source. CLI jobs just rely on the DB."""
     if job.source == "telegram" and job.chat_id and telegram.is_configured():
         try:
             telegram.send_message(job.chat_id, text)
+            return True
         except Exception as exc:  # delivery failure must not lose the result
             print(f"[worker] notify failed for job {job.id}: {exc}")
+    return False
+
+
+def _progress(job: queue.Job, text: str, *, buttons=None) -> None:
+    """Best-effort edit of the one durable Telegram progress card."""
+    if not (
+        job.source == "telegram"
+        and job.chat_id
+        and job.telegram_status_message_id
+        and telegram.is_configured()
+    ):
+        return
+    try:
+        telegram.edit_status(
+            job.chat_id,
+            job.telegram_status_message_id,
+            text,
+            buttons=buttons,
+        )
+    except Exception as exc:
+        print(f"[worker] progress edit failed for job {job.id}: {exc}")
+
+
+def _close_progress(job: queue.Job, delivered: bool) -> None:
+    """Delete a completed draft, or keep an honest delivery-failure marker."""
+    if not (job.chat_id and job.telegram_status_message_id):
+        return
+    try:
+        if delivered:
+            telegram.delete_message(job.chat_id, job.telegram_status_message_id)
+        else:
+            telegram.edit_status(
+                job.chat_id,
+                job.telegram_status_message_id,
+                "⚠️ Nəticə saxlanıldı, amma Telegram çatdırılması alınmadı. "
+                "Hub → İş masasında nəticəni aça bilərsiniz.",
+            )
+    except Exception as exc:
+        print(f"[worker] progress close failed for job {job.id}: {exc}")
 
 
 # Deliverable file types worth pushing to the chat as real documents. The .md
@@ -85,6 +125,7 @@ def run_once() -> bool:
         return False
 
     print(f"[worker] running job {job.id} ({job.source}): {job.task[:80]!r}")
+    _progress(job, "⚙️ İcra başladı — agent planlayır və alətləri işə salır.")
     if job.source == "telegram" and job.chat_id and telegram.is_configured():
         try:  # "typing..." while the job runs — the chat feels alive, not queued
             telegram.send_chat_action(job.chat_id, "typing")
@@ -99,7 +140,8 @@ def run_once() -> bool:
                 "error_code": out.error_code,
                 "retryable": out.retryable,
             })
-            _notify(job, out.result)
+            delivered = _notify(job, out.result)
+            _close_progress(job, delivered)
             return True
         # Outward-facing action -> the job parks at the human checkpoint instead
         # of completing. The operator decides via /approve or /reject (Telegram
@@ -107,7 +149,20 @@ def run_once() -> bool:
         if out.needs_approval:
             queue.park_for_approval(job.id, "outward_action checkpoint")
             print(f"[worker] job {job.id} parked for operator approval")
-            _notify(job, out.result)
+            buttons = [[
+                ("✅ Təsdiqlə", f"job:approve:{job.id}"),
+                ("🚫 İmtina", f"job:reject:{job.id}"),
+            ]]
+            if job.telegram_status_message_id:
+                _progress(
+                    job,
+                    "🛡️ Təsdiq lazımdır\n\n"
+                    + out.result[:3400]
+                    + f"\n\nƏl ilə seçim: /approve {job.id} və ya /reject {job.id}",
+                    buttons=buttons,
+                )
+            else:
+                _notify(job, out.result)
             return True
         queue.complete(job.id, out.result, out.artifacts)
         print(f"[worker] job {job.id} done -> {out.artifacts}")
@@ -119,7 +174,8 @@ def run_once() -> bool:
         # number (the owner wants Telegram to feel like the Claude chat, where a
         # result is just presented). The label still drives voice + memory below.
         label, clean = _split_source_tag(out.result)
-        _notify(job, clean)
+        delivered = _notify(job, clean)
+        _close_progress(job, delivered)
         # Voice in -> voice out: a job that arrived as a voice note is answered
         # with an Azerbaijani voice note too (the text is already delivered above,
         # so a TTS failure never costs the reply). Only conversational turns are
@@ -167,7 +223,8 @@ def run_once() -> bool:
         queue.fail(job.id, err)
         print(f"[worker] job {job.id} FAILED: {exc}")
         sense.emit("job", f"#{job.id} FAILED ({job.source})", {"error": str(exc)[:120]})
-        _notify(job, f"⚠️ İş #{job.id} alınmadı: {exc}")
+        delivered = _notify(job, f"⚠️ İş #{job.id} alınmadı: {exc}")
+        _close_progress(job, delivered)
     return True
 
 

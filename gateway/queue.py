@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     error       TEXT,
     artifacts   TEXT    NOT NULL DEFAULT '[]',  -- JSON list of file paths
     approved    INTEGER NOT NULL DEFAULT 0,     -- operator approved a risky action
+    telegram_status_message_id INTEGER,         -- editable progress/approval card
     created_at  REAL    NOT NULL,
     started_at  REAL,
     finished_at REAL
@@ -50,6 +51,14 @@ CREATE TABLE IF NOT EXISTS ingress_failures (
     updated_at   REAL NOT NULL,
     PRIMARY KEY (source, event_id)
 );
+CREATE TABLE IF NOT EXISTS channel_health (
+    source                 TEXT PRIMARY KEY,
+    last_poll_started_at   REAL,
+    last_poll_completed_at REAL,
+    last_error_at          REAL,
+    last_error             TEXT,
+    updated_at             REAL NOT NULL
+);
 """
 
 # Pre-approval databases lack the column; add it in place (SQLite has no
@@ -57,6 +66,7 @@ CREATE TABLE IF NOT EXISTS ingress_failures (
 _MIGRATIONS = (
     "ALTER TABLE jobs ADD COLUMN approved INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE jobs ADD COLUMN ingress_key TEXT",
+    "ALTER TABLE jobs ADD COLUMN telegram_status_message_id INTEGER",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_ingress_key "
     "ON jobs(ingress_key) WHERE ingress_key IS NOT NULL",
 )
@@ -77,6 +87,7 @@ class Job:
     finished_at: float | None
     approved: bool = False
     ingress_key: str | None = None
+    telegram_status_message_id: int | None = None
 
     @classmethod
     def _from_row(cls, row: sqlite3.Row) -> "Job":
@@ -94,6 +105,12 @@ class Job:
             started_at=row["started_at"],
             finished_at=row["finished_at"],
             approved=bool(row["approved"] if "approved" in row.keys() else 0),
+            telegram_status_message_id=(
+                int(row["telegram_status_message_id"])
+                if "telegram_status_message_id" in row.keys()
+                and row["telegram_status_message_id"] is not None
+                else None
+            ),
         )
 
 
@@ -211,6 +228,41 @@ def last_ingress_event(source: str) -> int | None:
         return int(value) if value is not None else None
 
 
+def update_channel_health(source: str, **fields) -> None:
+    """Persist cross-process channel liveness for Workdesk and diagnostics."""
+    allowed = {
+        "last_poll_started_at",
+        "last_poll_completed_at",
+        "last_error_at",
+        "last_error",
+    }
+    values = {key: value for key, value in fields.items() if key in allowed}
+    if not values:
+        return
+    init_db()
+    with _connect() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO channel_health (source, updated_at) VALUES (?,?)",
+            (source, time.time()),
+        )
+        assignments = ", ".join(f"{key}=?" for key in values)
+        conn.execute(
+            f"UPDATE channel_health SET {assignments}, updated_at=? WHERE source=?",
+            (*values.values(), time.time(), source),
+        )
+
+
+def channel_health(source: str) -> dict:
+    """Read one channel's durable, secret-free liveness record."""
+    init_db()
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM channel_health WHERE source=?",
+            (source,),
+        ).fetchone()
+        return dict(row) if row else {}
+
+
 def has_queued_task(task: str, source: str | None = None) -> bool:
     """True if an identical task is already waiting (status='queued').
 
@@ -319,6 +371,31 @@ def reject(job_id: int) -> bool:
             "UPDATE jobs SET status='rejected', finished_at=? "
             "WHERE id=? AND status='awaiting_approval'",
             (time.time(), job_id),
+        )
+        return cur.rowcount > 0
+
+
+def cancel(job_id: int) -> bool:
+    """Cancel work only while it is safely stoppable.
+
+    Running tool calls are deliberately untouched: the UI must never claim an
+    action stopped while the synchronous executor is still completing it.
+    """
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE jobs SET status='rejected', error='cancelled by owner', finished_at=? "
+            "WHERE id=? AND status IN ('queued', 'awaiting_approval')",
+            (time.time(), job_id),
+        )
+        return cur.rowcount > 0
+
+
+def set_telegram_status_message(job_id: int, message_id: int) -> bool:
+    """Persist the editable Telegram card so worker restarts can resume it."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE jobs SET telegram_status_message_id=? WHERE id=?",
+            (int(message_id), int(job_id)),
         )
         return cur.rowcount > 0
 

@@ -1123,8 +1123,9 @@ async function refresh(){
     tile("","Növbədə", q.queued??"–","işləyir: "+(q.running??0))+
     tile("","Hazır", q.done??"–","xəta: "+(q.error??0))+
     tile((q.awaiting_approval||0)>0?"warn":"","Təsdiq gözləyir", q.awaiting_approval??0,"riskli əməllər")+
-    tile(tg.last_error?"bad":(tg.configured?"ok":"warn"),"Telegram",
-      tg.configured?"hazır":"bağlı",
+    tile(tg.last_error||tg.polling_healthy===false?"bad":(tg.configured?"ok":"warn"),"Telegram",
+      !tg.configured?"bağlı":tg.polling_healthy===false?"polling dayanıb":
+        tg.polling_healthy===null?"başlayır":"canlı",
       tg.last_error?("xəta: "+tg.last_error):
         (tg.mode||"long_poll")+" · retry "+(tg.max_attempts??"–"))+
     tile("","Açarlar", `${envOk}/${envAll}`,"canlı .env refleksi")+

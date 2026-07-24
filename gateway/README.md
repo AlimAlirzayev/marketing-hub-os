@@ -27,7 +27,10 @@ bot.py (Telegram)├─> data/jobs.sqlite ─┤   pick LLM tier
 - **Telegram = long-poll**: outbound HTTPS only, no open port/webhook/public IP.
   Processed update IDs and queue ingress keys are durable, so restart/replay
   cannot create a second agent run. The typed adapter uses an explicit update
-  allowlist, bounded transient retries and Telegram's `retry_after`.
+  allowlist, bounded transient retries and Telegram's `retry_after`. Long work
+  uses one editable progress card; approval becomes owner-bound native buttons,
+  with slash-command fallbacks. The existing `gateway.supervisor` is the
+  self-healing daemon that keeps bot, worker, scheduler and health loops alive.
 
 ## Security prime directive
 
@@ -181,13 +184,14 @@ Results are also saved to `output/jobs/job-<id>.md`.
 
 1. In Telegram, message **@BotFather** → `/newbot` → follow prompts.
 2. Put the token in `.env`:  `TELEGRAM_BOT_TOKEN=123456:ABC...`
-3. Run both processes (two terminals):
+3. Start the one supervised daemon:
    ```powershell
-   python -m gateway.bot      # intake: receives messages, queues them
-   python -m gateway.worker   # executor: runs jobs, sends results back
+   python -m gateway.supervisor
    ```
-4. Message your bot any task. You get an instant "queued" ack, then the
-   finished result arrives in the chat.
+   `START_MARKETING_OS.ps1` starts this daemon automatically and its singleton
+   lock prevents duplicate Telegram pollers on the same machine.
+4. Message your bot any task. Long work gets a live status card, then the
+   finished result replaces that temporary progress flow in the chat.
 
 ## LLM config
 

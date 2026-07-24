@@ -55,6 +55,19 @@ def test_poison_update_attempts_are_durable(isolated_queue):
     assert isolated_queue.record_ingress_failure("telegram", 77, "bad payload") == 3
 
 
+def test_channel_health_is_shared_through_sqlite(isolated_queue):
+    isolated_queue.update_channel_health(
+        "telegram",
+        last_poll_started_at=10.0,
+        last_poll_completed_at=11.0,
+        last_error=None,
+    )
+    health = isolated_queue.channel_health("telegram")
+    assert health["last_poll_started_at"] == 10.0
+    assert health["last_poll_completed_at"] == 11.0
+    assert health["last_error"] is None
+
+
 def test_existing_jobs_database_migrates_without_data_loss(monkeypatch, tmp_path):
     old_db = tmp_path / "old-jobs.sqlite"
     with sqlite3.connect(old_db) as conn:

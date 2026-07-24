@@ -15,14 +15,43 @@ delivery ◄── worker._notify(job, text)   # dispatch by job.source
 ## Live channels
 | Channel | Intake | Delivery | Status |
 |---|---|---|---|
-| **Telegram** | `gateway/bot.py` (restart-safe long-poll) | `gateway/telegram` typed adapter | ✅ owner-only, idempotent, bounded retry |
+| **Telegram** | `gateway/bot.py` (restart-safe long-poll + native callbacks) | `gateway/telegram` typed adapter | ✅ owner-only, idempotent, live progress, native approval |
 
 Telegram persists handled `update_id` values in the durable queue database and
 binds queued work to a unique ingress key. A restart or Telegram replay therefore
 returns the original job instead of running the same request twice. The adapter
-subscribes only to `message` and `edited_message`, honors Bot API
+subscribes only to `message`, `edited_message`, and `callback_query`, honors Bot API
 `parameters.retry_after`, retries transient network/5xx failures within a bounded
 budget, and exposes secret-free transport health through the existing Hub pulse.
+Ingress uses one bounded long-poll attempt per supervised loop and records poll
+start/completion freshness, so Workdesk can distinguish “configured” from
+“actually polling” instead of showing a false-green token check.
+
+For long-running work the bot creates one editable status card, persists its
+Telegram `message_id` with the job, edits it when execution starts, and removes
+it after the final answer arrives. Risky actions turn that same card into native
+`Təsdiqlə / İmtina` buttons; `/approve N` and `/reject N` remain deterministic
+fallbacks. `Ləğv et` only cancels queued/parked work. A running synchronous tool
+call is never falsely labelled cancelled.
+
+This deliberately adopts the strongest OpenClaw Telegram UX patterns—always-on
+gateway, progress drafts, native approvals, durable ingress and dead-letter-like
+quarantine—without importing OpenClaw's broader plugin/runtime trust surface.
+The Ramin-OS supervisor remains the one daemon, and Claude router → summon →
+production CrewAI remains the execution authority.
+
+### Live benchmark evidence (2026-07-24)
+
+- Telegram Bot API: `https://core.telegram.org/bots/api`
+- OpenClaw Telegram runtime and approvals:
+  `https://docs.openclaw.ai/channels/telegram`
+- OpenClaw progress-draft behavior:
+  `https://docs.openclaw.ai/concepts/progress-drafts`
+- OpenClaw daemon/service lifecycle:
+  `https://docs.openclaw.ai/cli/daemon`
+- User-reported silent polling regressions considered in our design:
+  `https://github.com/openclaw/openclaw/issues/59833` and
+  `https://github.com/openclaw/openclaw/issues/73323`
 
 Secrets never enter this channel. `/setkey` and `/setfile` are permanently
 fail-closed; use `SECURE_KEY.bat KEY_NAME` (or

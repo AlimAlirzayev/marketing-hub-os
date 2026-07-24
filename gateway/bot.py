@@ -51,6 +51,7 @@ _HELP = (
     "  /jobs       - list recent jobs\n"
     "  /approve N  - approve a parked risky job (owner only)\n"
     "  /reject N   - reject a parked risky job (owner only)\n"
+    "  /cancel N   - cancel a queued job (owner only)\n"
     "  /danis TEXT - speak TEXT in the owner's own cloned voice (owner only)\n"
     "  /update     - pull the latest engine from GitHub (owner only)\n"
     "  /setkey     - blocked; secrets are local-terminal only\n"
@@ -233,6 +234,90 @@ def _extract_task(msg: dict) -> tuple[str | None, bool]:
     if media and media.get("file_id"):
         return _transcribe(media["file_id"]), True
     return None, False
+
+
+def _status_buttons(job_id: int, *, approval: bool = False):
+    if approval:
+        return [[
+            ("✅ Təsdiqlə", f"job:approve:{job_id}"),
+            ("🚫 İmtina", f"job:reject:{job_id}"),
+        ]]
+    return [[("✕ Ləğv et", f"job:cancel:{job_id}")]]
+
+
+def _edit_job_status(job_id: int, text: str, *, buttons=None) -> None:
+    job = queue.get(job_id)
+    if not job or not job.chat_id or not job.telegram_status_message_id:
+        return
+    try:
+        telegram.edit_status(
+            job.chat_id,
+            job.telegram_status_message_id,
+            text,
+            buttons=buttons,
+        )
+    except Exception as exc:
+        sense.emit(
+            "telegram",
+            f"job #{job_id} status edit failed",
+            {"error": exc.__class__.__name__},
+        )
+
+
+def _handle_callback(callback: dict) -> None:
+    """Resolve native controls with owner, chat, and status-card binding."""
+    callback_id = str(callback.get("id") or "")
+    actor = (callback.get("from") or {}).get("id")
+    message = callback.get("message") or {}
+    chat_id = (message.get("chat") or {}).get("id")
+    data = str(callback.get("data") or "")
+
+    if not (_is_owner(actor) and _is_owner(chat_id)):
+        sense.emit("security", f"rejected Telegram callback actor={actor}")
+        if callback_id:
+            telegram.answer_callback(callback_id, "İcazə yoxdur.")
+        return
+
+    parts = data.split(":")
+    if len(parts) != 3 or parts[0] != "job" or not parts[2].isdigit():
+        telegram.answer_callback(callback_id, "Bu düymə artıq etibarlı deyil.")
+        return
+
+    action, job_id = parts[1], int(parts[2])
+    job = queue.get(job_id)
+    if (
+        not job
+        or str(job.chat_id) != str(chat_id)
+        or job.telegram_status_message_id != message.get("message_id")
+    ):
+        telegram.answer_callback(callback_id, "Bu idarəetmə kartı uyğun gəlmir.")
+        return
+
+    if action == "approve":
+        ok = queue.approve(job_id)
+        text = (
+            "✅ Təsdiqləndi — icraya qaytarıldı."
+            if ok else "Bu qərar artıq verilib və ya təsdiq gözləmir."
+        )
+    elif action == "reject":
+        ok = queue.reject(job_id)
+        text = (
+            "🚫 İmtina edildi — əməliyyat icra olunmayacaq."
+            if ok else "Bu qərar artıq verilib və ya təsdiq gözləmir."
+        )
+    elif action == "cancel":
+        ok = queue.cancel(job_id)
+        text = (
+            "✕ Ləğv edildi — iş icraya başlamadı."
+            if ok else "İş artıq başlayıb və təhlükəsiz şəkildə buradan dayandırıla bilmir."
+        )
+    else:
+        telegram.answer_callback(callback_id, "Naməlum qərar.")
+        return
+
+    telegram.answer_callback(callback_id, text)
+    if ok:
+        _edit_job_status(job_id, text)
 
 
 def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
@@ -425,9 +510,11 @@ def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
             if _said_yes:
                 queue.approve(j.id)
                 telegram.send_message(chat_id, f"✅ Oldu — “{j.task[:60]}” icra edirəm.")
+                _edit_job_status(j.id, "✅ Təsdiqləndi — icraya qaytarıldı.")
             else:
                 queue.reject(j.id)
                 telegram.send_message(chat_id, f"🚫 Ləğv etdim — “{j.task[:60]}” toxunmadım.")
+                _edit_job_status(j.id, "🚫 İmtina edildi — əməliyyat icra olunmayacaq.")
             return
         if len(parked) > 1:
             lines = ["Hansını nəzərdə tutursan?"]
@@ -438,7 +525,7 @@ def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
 
     # The human checkpoint's other half: the operator decides a parked job's fate.
     parts = text.split()
-    if parts[0] in ("/approve", "/reject") and len(parts) >= 2 and parts[1].isdigit():
+    if parts[0] in ("/approve", "/reject", "/cancel") and len(parts) >= 2 and parts[1].isdigit():
         if not _is_owner(chat_id):
             telegram.send_message(chat_id, "Not authorized for ops commands.")
             return
@@ -450,12 +537,28 @@ def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
                 f"✅ Job #{job_id} təsdiqləndi — icraya qayıtdı." if ok
                 else f"Job #{job_id} təsdiq gözləmir (artıq həll olunub və ya yoxdur).",
             )
-        else:
+        elif parts[0] == "/reject":
             ok = queue.reject(job_id)
             telegram.send_message(
                 chat_id,
                 f"🚫 Job #{job_id} imtina edildi — icra olunmayacaq." if ok
                 else f"Job #{job_id} təsdiq gözləmir (artıq həll olunub və ya yoxdur).",
+            )
+        else:
+            ok = queue.cancel(job_id)
+            telegram.send_message(
+                chat_id,
+                f"✕ Job #{job_id} ləğv edildi." if ok
+                else f"Job #{job_id} artıq başlayıb və buradan təhlükəsiz dayandırıla bilmir.",
+            )
+        if ok:
+            _edit_job_status(
+                job_id,
+                "✅ Təsdiqləndi — icraya qaytarıldı."
+                if parts[0] == "/approve"
+                else "🚫 İmtina edildi — əməliyyat icra olunmayacaq."
+                if parts[0] == "/reject"
+                else "✕ Ləğv edildi — iş icraya başlamadı.",
             )
         return
 
@@ -493,9 +596,19 @@ def _handle_message(msg: dict, *, ingress_key: str | None = None) -> None:
         except Exception:
             pass
     else:
-        telegram.send_message(
-            chat_id, "Aldım — üzərində işləyirəm, bir az çəkə bilər, hazır olanda yazacam."
-        )
+        try:
+            status_id = telegram.send_status(
+                chat_id,
+                "⏳ Aldım — növbəyə əlavə etdim.",
+                buttons=_status_buttons(job_id),
+            )
+            if status_id is not None:
+                queue.set_telegram_status_message(job_id, status_id)
+        except Exception:
+            telegram.send_message(
+                chat_id,
+                "Aldım — üzərində işləyirəm, bir az çəkə bilər, hazır olanda yazacam.",
+            )
 
 
 def _announce_online() -> None:
@@ -541,8 +654,11 @@ def main() -> None:
                     offset = update_id + 1
                     continue
                 msg = upd.get("message") or upd.get("edited_message")
+                callback = upd.get("callback_query")
                 try:
-                    if msg:
+                    if callback:
+                        _handle_callback(callback)
+                    elif msg:
                         _handle_message(msg, ingress_key=f"telegram:{update_id}")
                     queue.mark_ingress_processed("telegram", update_id)
                     offset = update_id + 1

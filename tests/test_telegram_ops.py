@@ -73,11 +73,34 @@ class ConflictDetection(unittest.TestCase):
         from gateway import telegram
         with mock.patch.object(
             telegram, "_call", return_value={"ok": True, "result": []}
-        ) as call:
+        ) as call, mock.patch("gateway.queue.update_channel_health"):
             telegram.get_updates(offset=10)
         params = call.call_args.kwargs
         self.assertEqual(params["offset"], 10)
-        self.assertEqual(params["allowed_updates"], ["message", "edited_message"])
+        self.assertEqual(
+            params["allowed_updates"],
+            ["message", "edited_message", "callback_query"],
+        )
+        self.assertEqual(params["_max_attempts"], 1)
+
+    def test_status_message_and_buttons_use_native_bot_api(self):
+        from gateway import telegram
+        with mock.patch.object(
+            telegram,
+            "_call",
+            return_value={"ok": True, "result": {"message_id": 77}},
+        ) as call:
+            message_id = telegram.send_status(
+                42,
+                "working",
+                buttons=[[("Cancel", "job:cancel:3")]],
+            )
+        self.assertEqual(message_id, 77)
+        self.assertEqual(call.call_args.args[0], "sendMessage")
+        self.assertEqual(
+            call.call_args.kwargs["reply_markup"]["inline_keyboard"][0][0],
+            {"text": "Cancel", "callback_data": "job:cancel:3"},
+        )
 
 
 class StatusCommand(unittest.TestCase):
@@ -171,6 +194,69 @@ class SupervisorSingleton(unittest.TestCase):
             third = supervisor._singleton_lock()              # released -> free
             self.assertIsNotNone(third)
             third.close()
+
+
+class NativeTelegramControls(unittest.TestCase):
+    def setUp(self):
+        from gateway import bot, queue
+        self.bot, self.queue = bot, queue
+        self._saved = queue._DB_PATH
+        queue._DB_PATH = Path(tempfile.mkdtemp()) / "jobs.sqlite"
+        queue.init_db()
+        self.answers: list[str] = []
+        self.edits: list[str] = []
+        patches = [
+            mock.patch.dict(os.environ, {"TELEGRAM_OWNER_CHAT_ID": "42"}),
+            mock.patch.object(
+                bot.telegram,
+                "answer_callback",
+                side_effect=lambda _, text="": self.answers.append(text),
+            ),
+            mock.patch.object(
+                bot.telegram,
+                "edit_status",
+                side_effect=lambda _c, _m, text, **_k: self.edits.append(text),
+            ),
+            mock.patch.object(bot.sense, "emit"),
+        ]
+        for patch in patches:
+            patch.start()
+        self.addCleanup(lambda: [patch.stop() for patch in patches])
+
+    def tearDown(self):
+        self.queue._DB_PATH = self._saved
+
+    def _callback(self, action: str, job_id: int, *, actor: int = 42) -> dict:
+        return {
+            "id": "callback-1",
+            "from": {"id": actor},
+            "data": f"job:{action}:{job_id}",
+            "message": {"message_id": 99, "chat": {"id": 42}},
+        }
+
+    def test_owner_can_cancel_only_before_execution(self):
+        job_id = self.queue.submit("long task", source="telegram", chat_id="42")
+        self.queue.set_telegram_status_message(job_id, 99)
+        self.bot._handle_callback(self._callback("cancel", job_id))
+        self.assertEqual(self.queue.get(job_id).status, "rejected")
+        self.assertIn("Ləğv edildi", self.answers[-1])
+        self.assertIn("Ləğv edildi", self.edits[-1])
+
+    def test_running_job_is_not_falsely_cancelled(self):
+        job_id = self.queue.submit("long task", source="telegram", chat_id="42")
+        self.queue.set_telegram_status_message(job_id, 99)
+        self.queue.claim_next()
+        self.bot._handle_callback(self._callback("cancel", job_id))
+        self.assertEqual(self.queue.get(job_id).status, "running")
+        self.assertIn("dayandırıla bilmir", self.answers[-1])
+        self.assertEqual(self.edits, [])
+
+    def test_non_owner_callback_cannot_decide(self):
+        job_id = self.queue.submit("long task", source="telegram", chat_id="42")
+        self.queue.set_telegram_status_message(job_id, 99)
+        self.bot._handle_callback(self._callback("cancel", job_id, actor=999))
+        self.assertEqual(self.queue.get(job_id).status, "queued")
+        self.assertIn("İcazə yoxdur", self.answers[-1])
 
 
 if __name__ == "__main__":

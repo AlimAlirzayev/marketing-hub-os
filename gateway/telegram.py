@@ -21,7 +21,7 @@ _API = "https://api.telegram.org/bot{token}/{method}"
 _FILE_API = "https://api.telegram.org/file/bot{token}/{path}"
 _TIMEOUT = 60  # long-poll holds the connection open up to this long
 _MAX_ATTEMPTS = 4
-_ALLOWED_UPDATES = ["message", "edited_message"]
+_ALLOWED_UPDATES = ["message", "edited_message", "callback_query"]
 _SESSION = requests.Session()
 _SESSION.headers.update({"User-Agent": "Ramin-OS-Telegram/1"})
 _HEALTH: dict[str, Any] = {
@@ -30,6 +30,8 @@ _HEALTH: dict[str, Any] = {
     "last_error": None,
     "last_retry_after": None,
     "retries": 0,
+    "last_poll_started_at": None,
+    "last_poll_completed_at": None,
 }
 
 
@@ -102,6 +104,7 @@ def _request(
     data: dict | None = None,
     files: dict | None = None,
     http_timeout: int | None = None,
+    max_attempts: int = _MAX_ATTEMPTS,
 ):
     tok = _token()
     if not tok:
@@ -110,7 +113,8 @@ def _request(
     timeout = http_timeout or _TIMEOUT + 10
     last_error: Exception | None = None
 
-    for attempt in range(1, _MAX_ATTEMPTS + 1):
+    attempts = max(1, int(max_attempts))
+    for attempt in range(1, attempts + 1):
         try:
             _rewind_files(files)
             resp = _SESSION.post(
@@ -136,7 +140,7 @@ def _request(
             if code == 429:
                 wait = _retry_after(payload, resp)
                 _HEALTH["last_retry_after"] = wait
-                if attempt < _MAX_ATTEMPTS:
+                if attempt < attempts:
                     _HEALTH["retries"] += 1
                     time.sleep(min(wait, 60))
                     continue
@@ -150,13 +154,15 @@ def _request(
             _HEALTH["last_ok_at"] = time.time()
             _HEALTH["last_error"] = None
             return payload
-        except (ConflictError, AuthenticationError, ForbiddenError, RateLimitError, TelegramError):
+        except (ConflictError, AuthenticationError, ForbiddenError, RateLimitError, TelegramError) as exc:
+            _HEALTH["last_error_at"] = time.time()
+            _HEALTH["last_error"] = exc.__class__.__name__
             raise
         except (requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError,
                 requests.exceptions.HTTPError) as exc:
             last_error = exc
-            if attempt < _MAX_ATTEMPTS:
+            if attempt < attempts:
                 _HEALTH["retries"] += 1
                 time.sleep(min(2 ** (attempt - 1), 8))
                 continue
@@ -165,29 +171,59 @@ def _request(
     _HEALTH["last_error_at"] = time.time()
     _HEALTH["last_error"] = (last_error or RuntimeError("unknown")).__class__.__name__
     raise TransientError(
-        f"Telegram transport failed after {_MAX_ATTEMPTS} attempts "
+        f"Telegram transport failed after {attempts} attempts "
         f"({_HEALTH['last_error']})"
     ) from last_error
 
 
 def _call(method: str, **params):
     """Typed JSON Bot API call with bounded retry and 429 compliance."""
+    max_attempts = int(params.pop("_max_attempts", _MAX_ATTEMPTS))
     poll_timeout = int(params.get("timeout") or 0)
     return _request(
         method,
         json_params=params,
         http_timeout=max(_TIMEOUT + 10, poll_timeout + 10),
+        max_attempts=max_attempts,
     )
 
 
 def status() -> dict[str, Any]:
     """Secret-free transport state for the existing Hub/pulse surface."""
+    durable: dict[str, Any] = {}
+    try:
+        from . import queue
+        durable = queue.channel_health("telegram")
+    except Exception:
+        pass
+    health = {**_HEALTH}
+    for key in (
+        "last_poll_started_at",
+        "last_poll_completed_at",
+        "last_error_at",
+        "last_error",
+    ):
+        if durable.get(key) is not None:
+            health[key] = durable[key]
+    now = time.time()
+    last_poll = health.get("last_poll_completed_at")
+    poll_started = health.get("last_poll_started_at")
+    if not is_configured():
+        poll_healthy = None
+    elif last_poll is not None:
+        poll_healthy = now - float(last_poll) <= 120
+    elif poll_started is not None:
+        poll_healthy = now - float(poll_started) <= _TIMEOUT + 30
+    else:
+        poll_healthy = None
     return {
         "configured": is_configured(),
         "mode": "long_poll",
         "allowed_updates": list(_ALLOWED_UPDATES),
         "max_attempts": _MAX_ATTEMPTS,
-        **_HEALTH,
+        "poll_stale_after_seconds": 120,
+        "polling_healthy": poll_healthy,
+        **health,
     }
 
 
@@ -195,6 +231,59 @@ def send_message(chat_id: str | int, text: str) -> None:
     """Send a message, chunked to Telegram's 4096-char limit."""
     for i in range(0, len(text), 4000):
         _call("sendMessage", chat_id=chat_id, text=text[i : i + 4000])
+
+
+def _inline_keyboard(buttons: list[list[tuple[str, str]]] | None) -> dict | None:
+    """Build a Telegram inline keyboard without embedding task or secret text."""
+    if not buttons:
+        return None
+    return {
+        "inline_keyboard": [
+            [{"text": text, "callback_data": data} for text, data in row]
+            for row in buttons
+        ]
+    }
+
+
+def send_status(
+    chat_id: str | int,
+    text: str,
+    *,
+    buttons: list[list[tuple[str, str]]] | None = None,
+) -> int | None:
+    """Create one editable progress/approval message and return its message id."""
+    params: dict[str, Any] = {"chat_id": chat_id, "text": text[:4000]}
+    markup = _inline_keyboard(buttons)
+    if markup:
+        params["reply_markup"] = markup
+    result = (_call("sendMessage", **params).get("result") or {})
+    value = result.get("message_id")
+    return int(value) if value is not None else None
+
+
+def edit_status(
+    chat_id: str | int,
+    message_id: int,
+    text: str,
+    *,
+    buttons: list[list[tuple[str, str]]] | None = None,
+) -> None:
+    """Edit a progress message; omitting buttons removes any old controls."""
+    _call(
+        "editMessageText",
+        chat_id=chat_id,
+        message_id=int(message_id),
+        text=text[:4000],
+        reply_markup=_inline_keyboard(buttons) or {"inline_keyboard": []},
+    )
+
+
+def answer_callback(callback_query_id: str, text: str = "") -> None:
+    """Stop Telegram's button spinner with a short, non-sensitive result."""
+    params: dict[str, Any] = {"callback_query_id": callback_query_id}
+    if text:
+        params["text"] = text[:200]
+    _call("answerCallbackQuery", **params)
 
 
 def send_chat_action(chat_id: str | int, action: str = "typing") -> None:
@@ -261,7 +350,41 @@ def get_updates(offset: int | None = None) -> list[dict]:
     }
     if offset is not None:
         params["offset"] = offset
-    data = _call("getUpdates", **params)
+    started = time.time()
+    _HEALTH["last_poll_started_at"] = started
+    try:
+        from . import queue
+        queue.update_channel_health("telegram", last_poll_started_at=started)
+    except Exception:
+        pass
+    # One long-poll attempt per outer bot loop. Retrying four 70-second polls
+    # inside the transport can make a dead channel look alive for ~5 minutes;
+    # the supervised bot loop is the retry/restart boundary for ingress.
+    try:
+        data = _call("getUpdates", _max_attempts=1, **params)
+    except Exception as exc:
+        failed = time.time()
+        try:
+            from . import queue
+            queue.update_channel_health(
+                "telegram",
+                last_error_at=failed,
+                last_error=exc.__class__.__name__,
+            )
+        except Exception:
+            pass
+        raise
+    completed = time.time()
+    _HEALTH["last_poll_completed_at"] = completed
+    try:
+        from . import queue
+        queue.update_channel_health(
+            "telegram",
+            last_poll_completed_at=completed,
+            last_error=None,
+        )
+    except Exception:
+        pass
     return data.get("result", [])
 
 
